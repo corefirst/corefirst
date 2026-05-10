@@ -75,7 +75,7 @@ type Dict = Record<DictKey, string | Resolver>;
 
 const en: Dict = {
   tagline: 'Core-First Language Method',
-  tabTransform: 'Transform', tabCourse: 'Course Mode', tabRoleplay: 'Roleplay', tabStats: 'Stats',
+  tabTransform: 'Transform', tabCourse: 'Course', tabRoleplay: 'Roleplay', tabStats: 'Stats',
   uiLangLabel: 'Interface',
   historyTransformsHeader: 'Transform History',
   historyRoleplayHeader: 'Roleplay Sessions',
@@ -158,9 +158,9 @@ const en: Dict = {
 
 const zh: Dict = {
   tagline: '核心先行语言方法',
-  tabTransform: '重塑', tabCourse: '课程', tabRoleplay: '角色扮演', tabStats: '统计',
+  tabTransform: '转换', tabCourse: '课程', tabRoleplay: '角色扮演', tabStats: '统计',
   uiLangLabel: '界面语言',
-  historyTransformsHeader: '重塑历史',
+  historyTransformsHeader: '转换历史',
   historyRoleplayHeader: '角色扮演会话',
   historyCoursesHeader: '课程库',
   historyEmpty: '暂无记录 —— 你的活动将在这里出现。',
@@ -178,9 +178,9 @@ const zh: Dict = {
   ageGroupLabel: '目标年龄段', industryLabel: '行业背景',
   transformPlaceholder: '输入一句话...',
   coursePlaceholder: '输入主题（例如：动物园、商务会议）',
-  btnTransform: '重塑', btnGenerateCourse: '生成课程',
+  btnTransform: '转换', btnGenerateCourse: '生成课程',
   submitHint: '按 ⌘/Ctrl+Enter 提交',
-  errorTransform: '重塑失败，请重试。',
+  errorTransform: '转换失败，请重试。',
   errorCourse: '课程生成失败，请重试。',
   cfltThinkingHeader: 'Core / Reason / Space / Time 思维结构',
   targetMappingHeader: '目标语映射',
@@ -199,7 +199,7 @@ const zh: Dict = {
   statsLoading: '正在加载你的进度…',
   statsErrorLoad: '无法加载进度数据，请刷新页面。',
   statsEmptyTitle: '你的旅程即将开始',
-  statsEmptyBody: '完成第一次重塑、发音挑战或角色扮演，进度就会出现在这里。',
+  statsEmptyBody: '完成第一次转换、发音挑战或角色扮演，进度就会出现在这里。',
   statsSectionStreak: '每日打卡',
   statsSectionAbility: '练习与能力',
   statsSectionMemory: '记忆',
@@ -214,7 +214,7 @@ const zh: Dict = {
   statsTotalSessions: '课程节数',
   statsTotalAttempts: '发音练习',
   statsAvgScore: '平均分',
-  statsTotalTransforms: '重塑次数',
+  statsTotalTransforms: '转换次数',
   statsTotalRoleplay: '角色扮演消息',
   statsLearningCurve: '学习曲线',
   statsLogicStress: '逻辑重音',
@@ -226,7 +226,7 @@ const zh: Dict = {
   statsTopPackagesEmpty: '还没有课程练习记录。',
   statsAttemptsLabel: (n) => `${n} 次练习`,
   statsLanguagePairs: '语言对',
-  statsLanguagePairsEmpty: '还没有重塑记录。',
+  statsLanguagePairsEmpty: '还没有转换记录。',
   statsVocabulary: '词汇',
   statsVocabTotal: '总词数',
   statsVocabDue: '今日待复习',
@@ -324,7 +324,7 @@ const ja: Dict = {
 
 const ko: Dict = {
   tagline: '코어 퍼스트 언어 학습법',
-  tabTransform: '변환', tabCourse: '코스 모드', tabRoleplay: '역할극', tabStats: '통계',
+  tabTransform: '변환', tabCourse: '코스', tabRoleplay: '역할극', tabStats: '통계',
   uiLangLabel: '인터페이스',
   historyTransformsHeader: '변환 기록',
   historyRoleplayHeader: '역할극 세션',
