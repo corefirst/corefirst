@@ -1,0 +1,27 @@
+# Build artifacts re-generated inside the image
+node_modules
+.next
+.turbo
+
+# Local-only data — must NEVER be baked into the image
+.env
+.env.local
+.env.*.local
+data/
+dev.db
+
+# Tooling / VCS / IDE noise
+.git
+.gitignore
+.dockerignore
+.vscode
+.idea
+.DS_Store
+tsconfig.tsbuildinfo
+
+# Tests + docs are dev artifacts; not needed at runtime
+tests/
+docs/
+plans/
+README.md
+*.log

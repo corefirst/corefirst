@@ -1,0 +1,64 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Vibrant Blue Gradient (Liquid/Glass feel) -->
+    <linearGradient id="vibrantBlue" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1D4ED8;stop-opacity:1" /> <!-- Blue-700 -->
+      <stop offset="50%" style="stop-color:#3B82F6;stop-opacity:1" /> <!-- Blue-500 -->
+      <stop offset="100%" style="stop-color:#60A5FA;stop-opacity:1" /> <!-- Blue-400 -->
+    </linearGradient>
+
+    <!-- Glowing Logic Line Gradient -->
+    <linearGradient id="pulseLine" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3B82F6;stop-opacity:0.8" />
+      <stop offset="100%" style="stop-color:#93C5FD;stop-opacity:0.2" />
+    </linearGradient>
+
+    <!-- Outer Glow for the Core -->
+    <filter id="coreGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+
+    <!-- Inner Glow for circles to feel like "Glass Nodes" -->
+    <radialGradient id="innerGlow" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:0.4" />
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background: Transparent -->
+
+  <!-- The Core-First Symbol: Dynamic Diagonal (Shifted right to avoid clipping) -->
+  <g transform="translate(286, 256)">
+    <g transform="rotate(-25)">
+      
+      <!-- THE LOGIC PULSE: Representing "extending from circles" -->
+      <!-- A multi-layered line that glows and flows through nodes -->
+      <line x1="-220" y1="0" x2="220" y2="0" stroke="url(#pulseLine)" stroke-width="6" stroke-linecap="round" />
+      <line x1="-220" y1="0" x2="220" y2="0" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="10,20" opacity="0.4" />
+
+      <!-- Nodes: Interconnected Glass Spheres -->
+      
+      <!-- 1. CORE -->
+      <circle cx="-185" cy="0" r="92" fill="url(#vibrantBlue)" filter="url(#coreGlow)" />
+      <circle cx="-185" cy="0" r="92" fill="url(#innerGlow)" />
+      
+      <!-- 2. CONDITION -->
+      <circle cx="15" cy="0" r="58" fill="#2563EB" />
+      <circle cx="15" cy="0" r="58" fill="url(#innerGlow)" />
+      
+      <!-- 3. SPACE -->
+      <circle cx="135" cy="0" r="34" fill="#3B82F6" />
+      <circle cx="135" cy="0" r="34" fill="url(#innerGlow)" />
+      
+      <!-- 4. TIME -->
+      <circle cx="200" cy="0" r="18" fill="#60A5FA" />
+      <circle cx="200" cy="0" r="18" fill="url(#innerGlow)" />
+
+      <!-- Pulse Highlights: Little sparkles where the line enters/exits circles -->
+      <circle cx="-93" cy="0" r="3" fill="#FFFFFF" opacity="0.6" />
+      <circle cx="75" cy="0" r="2.5" fill="#FFFFFF" opacity="0.5" />
+      <circle cx="170" cy="0" r="2" fill="#FFFFFF" opacity="0.4" />
+    </g>
+  </g>
+</svg>

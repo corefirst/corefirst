@@ -1,0 +1,13 @@
+node_modules
+# Keep environment variables out of version control.
+# `.env` is the project-default; `.env*.local` follows Next.js convention for
+# per-developer local overrides (.env.local / .env.development.local / etc.).
+# Sample files (`.env.example`, `.env.localstack.example`) are intentionally
+# tracked — they do NOT match the `.local` pattern.
+.env
+.env*.local
+.next/
+
+# Local learning data (.corefirst packages and .cfrecord files).
+# Contains personal progress; never committed.
+data/

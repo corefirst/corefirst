@@ -1,0 +1,79 @@
+{
+  "name": "corefirst",
+  "version": "0.1.0",
+  "description": "Open-source AI-driven bilingual learning platform implementing Core-First Language Theory (CFLT).",
+  "homepage": "https://corefirst.world",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/corefirst/corefirst.git"
+  },
+  "bugs": {
+    "url": "https://github.com/corefirst/corefirst/issues"
+  },
+  "main": "index.js",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:e2e": "vitest run --config vitest.config.e2e.ts"
+  },
+  "keywords": [
+    "language-learning",
+    "bilingual",
+    "cflt",
+    "core-first",
+    "ai",
+    "education",
+    "nextjs",
+    "esl"
+  ],
+  "author": "CoreFirst Team",
+  "license": "Apache-2.0",
+  "packageManager": "pnpm@10.30.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.76",
+    "@ai-sdk/google": "^3.0.68",
+    "@ai-sdk/openai": "^3.0.62",
+    "@ai-sdk/provider": "3.0.10",
+    "@openrouter/ai-sdk-provider": "^2.9.0",
+    "@tailwindcss/postcss": "^4.2.4",
+    "@types/pouchdb": "^6.4.2",
+    "ai": "^6.0.175",
+    "fflate": "^0.8.2",
+    "framer-motion": "^12.38.0",
+    "lucide-react": "^1.14.0",
+    "next": "^16.2.4",
+    "ollama-ai-provider-v2": "^3.5.0",
+    "pouchdb": "^9.0.0",
+    "pouchdb-adapter-leveldb": "^9.0.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "recharts": "^3.8.1",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "autoprefixer": "^10.5.0",
+    "dotenv": "^17.4.2",
+    "postcss": "^8.5.14",
+    "pouchdb-node": "^9.0.0",
+    "tailwindcss": "^4.2.4",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.5"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": []
+  }
+}

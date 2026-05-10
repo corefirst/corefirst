@@ -1,0 +1,134 @@
+# =============================================================================
+# CoreFirst — local stack
+#
+# Two profiles:
+#   default          (no --profile flag): bring up Kokoro + faster-whisper
+#                    only. Run corefirst itself with `pnpm dev` on the host.
+#                    Best for everyday development on macOS.
+#
+#   --profile full   Add the corefirst app container. One-command bring-up of
+#                    the full stack. Best for demo, server deploy, multi-dev.
+#                    Requires `.env` to be present (provider API keys etc.).
+#
+# Ollama is intentionally NOT a service — keep it native:
+#   - Mac: Ollama desktop app gives you Metal acceleration that Docker
+#          Desktop's Linux VM can't reach.
+#   - Linux: see the commented `ollama:` block at the bottom for server use.
+#
+# First boot of faster-whisper downloads the configured Whisper model
+# into a named volume. Subsequent starts are fast.
+#
+# Default is `Systran/faster-whisper-small` (~500 MB, ~2 GB RAM) —
+# multilingual and fast enough for short utterances on stock 8 GB
+# Docker Desktop. Override via the STT_MODEL env var (host or .env;
+# same variable the app uses to address the model) if you have more
+# memory to spend, e.g.:
+#   STT_MODEL=Systran/faster-whisper-medium                 # ~5 GB RAM
+#   STT_MODEL=Systran/faster-distil-whisper-large-v3        # ~5 GB RAM, better quality
+#   STT_MODEL=Systran/faster-whisper-large-v3               # ~10 GB RAM (bump Docker memory first)
+# =============================================================================
+
+name: corefirst
+
+services:
+  # ---------------------------------------------------------------------------
+  # TTS: Kokoro-FastAPI (82M params, OpenAI-compatible /v1/audio/speech)
+  # ---------------------------------------------------------------------------
+  kokoro:
+    image: ghcr.io/remsky/kokoro-fastapi-cpu:latest
+    container_name: corefirst-kokoro
+    ports:
+      - "8880:8880"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # STT: faster-whisper-server (Whisper Large-v3, OpenAI-compatible)
+  # ---------------------------------------------------------------------------
+  faster-whisper:
+    image: fedirz/faster-whisper-server:latest-cpu
+    container_name: corefirst-faster-whisper
+    ports:
+      - "8000:8000"
+    environment:
+      WHISPER__MODEL: ${STT_MODEL:-Systran/faster-whisper-small}
+    volumes:
+      - faster-whisper-cache:/root/.cache/huggingface
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # CoreFirst itself — opt-in. Activate with:
+  #   docker compose --profile full up -d
+  #
+  # NOTE on bind mount permissions:
+  #   - macOS Docker Desktop transparently grants the container access to the
+  #     bind-mounted ./data regardless of host UID.
+  #   - Linux: the container runs as uid 1001 (see Dockerfile `USER nextjs`).
+  #     If your host ./data is owned by another uid, either chown it
+  #     (`sudo chown -R 1001:1001 ./data`) or replace the bind mount below
+  #     with a named volume.
+  # ---------------------------------------------------------------------------
+  corefirst:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: corefirst-app
+    ports:
+      - "3000:3000"
+    env_file:
+      # Made optional so `docker compose --profile full up` doesn't die when
+      # .env is missing. You DO need it in practice (provider API keys etc.);
+      # this just lets the parser proceed and surface a clearer runtime error.
+      - path: .env
+        required: false
+    environment:
+      # Override host-style URLs from .env with compose-internal ones.
+      # Sidecars are reachable by service name on the compose network.
+      TTS_BASE_URL: http://kokoro:8880/v1
+      STT_BASE_URL: http://faster-whisper:8000/v1
+      # Ollama runs natively on the host — reach it through the host gateway.
+      # Works on Docker Desktop (macOS/Windows) directly; on Linux requires
+      # the extra_hosts entry below.
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      # Inside container, data lives at /app/data — bound to ./data on host.
+      COREFIRST_DATA_DIR: /app/data
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      # Persist learner progress + course packages across container restarts.
+      # Inspect from host via `ls ./data/packages/` and `cat ./data/records/*.cfrecord`.
+      - ./data:/app/data
+    depends_on:
+      - kokoro
+      - faster-whisper
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Linux deploy only — uncomment to add Ollama as a containerized service.
+  # macOS users: KEEP THIS COMMENTED. Docker Desktop's Linux VM cannot pass
+  # through Apple Silicon's Metal GPU; containerized Ollama on Mac falls back
+  # to CPU and is dramatically slower than the native app.
+  #
+  # ollama:
+  #   image: ollama/ollama:latest
+  #   container_name: corefirst-ollama
+  #   ports:
+  #     - "11434:11434"
+  #   volumes:
+  #     - ollama-models:/root/.ollama
+  #   # NVIDIA GPU passthrough (Linux only):
+  #   # deploy:
+  #   #   resources:
+  #   #     reservations:
+  #   #       devices:
+  #   #         - driver: nvidia
+  #   #           count: all
+  #   #           capabilities: [gpu]
+  #   restart: unless-stopped
+  #
+  # When uncommented: change OLLAMA_BASE_URL on the corefirst service to
+  # http://ollama:11434 and you can drop the host.docker.internal extra_hosts.
+
+volumes:
+  faster-whisper-cache:
+  # ollama-models:   # uncomment alongside the ollama service above
