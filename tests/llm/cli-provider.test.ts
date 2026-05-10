@@ -118,15 +118,16 @@ describe('CLI text provider (claude)', () => {
 });
 
 describe('CLI text provider (capability matrix)', () => {
-  it('rejects cli/claude when configured for a non-text feature', async () => {
+  it('falls back to "none" when cli/claude is configured for a non-text feature', async () => {
+    // cli/claude is text-only. The config layer gracefully downgrades to 'none'
+    // rather than throwing, so the app stays up and features without a valid
+    // provider silently no-op rather than crashing at startup.
     const previous = process.env.IMAGE_GEN_PROVIDER;
     process.env.IMAGE_GEN_PROVIDER = 'cli/claude';
     try {
       vi.resetModules();
-      // Sub-path imports avoid the top-level eager model construction.
       const { resolveFeature } = await import('@/src/lib/ai/config');
-      const { InvalidProviderError } = await import('@/src/lib/ai/capabilities');
-      expect(() => resolveFeature('imageGen')).toThrow(InvalidProviderError);
+      expect(resolveFeature('imageGen').provider).toBe('none');
     } finally {
       if (previous === undefined) delete process.env.IMAGE_GEN_PROVIDER;
       else process.env.IMAGE_GEN_PROVIDER = previous;

@@ -63,14 +63,18 @@ export async function POST(request: Request) {
 
     const promptText = JSON.stringify(messages.slice(-10));
 
-    const result: any = analysisOn
+    type FullResult = z.infer<typeof RoleplayResponseSchemaFull>;
+    type LeanResult = z.infer<typeof RoleplayResponseSchemaLean>;
+    const result: FullResult | LeanResult = analysisOn
       ? (await generateObject({ model: roleplayModel, schema: RoleplayResponseSchemaFull, system: fullSystemPrompt, prompt: promptText })).object
       : (await generateObject({ model: roleplayModel, schema: RoleplayResponseSchemaLean, system: baseSystemInstructions, prompt: promptText })).object;
 
+    const fullResult = 'user_analysis' in result ? (result as FullResult) : null;
+
     // 2. Generate Standard Audio for the corrected sentence (if mode is ON)
     let correctedAudioFile: string | undefined;
-    if (analysisOn && result.user_analysis?.corrected) {
-      const text = result.user_analysis.corrected;
+    if (fullResult?.user_analysis?.corrected) {
+      const text = fullResult.user_analysis.corrected;
       const hash = contentHash(text);
       const filename = `${hash}.mp3`;
       const poolFile = mediaPath(filename);
@@ -92,9 +96,9 @@ export async function POST(request: Request) {
     if (sessionId) {
       const now = new Date().toISOString();
       const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-      const userAnalysis = result.user_analysis;
-      const coachAnalysis = result.coach_analysis;
-      
+      const userAnalysis = fullResult?.user_analysis;
+      const coachAnalysis = fullResult?.coach_analysis;
+
       const newMessages = [
         ...(lastUser
           ? [{
@@ -102,7 +106,7 @@ export async function POST(request: Request) {
               content: lastUser.content,
               createdAt: now,
               audioFile: savedAudioFile,
-              correctedAudioFile, // Persist standard pronunciation link
+              correctedAudioFile,
               userAnalysis,
             }]
           : []),

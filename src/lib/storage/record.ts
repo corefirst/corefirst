@@ -176,7 +176,7 @@ export async function appendAttempt(
   const id = toId(slug);
   const effectiveSlug = slug || 'global';
 
-  // 1. Update State
+  // 1. Update State (read-modify-write, idempotent fields — db.put retry is safe)
   const state = (await db.get<CFState>(COL.STATE, id)) ?? emptyState(packageId, effectiveSlug);
   state.lastStudiedAt = new Date().toISOString();
   const lessonEntry = ensureLesson(state, lesson);
@@ -184,9 +184,12 @@ export async function appendAttempt(
   scriptEntry.puzzleCompleted = true;
   await db.put(COL.STATE, id, state);
 
-  // 2. Append Log
-  const log = (await db.get<CFLog>(COL.LOG, id)) ?? emptyLog(packageId, effectiveSlug);
-  log.attempts.push({
+  // 2. Append Log — use db.append so concurrent callers don't clobber each other.
+  // db.append does its own read-modify-write loop with 409 retry, making it safe
+  // to call from multiple concurrent requests without losing entries.
+  // Note: the first ever write creates a bare doc without packageId/packageSlug;
+  // readRecord falls back to state.packageId/state.packageSlug, so this is fine.
+  await db.append(COL.LOG, id, 'attempts', {
     lessonIndex: lesson,
     scriptIndex: script,
     data: {
@@ -196,9 +199,8 @@ export async function appendAttempt(
       scoreCondition: null,
       scoreSpaceContext: null,
       scoreTime: null,
-    }
+    },
   });
-  await db.put(COL.LOG, id, log);
 }
 
 export async function completePuzzle(
@@ -283,11 +285,15 @@ export async function readAllProgress(): Promise<{
     }
   };
 
-  for (const { slug } of packageMatches) await tryAdd(slug);
-  const allStates = await db.list(COL.STATE) as any[];
-  for (const state of allStates) await tryAdd(state._id);
-  const allLogs = await db.list(COL.LOG) as any[];
-  for (const log of allLogs) await tryAdd(log._id);
+  await Promise.all(packageMatches.map(({ slug }) => tryAdd(slug)));
+  const [allStates, allLogs] = await Promise.all([
+    db.list(COL.STATE) as Promise<any[]>,
+    db.list(COL.LOG) as Promise<any[]>,
+  ]);
+  await Promise.all([
+    ...allStates.map((s) => tryAdd(s._id)),
+    ...allLogs.map((l) => tryAdd(l._id)),
+  ]);
 
   if (!seen.has(GLOBAL_ID)) {
     const globalRecord = await readGlobalRecord();

@@ -52,7 +52,7 @@ export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
  */
 export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string>>> = {
   google: {
-    text: 'gemini-1.5-pro',
+    text: 'gemini-2.5-pro-preview',
     'text-to-image': 'imagen-3.0-generate-001',
   },
   openai: {
@@ -62,7 +62,7 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
     'speech-to-text': 'whisper-1',
   },
   anthropic: {
-    text: 'claude-3-5-sonnet-20240620',
+    text: 'claude-sonnet-4-6',
   },
 };
 
@@ -103,7 +103,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'text',
     envPrefix: 'TRANSFORM',
     defaultProvider: 'none',
-    defaultModel: 'gemini-3.1-pro-preview',
+    defaultModel: 'gemini-2.5-pro-preview',
     rationale: 'CFLT Logic Transformer — quality-critical: structured output must be exact.',
   },
   courseGen: {
@@ -111,7 +111,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'text',
     envPrefix: 'COURSE_GEN',
     defaultProvider: 'none',
-    defaultModel: 'gemini-3.1-pro-preview',
+    defaultModel: 'gemini-2.5-pro-preview',
     rationale: 'Courseware orchestrator — full lesson manifest, multi-script audit.',
   },
   roleplay: {
@@ -119,7 +119,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'text',
     envPrefix: 'ROLEPLAY',
     defaultProvider: 'none',
-    defaultModel: 'gemini-3-flash-preview',
+    defaultModel: 'gemini-2.0-flash',
     rationale: 'Multi-turn dialogue — cost-optimized, latency-sensitive.',
   },
   speechEval: {
@@ -127,7 +127,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'text',
     envPrefix: 'SPEECH_EVAL',
     defaultProvider: 'none',
-    defaultModel: 'gemini-3-flash-preview',
+    defaultModel: 'gemini-2.0-flash',
     rationale: 'LLM "Speech Assessor" — compares user transcription vs target text to provide scores and corrective feedback (the "Teacher" logic).',
   },
   imageGen: {

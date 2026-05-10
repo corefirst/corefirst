@@ -32,13 +32,6 @@ export const useRecorder = () => {
         }
       };
 
-      mediaRecorder.onstop = () => {
-        // Only set audioBlob if we are NOT cancelling
-        if (mediaRecorderRef.current?.state !== 'inactive') {
-            // This is actually handled by the flag inside onstop's closure below
-        }
-      };
-
       mediaRecorder.start();
       setIsRecording(true);
     } catch (err) {

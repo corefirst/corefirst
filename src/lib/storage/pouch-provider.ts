@@ -43,8 +43,8 @@ export class PouchDBProvider implements DataStore {
 
   async put<T>(collection: string, id: string, data: any): Promise<void> {
     const db = this.getDb(collection);
-    
-    const attemptUpdate = async (): Promise<void> => {
+
+    const attemptUpdate = async (retries = 0): Promise<void> => {
       try {
         const existing: any = await db.get(id).catch(() => null);
         const doc = {
@@ -55,9 +55,8 @@ export class PouchDBProvider implements DataStore {
         };
         await db.put(doc);
       } catch (err: any) {
-        if (err.status === 409) {
-          // Conflict detected, retry update.
-          return attemptUpdate();
+        if (err.status === 409 && retries < 10) {
+          return attemptUpdate(retries + 1);
         }
         throw err;
       }
@@ -69,7 +68,7 @@ export class PouchDBProvider implements DataStore {
   async append<T>(collection: string, id: string, field: string, entry: T): Promise<void> {
     const db = this.getDb(collection);
 
-    const attemptAppend = async (): Promise<void> => {
+    const attemptAppend = async (retries = 0): Promise<void> => {
       try {
         const doc: any = (await db.get(id).catch(() => ({
           _id: id,
@@ -82,12 +81,11 @@ export class PouchDBProvider implements DataStore {
         }
         doc[field].push(entry);
         doc.updatedAt = new Date().toISOString();
-        
+
         await db.put(doc);
       } catch (err: any) {
-        if (err.status === 409) {
-          // Conflict detected, retry append.
-          return attemptAppend();
+        if (err.status === 409 && retries < 10) {
+          return attemptAppend(retries + 1);
         }
         throw err;
       }

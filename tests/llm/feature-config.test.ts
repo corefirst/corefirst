@@ -98,7 +98,7 @@ describe('resolveFeature — precedence', () => {
     expect(resolveFeature('transform').provider).toBe('anthropic');
     expect(resolveFeature('roleplay').provider).toBe('anthropic');
     // Model picks up Anthropic's default from PROVIDER_DEFAULTS
-    expect(resolveFeature('transform').model).toBe('claude-3-5-sonnet-20240620');
+    expect(resolveFeature('transform').model).toBe('claude-sonnet-4-6');
   });
 
   it('feature-level provider overrides capability-level', async () => {
@@ -163,7 +163,7 @@ describe('resolveFeature — GLOBAL_PROVIDER and Mix-and-Match', () => {
     // Google supports text and image
     expect(resolveFeature('transform')).toMatchObject({
       provider: 'google',
-      model: 'gemini-1.5-pro',
+      model: 'gemini-2.5-pro-preview',
     });
     expect(resolveFeature('imageGen')).toMatchObject({
       provider: 'google',

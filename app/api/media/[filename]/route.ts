@@ -4,18 +4,28 @@ import { mediaPath } from '@/src/lib/storage/paths';
 
 interface Params { filename: string }
 
+// All media files are named {16-char hex hash}.{ext} by contentHash().
+// Anything outside this pattern is rejected to prevent path traversal.
+const SAFE_FILENAME_RE = /^[a-f0-9]{16}\.(mp3|webp|mp4|webm)$/;
+
+const CONTENT_TYPES: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  webp: 'image/webp',
+  mp4: 'video/mp4',
+  webm: 'audio/webm',
+};
+
 export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
   const { filename } = await ctx.params;
-  if (!filename) return NextResponse.json({ error: 'Missing filename' }, { status: 400 });
+  if (!filename || !SAFE_FILENAME_RE.test(filename)) {
+    return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
+  }
 
   try {
-    const path = mediaPath(filename);
-    const bytes = await fs.readFile(path);
-    
-    let contentType = 'application/octet-stream';
-    if (filename.endsWith('.mp3')) contentType = 'audio/mpeg';
-    else if (filename.endsWith('.webp')) contentType = 'image/webp';
-    else if (filename.endsWith('.mp4')) contentType = 'video/mp4';
+    const filePath = mediaPath(filename);
+    const bytes = await fs.readFile(filePath);
+    const ext = filename.split('.').pop()!;
+    const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream';
 
     return new Response(bytes, {
       status: 200,
@@ -25,6 +35,7 @@ export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
       },
     });
   } catch (err) {
+    console.error('[media] Failed to read file:', filename, err);
     return NextResponse.json({ error: 'Media not found' }, { status: 404 });
   }
 }
