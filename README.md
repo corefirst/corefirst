@@ -31,6 +31,36 @@ Once a learner habitually sequences thoughts this way — regardless of language
 
 ---
 
+## Screenshots
+
+<sub>Click any tab below to switch.</sub>
+
+<details open>
+<summary><b>🔄 Transform</b> — restructure any sentence into CFLT order</summary>
+<br>
+<img src="docs/assets/cf1.png" alt="Transform mode — CFLT sentence restructuring with bilingual mapping" width="760">
+</details>
+
+<details>
+<summary><b>📚 Course</b> — generated lesson packages with scenario, dialogue, audio + scene images</summary>
+<br>
+<img src="docs/assets/cf2.png" alt="Course mode — generated lesson with scenario and scene image" width="760">
+</details>
+
+<details>
+<summary><b>💬 Roleplay</b> — multi-turn AI dialogue with per-turn CFLT compliance feedback</summary>
+<br>
+<img src="docs/assets/cf3.png" alt="Roleplay mode — live coach chat with CFLT feedback" width="760">
+</details>
+
+<details>
+<summary><b>📊 Progress</b> — Recharts analytics over your <code>.cfrecord</code> learning logs</summary>
+<br>
+<img src="docs/assets/cf4.png" alt="Progress dashboard — streaks, learning curve, language pair stats" width="760">
+</details>
+
+---
+
 ## Features
 
 ### Core Engine
