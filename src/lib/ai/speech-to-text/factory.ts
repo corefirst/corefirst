@@ -5,13 +5,13 @@ import { openaiSttModel } from './sdk/openai-stt';
 export function buildTranscriptionModel(): TranscriptionModel {
   const r = resolveFeature('stt');
   if (r.provider === 'none') {
-    return new Proxy({} as TranscriptionModel, {
+    return new Proxy({}, {
       get() {
         throw new Error(
           `[ai/stt] Speech-to-text is disabled by default. Set ${r.envPrefix}_PROVIDER to enable.`
         );
       },
-    });
+    }) as TranscriptionModel;
   }
 
   switch (r.provider) {

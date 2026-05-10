@@ -53,7 +53,15 @@ export default function Home() {
   // inference for a different reason.
   const [refinedSlots, setRefinedSlots] = useState<Array<{ type: CfltSlot['type']; l1: string; l2: string }> | null>(null);
   const [refining, setRefining] = useState(false);
-  const [courseResult, setCourseResult] = useState<(CoursewareManifest & { sessionId: string }) | null>(null);
+  const [courseResult, setCourseResult] = useState<
+    | (CoursewareManifest & {
+        slug?: string;
+        packageId?: string;
+        packageSlug?: string;
+        sessionId?: string;
+      })
+    | null
+  >(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   // UI language is decoupled from source/target. Default = system locale,

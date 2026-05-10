@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     // 1. Process and Save user audio if present (Commit-on-Submit)
     let savedAudioFile: string | undefined;
     if (audio) {
-      const audioBytes = Buffer.from(audio.data, 'base64');
+      const audioBytes = new Uint8Array(Buffer.from(audio.data, 'base64'));
       const hash = contentHash(audio.data);
       const extension = (audio.type?.split('/')[1] || 'webm').replace(/;.*$/, '');
       savedAudioFile = `${hash}.${extension}`;

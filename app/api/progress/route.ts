@@ -16,7 +16,36 @@ interface DailyActivity {
   total: number;
 }
 
-// ... (LearningCurvePoint, TopPackage, LangPair, VocabularyDistribution interfaces remain same)
+interface LearningCurvePoint {
+  date: string;
+  logic: number;
+  pronunciation: number;
+  overall: number;
+  attempts: number;
+}
+
+interface TopPackage {
+  slug: string;
+  topic: string;
+  attempts: number;
+  avgScore: number;
+  lastStudiedAt: string;
+}
+
+interface LangPair {
+  pair: string;
+  source: string;
+  target: string;
+  count: number;
+}
+
+interface VocabularyDistribution {
+  total: number;
+  due: number;
+  newWords: number;
+  learning: number;
+  mature: number;
+}
 
 interface ProgressResponse {
   summary: {
@@ -198,6 +227,7 @@ const totalCourses = records.filter(
         totalCourses,
         totalSessions,
         totalAttempts,
+        totalPuzzles,
         avgScore,
         totalTransforms,
         totalRoleplaySessions,

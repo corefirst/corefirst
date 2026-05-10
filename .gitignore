@@ -7,7 +7,9 @@ node_modules
 .env
 .env*.local
 .next/
+.DS_Store
 
 # Local learning data (.corefirst packages and .cfrecord files).
 # Contains personal progress; never committed.
 data/
+data.*

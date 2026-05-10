@@ -33,10 +33,10 @@ export async function POST(request: Request) {
 
     // Just transcribe, don't save. 
     // Saving happens in the roleplay API upon final submission.
-    const { text } = await transcribe({ 
-      model: sttModel, 
+    const { text } = await transcribe({
+      model: sttModel,
       audio: audioBytes,
-      language: languageCode,
+      providerOptions: languageCode ? { openai: { language: languageCode } } : undefined,
       maxRetries: 1
     });
 

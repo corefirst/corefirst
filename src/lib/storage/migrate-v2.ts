@@ -25,7 +25,7 @@ async function migratePackages() {
       // ... (ZIP migration logic as before, just use audioFile)
       try {
         const pkgPath = packagePath(slug);
-        const buf = await fs.readFile(pkgPath);
+        const buf = new Uint8Array(await fs.readFile(pkgPath));
         const entries = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
           unzip(buf, (err, data) => err ? reject(err) : resolve(data));
         });

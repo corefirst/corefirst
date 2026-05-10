@@ -13,9 +13,9 @@ export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
   }
   try {
     const bytes = await readPackageAudio(slug, lessonIndex, scriptIndex);
-    // Buffer.from copy needed: readPackageAudio returns Uint8Array view into
-    // a larger buffer; sending it directly can leak adjacent zip entry bytes.
-    return new NextResponse(Buffer.from(bytes), {
+    // Copy required: readPackageAudio returns a Uint8Array view into a larger
+    // buffer; sending it directly can leak adjacent zip entry bytes.
+    return new NextResponse(new Uint8Array(bytes), {
       status: 200,
       headers: {
         'Content-Type': 'audio/mpeg',

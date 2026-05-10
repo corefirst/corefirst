@@ -11,13 +11,13 @@ import { cliTextModel } from './cli/provider';
 export function buildTextModelFor(feature: FeatureKey): LanguageModel {
   const r = resolveFeature(feature);
   if (r.provider === 'none') {
-    return new Proxy({} as LanguageModel, {
+    return new Proxy({}, {
       get() {
         throw new Error(
           `[ai/${feature}] Text generation for "${feature}" is disabled. Set ${r.envPrefix}_PROVIDER to enable.`
         );
       },
-    });
+    }) as LanguageModel;
   }
 
   switch (r.provider) {

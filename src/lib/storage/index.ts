@@ -4,6 +4,8 @@ export {
   globalRecordPath,
   packagesDir,
   recordsDir,
+  mediaDir,
+  mediaPath,
   buildSlug,
   ensureDataDirs,
 } from './paths';

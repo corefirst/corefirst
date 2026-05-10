@@ -23,7 +23,7 @@ export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
 
   try {
     const filePath = mediaPath(filename);
-    const bytes = await fs.readFile(filePath);
+    const bytes = new Uint8Array(await fs.readFile(filePath));
     const ext = filename.split('.').pop()!;
     const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream';
 

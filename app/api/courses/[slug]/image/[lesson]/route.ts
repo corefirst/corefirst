@@ -12,7 +12,9 @@ export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
   try {
     const bytes = await readPackageImage(slug, lessonIndex);
     if (!bytes) return NextResponse.json({ error: 'No image for this lesson' }, { status: 404 });
-    return new NextResponse(Buffer.from(bytes), {
+    // Copy required: readPackageImage returns a Uint8Array view into a larger
+    // buffer; sending it directly can leak adjacent zip entry bytes.
+    return new NextResponse(new Uint8Array(bytes), {
       status: 200,
       headers: {
         'Content-Type': 'image/webp',

@@ -97,7 +97,7 @@ export class PouchDBProvider implements DataStore {
   async list(collection: string): Promise<any[]> {
     const db = this.getDb(collection);
     const result = await db.allDocs({ include_docs: true });
-    return result.rows.map(row => row.doc);
+    return result.rows.map((row: { doc?: unknown }) => row.doc);
   }
 
   async remove(collection: string, id: string): Promise<void> {

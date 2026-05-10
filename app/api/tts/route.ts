@@ -26,7 +26,7 @@ export async function POST(request: Request) {
 
     try {
       // 1. Try to serve from global media pool
-      const cached = await fs.readFile(poolFile);
+      const cached = new Uint8Array(await fs.readFile(poolFile));
       return new Response(cached, {
         headers: {
           'Content-Type': 'audio/mpeg',

@@ -5,13 +5,13 @@ import { openaiTtsModel } from './sdk/openai-tts';
 export function buildSpeechModel(): SpeechModel {
   const r = resolveFeature('tts');
   if (r.provider === 'none') {
-    return new Proxy({} as SpeechModel, {
+    return new Proxy({}, {
       get() {
         throw new Error(
           `[ai/tts] Text-to-speech is disabled by default. Set ${r.envPrefix}_PROVIDER to enable.`
         );
       },
-    });
+    }) as SpeechModel;
   }
 
   switch (r.provider) {

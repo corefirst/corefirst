@@ -105,7 +105,7 @@ export async function readPackageAudio(slug: string, lesson: number, script: num
     const filename = s.audioFile;
     // 1. Try global pool first
     try {
-      return await fs.readFile(mediaPath(filename));
+      return new Uint8Array(await fs.readFile(mediaPath(filename)));
     } catch {
       // 2. Fall back to package's media folder inside the ZIP
       try {
@@ -137,7 +137,7 @@ export async function readPackageImage(slug: string, lesson: number): Promise<Ui
     const filename = l.imageFile;
     // 1. Try global pool first
     try {
-      return await fs.readFile(mediaPath(filename));
+      return new Uint8Array(await fs.readFile(mediaPath(filename)));
     } catch {
       // 2. Fall back to package's media folder inside the ZIP
       try {
@@ -207,9 +207,9 @@ export async function listPackages(): Promise<{ slug: string; manifest: PackageM
   return out;
 }
 
-async function readFileOrThrow(file: string, slug: string): Promise<Buffer> {
+async function readFileOrThrow(file: string, slug: string): Promise<Uint8Array> {
   try {
-    return await fs.readFile(file);
+    return new Uint8Array(await fs.readFile(file));
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       throw new PackageNotFoundError(slug);

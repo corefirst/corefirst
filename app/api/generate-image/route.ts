@@ -37,7 +37,7 @@ export async function POST(request: Request) {
 
       // 3. Save to pool
       const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");
-      const bytes = Buffer.from(base64Data, 'base64');
+      const bytes = new Uint8Array(Buffer.from(base64Data, 'base64'));
       await fs.writeFile(poolFile, bytes);
 
       return NextResponse.json({ url: publicUrl, cached: false });

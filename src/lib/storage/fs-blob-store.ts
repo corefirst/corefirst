@@ -12,9 +12,9 @@ export class FileSystemBlobStore implements BlobStore {
     
     if (data instanceof Blob) {
       const arrayBuffer = await data.arrayBuffer();
-      await fs.writeFile(fullPath, Buffer.from(arrayBuffer));
+      await fs.writeFile(fullPath, new Uint8Array(arrayBuffer));
     } else {
-      await fs.writeFile(fullPath, data);
+      await fs.writeFile(fullPath, new Uint8Array(data));
     }
     
     return filename;
