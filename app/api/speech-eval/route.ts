@@ -118,10 +118,12 @@ Return the transcription you were given as-is in the "transcription" field.
                 { slug: packageSlug, lessonIndex, scriptIndex: Math.max(scriptIndex, 0) },
               );
               
-              // Update mastery for each token based on this attempt's overall score.
-              for (const t of tokens) {
-                await updateVocabularyMastery(userId, manifest.targetLang, t.token, evaluation.score);
-              }
+              await updateVocabularyMastery(
+                userId,
+                manifest.targetLang,
+                tokens.map((t) => t.token),
+                evaluation.score,
+              );
             }
           }
         } catch {

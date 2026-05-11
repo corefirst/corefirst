@@ -104,28 +104,36 @@ export async function captureVocabulary(
   });
 }
 
+/**
+ * Update SRS state for multiple vocabulary tokens in a single DB round-trip.
+ * One get + one mutate regardless of how many tokens are in the lesson —
+ * avoids the 2×N serial reads that a per-token loop would incur.
+ */
 export async function updateVocabularyMastery(
   userId: string,
   targetLang: string,
-  token: string,
+  tokens: string[],
   score: number,
 ): Promise<void> {
+  if (!tokens.length) return;
   const provider = providerFor(userId);
   const lang = targetLang.trim() || '';
   const quality = scoreToQuality(score);
 
-  // Check before mutate: returning null from a mutate callback writes a
-  // corrupted doc (same bug that was fixed in orphanVocabularyForSlug).
+  // Pre-check before mutate: returning null from the mutate callback causes
+  // PouchDB to write { _id, updatedAt } — a corrupted doc missing `vocabulary`.
   const existing = await provider.get<CFSRS>(COL.SRS, 'user');
   if (!existing?.vocabulary) return;
 
   await provider.mutate<CFSRS>(COL.SRS, 'user', (current) => {
     if (!current || !current.vocabulary) return current ?? { vocabulary: [], updatedAt: new Date().toISOString() };
-    
-    const entry = current.vocabulary.find(
-      (v) => v.token === token && (v.targetLang ?? '') === lang,
-    );
-    if (entry) {
+
+    let changed = false;
+    for (const token of tokens) {
+      const entry = current.vocabulary.find(
+        (v) => v.token === token && (v.targetLang ?? '') === lang,
+      );
+      if (!entry) continue;
       const next = calculateNextReview(quality, {
         interval: entry.interval || 0,
         easeFactor: entry.easeFactor || 2.5,
@@ -135,10 +143,15 @@ export async function updateVocabularyMastery(
       entry.easeFactor = next.easeFactor;
       entry.reviewCount = next.reviewCount;
       entry.nextReviewAt = next.nextReviewAt;
-      entry.mastery = Math.min(100, Math.round((entry.reviewCount / 10) * 100));
+      // Only advance mastery on successful reviews; lapses record the failure
+      // without resetting progress that the learner genuinely earned.
+      if (quality >= 3) {
+        entry.mastery = Math.min(100, Math.round((entry.reviewCount / 10) * 100));
+      }
       if (quality < 3) entry.lapseCount = (entry.lapseCount || 0) + 1;
-      current.updatedAt = new Date().toISOString();
+      changed = true;
     }
+    if (changed) current.updatedAt = new Date().toISOString();
     return current;
   });
 }
@@ -270,6 +283,8 @@ export async function upsertRoleplaySession(
   const now = new Date().toISOString();
   const sessionDocId = `${slugId}:roleplay-session:${input.sessionId}`;
 
+  // Session metadata is keyed by sessionId so concurrent upserts for the same
+  // session collapse onto the same doc — mutate() handles any write race.
   await provider.mutate<any>(COL.EVENTS, sessionDocId, (current) => ({
     type: 'roleplay-session',
     slug: slugId,
@@ -280,6 +295,8 @@ export async function upsertRoleplaySession(
     createdAt: current?.createdAt ?? now,
   }));
 
+  // Each message is its own document so user and assistant can write
+  // concurrently into the same session without PouchDB conflicts.
   for (const msg of input.newMessages) {
     const id = eventId(slug || GLOBAL_SLUG, 'roleplay-msg', input.sessionId);
     await provider.put(COL.EVENTS, id, {
@@ -470,13 +487,14 @@ export async function readRecord(
           createdAt: ev.createdAt || new Date(0).toISOString(),
         });
         break;
-      case 'roleplay-msg':
+      case 'roleplay-msg': {
         const sId = ev.sessionId || parts[2];
         if (sId) {
           if (!sessionMessages.has(sId)) sessionMessages.set(sId, []);
           sessionMessages.get(sId)!.push(data);
         }
         break;
+      }
     }
   }
 
@@ -576,6 +594,9 @@ export async function removeStateDoc(userId: string, slug: string): Promise<void
 
 export async function orphanVocabularyForSlug(userId: string, slug: string): Promise<void> {
   const provider = providerFor(userId);
+  // Pre-check before mutate: if no SRS doc exists yet, returning null from the
+  // mutator causes mutate to write { _id, updatedAt } — a corrupted doc that
+  // breaks all future captureVocabulary calls.
   const existing = await provider.get<CFSRS>(COL.SRS, 'user');
   if (!existing) return;
   await provider.mutate<CFSRS>(COL.SRS, 'user', (current) => {
@@ -644,8 +665,11 @@ function ensureLesson(state: CFState, lessonIndex: number) {
   return entry;
 }
 
-function ensureScript(lesson: any, scriptIndex: number) {
-  let entry = lesson.scripts.find((s: any) => Number(s.scriptIndex) === scriptIndex);
+function ensureScript(
+  lesson: { scripts: { scriptIndex: number; puzzleCompleted: boolean; attempts?: AttemptRecord[] }[] },
+  scriptIndex: number,
+) {
+  let entry = lesson.scripts.find((s) => Number(s.scriptIndex) === scriptIndex);
   if (!entry) {
     entry = { scriptIndex, puzzleCompleted: false };
     lesson.scripts.push(entry);
@@ -657,7 +681,7 @@ function dedupAttempts(attempts: AttemptRecord[]): AttemptRecord[] {
   const seen = new Set<string>();
   const out: AttemptRecord[] = [];
   for (const a of attempts) {
-    const key = `${a.createdAt}::${a.transcription}`;
+    const key = `${a.createdAt}::${a.transcription}::${a.overallScore}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(a);

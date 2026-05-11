@@ -251,7 +251,14 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
           return (
             <li key={session.sessionId} className="border border-slate-100 rounded-2xl overflow-hidden hover:border-emerald-200 transition-all">
               <div className="relative">
-                <button type="button" onClick={() => toggle(session.sessionId)} className="w-full p-5 pr-24 text-left hover:bg-slate-50 transition-colors" aria-expanded={isOpen}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => toggle(session.sessionId)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') toggle(session.sessionId); }}
+                  className="w-full p-5 pr-24 text-left hover:bg-slate-50 transition-colors cursor-pointer"
+                  aria-expanded={isOpen}
+                >
                   <div className="flex items-center justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                     <span>{session.sourceLang} → {session.targetLang}</span>
                     <span>{formatTimestamp(session.lastMessageAt, uiLang)}</span>
@@ -288,7 +295,7 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
                       {isOpen ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
                     </div>
                   </div>
-                </button>
+                </div>
                 {renaming !== session.sessionId && (
                   <div className="absolute top-3 right-12 flex items-center gap-1">
                     <button
