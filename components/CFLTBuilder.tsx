@@ -13,6 +13,7 @@ interface Block {
 
 interface CFLTBuilderProps {
   cfltString: string;
+  cfltL2?: string;
   onSuccess: () => void;
 }
 
@@ -39,7 +40,11 @@ function shuffleUntilChanged<T>(arr: T[]): T[] {
   return result;
 }
 
-export const CFLTBuilder: React.FC<CFLTBuilderProps> = ({ cfltString, onSuccess }) => {
+const BLOCK_COLOR: Record<string, string> = {
+  core: 'bg-cflt-core', reason: 'bg-cflt-reason', space: 'bg-cflt-space', time: 'bg-cflt-time',
+};
+
+export const CFLTBuilder: React.FC<CFLTBuilderProps> = ({ cfltString, cfltL2, onSuccess }) => {
   const [items, setItems] = useState<Block[]>([]);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -75,8 +80,29 @@ export const CFLTBuilder: React.FC<CFLTBuilderProps> = ({ cfltString, onSuccess 
     setIsCorrect(null);
   };
 
+  const l2Parts = cfltL2
+    ? cfltL2.split(/[，,]/).filter(p => p.trim()).slice(0, 4).map((text, i) => ({
+        text: text.trim(),
+        type: (['core', 'reason', 'space', 'time'] as const)[i] ?? 'space',
+      }))
+    : [];
+
   return (
     <div className="bg-slate-900 p-6 rounded-[2rem] shadow-2xl space-y-6">
+      {l2Parts.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">
+            Target Language Mapping
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {l2Parts.map(({ text, type }, i) => (
+              <div key={i} className={`${BLOCK_COLOR[type]} text-white text-sm font-bold px-3 py-1.5 rounded-lg opacity-80`}>
+                {text}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">
           Logic Puzzle: Reorder the Blocks

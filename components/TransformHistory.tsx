@@ -184,7 +184,7 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
                   className="w-full p-5 text-left hover:bg-slate-50 transition-colors"
                   aria-expanded={isOpen}
                 >
-                  <div className="flex items-center justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <div className="flex items-center justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 pr-14">
                     <span>{item.sourceLang} → {item.targetLang}</span>
                     <span>{formatTimestamp(item.createdAt, uiLang)}</span>
                   </div>

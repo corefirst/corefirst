@@ -16,12 +16,9 @@ const COLOR: Record<BlockType, string> = {
 };
 
 interface CFLTDemoProps {
-  // Natural native-language sentence — the everyday way a learner would say it.
-  // Falls back to standardL2 when missing so older course packages still render.
   standardL1: string;
-  // CRST-ordered native sentence (comma-separated four slots).
   cfltL1: string;
-  // Final polished L2 sentence — revealed after the demo plays.
+  cfltL2: string;
   standardL2: string;
   uiLang: SupportedLang;
   onContinue: () => void;
@@ -30,13 +27,19 @@ interface CFLTDemoProps {
 export const CFLTDemo: React.FC<CFLTDemoProps> = ({
   standardL1,
   cfltL1,
-  standardL2: _standardL2,
+  cfltL2,
+  standardL2,
   uiLang,
   onContinue,
 }) => {
   const parts = useMemo(
     () => cfltL1.split(/[，,]/).map((p) => p.trim()).filter(Boolean).slice(0, 4),
     [cfltL1],
+  );
+
+  const l2Parts = useMemo(
+    () => (cfltL2 ?? '').split(/[，,]/).map((p) => p.trim()).filter(Boolean).slice(0, 4),
+    [cfltL2],
   );
 
   // Reveal one block at a time so the learner sees the sentence decompose
@@ -59,7 +62,7 @@ export const CFLTDemo: React.FC<CFLTDemoProps> = ({
   };
 
   const allRevealed = revealed >= parts.length && parts.length > 0;
-  const nativeText = standardL1?.trim() || _standardL2;
+  const nativeText = standardL1?.trim() || standardL2;
 
   return (
     <div className="bg-gradient-to-b from-slate-50 to-white p-6 rounded-[2rem] border border-slate-100 space-y-6">
@@ -120,6 +123,40 @@ export const CFLTDemo: React.FC<CFLTDemoProps> = ({
           })}
         </div>
       </div>
+
+      {allRevealed && l2Parts.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="space-y-4"
+        >
+          <div className="flex justify-center">
+            <ArrowDown className="w-5 h-5 text-slate-300" />
+          </div>
+          <div>
+            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest text-center mb-3">
+              {t(uiLang, 'targetMappingHeader')}
+            </p>
+            <div className="space-y-2">
+              {l2Parts.map((text, i) => {
+                const type = TYPES[i] ?? 'space';
+                return (
+                  <div key={`l2-${type}-${i}`} className={`flex items-center gap-3 p-3 rounded-xl ${COLOR[type]} text-white shadow-md`}>
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-70 min-w-[60px]">
+                      {labelOf(type)}
+                    </span>
+                    <span className="text-base font-bold">{text}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <div className="bg-blue-600 p-5 rounded-2xl text-white text-center shadow-lg shadow-blue-200">
+            <p className="text-2xl font-black italic">"{standardL2}"</p>
+          </div>
+        </motion.div>
+      )}
 
       <div className="pt-2 flex justify-end">
         <button
