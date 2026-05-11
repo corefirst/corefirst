@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import { VisualFactory } from '@/src/core/visuals/factory';
 import { contentHash } from '@/src/lib/storage/hash';
 import { mediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
+import { getUserId } from '@/src/lib/auth/user';
 
 const MAX_PROMPT_LEN = 1024;
 
@@ -20,9 +21,10 @@ export async function POST(request: Request) {
       );
     }
 
+    const userId = await getUserId(request);
     const hash = contentHash(prompt);
     const filename = `${hash}.webp`;
-    const poolFile = mediaPath(filename);
+    const poolFile = mediaPath(userId, filename);
     const publicUrl = `/api/media/${filename}`;
 
     try {
@@ -31,7 +33,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ url: publicUrl, cached: true });
     } catch {
       // 2. Generate
-      await ensureDataDirs();
+      await ensureDataDirs(userId);
       const provider = VisualFactory.getProvider();
       const dataUrl = await provider.generateImage(prompt);
 

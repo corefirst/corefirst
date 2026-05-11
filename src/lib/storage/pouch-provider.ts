@@ -2,28 +2,40 @@ import PouchDB from 'pouchdb';
 // @ts-ignore
 import PouchDBNode from 'pouchdb-node';
 import * as path from 'path';
+import { mkdirSync } from 'fs';
 import { DataStore } from './adapter';
-import { recordsDir } from './paths';
+import { recordsDir, normalizeUserId, DEFAULT_USER_ID } from './paths';
+
+const RETRY_LIMIT = 10;
 
 /**
- * PouchDB Storage Provider.
- * Uses pouchdb-node in Node.js environments to ensure native modules load correctly.
+ * PouchDB Storage Provider, per-user. Each instance owns a userId; PouchDB
+ * databases live under `<dataRoot>/users/<userId>/records/db_<collection>/`
+ * so two learners on the same machine never share documents.
  */
 export class PouchDBProvider implements DataStore {
   private dbs = new Map<string, any>();
   private DB_CTOR: any;
+  readonly userId: string;
+  private baseDir: string;
 
-  constructor(private baseDir: string = recordsDir()) {
-    // Detect environment and select the appropriate constructor.
-    // Use pouchdb-node for Next.js server-side, standard pouchdb for client-side.
+  constructor(userId: string = DEFAULT_USER_ID) {
+    this.userId = normalizeUserId(userId);
+    this.baseDir = recordsDir(this.userId);
     this.DB_CTOR = typeof window === 'undefined' ? PouchDBNode : PouchDB;
   }
 
   private getDb(collection: string): any {
     if (!this.dbs.has(collection)) {
-      // Each collection corresponds to a subdirectory in Node environments.
+      // LevelDB doesn't reliably create the full ancestor chain (the user
+      // records dir didn't exist yet on a fresh install). Ensure it before
+      // opening so the first write doesn't crash with ENOENT on LOCK.
+      try {
+        mkdirSync(this.baseDir, { recursive: true });
+      } catch {
+        /* ignore — best effort */
+      }
       const dbPath = path.join(this.baseDir, `db_${collection}`);
-      // pouchdb-node uses leveldown by default; no need for manual plugin registration.
       const db = new this.DB_CTOR(dbPath);
       this.dbs.set(collection, db);
     }
@@ -43,60 +55,82 @@ export class PouchDBProvider implements DataStore {
 
   async put<T>(collection: string, id: string, data: any): Promise<void> {
     const db = this.getDb(collection);
-
-    const attemptUpdate = async (retries = 0): Promise<void> => {
+    const attempt = async (retries = 0): Promise<void> => {
       try {
         const existing: any = await db.get(id).catch(() => null);
-        const doc = {
+        await db.put({
           ...data,
           _id: id,
           _rev: existing?._rev,
           updatedAt: new Date().toISOString(),
-        };
-        await db.put(doc);
+        });
       } catch (err: any) {
-        if (err.status === 409 && retries < 10) {
-          return attemptUpdate(retries + 1);
-        }
+        if (err.status === 409 && retries < RETRY_LIMIT) return attempt(retries + 1);
         throw err;
       }
     };
+    await attempt();
+  }
 
-    await attemptUpdate();
+  /**
+   * Read-modify-write with conflict-safe retry. The mutator is re-run on every
+   * 409 against the freshly-read document, so concurrent callers compose
+   * instead of clobbering each other.
+   */
+  async mutate<T>(
+    collection: string,
+    id: string,
+    mutator: (current: T | null) => T,
+  ): Promise<T> {
+    const db = this.getDb(collection);
+    let lastResult: T | null = null;
+    const attempt = async (retries = 0): Promise<void> => {
+      const existing: any = await db.get(id).catch(() => null);
+      const current = existing
+        ? (stripPouchFields(existing) as T)
+        : null;
+      const next = mutator(current);
+      lastResult = next;
+      try {
+        await db.put({
+          ...next,
+          _id: id,
+          _rev: existing?._rev,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        if (err.status === 409 && retries < RETRY_LIMIT) return attempt(retries + 1);
+        throw err;
+      }
+    };
+    await attempt();
+    return lastResult as T;
   }
 
   async append<T>(collection: string, id: string, field: string, entry: T): Promise<void> {
-    const db = this.getDb(collection);
-
-    const attemptAppend = async (retries = 0): Promise<void> => {
-      try {
-        const doc: any = (await db.get(id).catch(() => ({
-          _id: id,
-          createdAt: new Date().toISOString(),
-          [field]: [],
-        }))) as any;
-
-        if (!Array.isArray(doc[field])) {
-          doc[field] = [];
-        }
-        doc[field].push(entry);
-        doc.updatedAt = new Date().toISOString();
-
-        await db.put(doc);
-      } catch (err: any) {
-        if (err.status === 409 && retries < 10) {
-          return attemptAppend(retries + 1);
-        }
-        throw err;
-      }
-    };
-
-    await attemptAppend();
+    await this.mutate<any>(collection, id, (current) => {
+      const doc: any = current ?? { [field]: [] };
+      const list: any[] = Array.isArray(doc[field]) ? [...doc[field]] : [];
+      list.push(entry);
+      return { ...doc, [field]: list };
+    });
   }
 
   async list(collection: string): Promise<any[]> {
     const db = this.getDb(collection);
     const result = await db.allDocs({ include_docs: true });
+    return result.rows.map((row: { doc?: unknown }) => row.doc);
+  }
+
+  async listByPrefix(collection: string, prefix: string): Promise<any[]> {
+    const db = this.getDb(collection);
+    // PouchDB ranges: startkey/endkey + the ￰ trick is the canonical
+    // way to query "all ids starting with prefix" without a custom view.
+    const result = await db.allDocs({
+      include_docs: true,
+      startkey: prefix,
+      endkey: prefix + '￰',
+    });
     return result.rows.map((row: { doc?: unknown }) => row.doc);
   }
 
@@ -112,4 +146,34 @@ export class PouchDBProvider implements DataStore {
     }
     this.dbs.clear();
   }
+}
+
+function stripPouchFields(doc: any): any {
+  const { _id, _rev, _conflicts, updatedAt, ...rest } = doc;
+  return rest;
+}
+
+// --- per-user provider registry ---
+//
+// Most callers don't care about userId; they just want "the storage for the
+// current request." We keep one PouchDBProvider per userId and hand it out on
+// demand. Provider creation is cheap (PouchDB is lazy about opening DBs); the
+// registry keeps revisited userIds fast.
+
+const providers = new Map<string, PouchDBProvider>();
+
+export function providerFor(userId: string = DEFAULT_USER_ID): PouchDBProvider {
+  const id = normalizeUserId(userId);
+  let p = providers.get(id);
+  if (!p) {
+    p = new PouchDBProvider(id);
+    providers.set(id, p);
+  }
+  return p;
+}
+
+/** Test/teardown helper. */
+export async function closeAllProviders(): Promise<void> {
+  for (const p of providers.values()) await p.closeAll();
+  providers.clear();
 }

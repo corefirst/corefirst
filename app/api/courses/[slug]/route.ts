@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readPackageManifest, PackageNotFoundError } from '@/src/lib/storage';
+import { getUserId } from '@/src/lib/auth/user';
 
 interface Params { slug: string }
 
@@ -7,12 +8,13 @@ interface Params { slug: string }
 // shape so the existing course UI can consume it without branching.
 // Storage uses camelCase (`cfltL1`, `standardL2`); the UI expects snake_case
 // (`cflt_l1`, `standard_l2`) — we adapt here, not in the component.
-export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
+export async function GET(request: Request, ctx: { params: Promise<Params> }) {
   const { slug } = await ctx.params;
   if (!slug) return NextResponse.json({ error: 'Missing slug' }, { status: 400 });
 
   try {
-    const manifest = await readPackageManifest(slug);
+    const userId = await getUserId(request);
+    const manifest = await readPackageManifest(userId, slug);
     const courseware = {
       age_group: manifest.ageGroup,
       industry_context: manifest.industry,
@@ -32,6 +34,7 @@ export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
           cflt_l1: s.cfltL1,
           cflt_l2: s.cfltL2,
           standard_l2: s.standardL2,
+          standard_l1: s.standardL1 ?? '',
           ssml: s.ssml,
           audioUrl: `/api/courses/${encodeURIComponent(slug)}/audio/${lesson.lessonIndex}/${s.scriptIndex}`,
         })),

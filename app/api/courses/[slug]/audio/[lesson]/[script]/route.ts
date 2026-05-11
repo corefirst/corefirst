@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { readPackageAudio, PackageNotFoundError, PackageCorruptError } from '@/src/lib/storage';
+import { getUserId } from '@/src/lib/auth/user';
 
 interface Params { slug: string; lesson: string; script: string }
 
-export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
+export async function GET(request: Request, ctx: { params: Promise<Params> }) {
   const { slug, lesson, script } = await ctx.params;
   const lessonIndex = Number(lesson);
   const scriptIndex = Number(script);
@@ -12,7 +13,8 @@ export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
     return NextResponse.json({ error: 'Invalid lesson/script index' }, { status: 400 });
   }
   try {
-    const bytes = await readPackageAudio(slug, lessonIndex, scriptIndex);
+    const userId = await getUserId(request);
+    const bytes = await readPackageAudio(userId, slug, lessonIndex, scriptIndex);
     // Copy required: readPackageAudio returns a Uint8Array view into a larger
     // buffer; sending it directly can leak adjacent zip entry bytes.
     return new NextResponse(new Uint8Array(bytes), {

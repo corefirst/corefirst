@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { CFLTTransformer } from '@/src/core/transformer';
 import { appendTransform } from '@/src/lib/storage';
+import { getUserId } from '@/src/lib/auth/user';
 
 const MAX_INPUT_LEN = 8192;
 
@@ -41,7 +42,8 @@ export async function POST(request: Request) {
     // Phase 1 persistence — non-blocking failure: a write failure must not
     // hide the successful transformation result from the learner.
     try {
-      await appendTransform(packageSlug ?? null, {
+      const userId = await getUserId(request);
+      await appendTransform(userId, packageSlug ?? null, {
         inputText: text,
         sourceLang: sourceLang ?? 'Chinese',
         targetLang: targetLang ?? 'English',

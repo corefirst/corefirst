@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import * as fs from 'fs/promises';
 import { mediaPath } from '@/src/lib/storage/paths';
+import { getUserId } from '@/src/lib/auth/user';
 
 interface Params { filename: string }
 
@@ -15,14 +16,15 @@ const CONTENT_TYPES: Record<string, string> = {
   webm: 'audio/webm',
 };
 
-export async function GET(_request: Request, ctx: { params: Promise<Params> }) {
+export async function GET(request: Request, ctx: { params: Promise<Params> }) {
   const { filename } = await ctx.params;
   if (!filename || !SAFE_FILENAME_RE.test(filename)) {
     return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
   }
 
   try {
-    const filePath = mediaPath(filename);
+    const userId = await getUserId(request);
+    const filePath = mediaPath(userId, filename);
     const bytes = new Uint8Array(await fs.readFile(filePath));
     const ext = filename.split('.').pop()!;
     const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream';

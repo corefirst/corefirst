@@ -5,29 +5,51 @@ import { z } from 'zod';
  * Designed to abstract differences between PouchDB, FileSystem, and SaaS APIs.
  */
 export interface DataStore {
-  /**
-   * Reads a single document.
-   */
+  /** Read a single document (null on 404). */
   get<T>(collection: string, id: string): Promise<T | null>;
 
   /**
-   * Saves or updates a document. Supports conflict resolution via revisions (e.g., _rev).
+   * Overwrite a document. Internally retries on revision conflict (409), but
+   * the input `data` is NOT re-merged against the latest revision — only the
+   * `_rev` is refreshed. Use only when the write is idempotent (e.g.
+   * setting a boolean flag) OR when the caller does not race with other
+   * writers. For read-modify-write where another writer may also mutate the
+   * same document, use `mutate()` instead.
    */
   put<T>(collection: string, id: string, data: T): Promise<void>;
 
   /**
-   * Appends data to an array field. Highly efficient for logging and history data.
+   * Read-modify-write with proper conflict handling. The mutator receives the
+   * latest revision of the document (or null if it doesn't exist yet) and
+   * returns the new value. On 409 conflicts the mutator runs again against
+   * the refreshed document, so concurrent writers compose instead of
+   * clobbering. This is the safe choice for any non-idempotent update.
+   */
+  mutate<T>(
+    collection: string,
+    id: string,
+    mutator: (current: T | null) => T,
+  ): Promise<T>;
+
+  /**
+   * Append an entry to an array field on a document. Equivalent to
+   * `mutate(c, id, doc => ({...doc, [field]: [...(doc?.[field] ?? []), entry]}))`
+   * but kept as a first-class method because PouchDB providers can optimize it.
    */
   append<T>(collection: string, id: string, field: string, entry: T): Promise<void>;
 
-  /**
-   * Retrieves all documents within a specified collection.
-   */
+  /** Retrieve all documents in a collection. */
   list(collection: string): Promise<any[]>;
 
   /**
-   * Removes a document.
+   * List documents whose `_id` starts with the given prefix. Used for the
+   * per-event document pattern (id = `<slug>:<type>:<isoTime>:<rand>`) so a
+   * single course's events can be enumerated without scanning the whole
+   * collection.
    */
+  listByPrefix(collection: string, prefix: string): Promise<any[]>;
+
+  /** Remove a document. */
   remove(collection: string, id: string): Promise<void>;
 }
 

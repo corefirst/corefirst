@@ -111,6 +111,13 @@ export class CoursewareOrchestrator {
         if (!('error' in auditResult)) {
           script.cflt_l1 = auditResult.cflt_l1;
           script.cflt_l2 = auditResult.cflt_l2;
+          // The course-generation prompt does not ask the LLM for the natural
+          // native-language rendering, so we backfill it from the audit pass —
+          // that's the canonical place where the transformer produces all four
+          // bilingual representations from a single standard_l2 input.
+          if (auditResult.standard_l1) {
+            script.standard_l1 = auditResult.standard_l1;
+          }
         } else {
           console.error('[orchestrator] Script audit failed:', auditResult.error);
         }

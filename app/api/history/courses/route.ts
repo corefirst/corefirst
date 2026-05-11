@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { listPackages } from '@/src/lib/storage';
+import { getUserId } from '@/src/lib/auth/user';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const packages = await listPackages();
+    const userId = await getUserId(request);
+    const packages = await listPackages(userId);
     const items = packages
       .map(({ slug, manifest }) => ({
         slug,

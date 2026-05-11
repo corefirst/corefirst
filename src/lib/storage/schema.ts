@@ -13,6 +13,10 @@ export const PackageScriptSchema = z.object({
   cfltL1: z.string(),
   cfltL2: z.string(),
   standardL2: z.string(),
+  // Natural native-language rendering. Optional + default '' so packages
+  // produced before this field existed still parse cleanly; the learning-mode
+  // demo falls back to standardL2 when empty.
+  standardL1: z.string().default(''),
   ssml: z.string(),
   audioFile: z.string().optional(), // e.g. "abc.mp3"
   videoFile: z.string().optional(), // e.g. "def.mp4" (future proofing)
@@ -80,12 +84,27 @@ export const LessonProgressSchema = z.object({
 export const VocabularyRecordSchema = z.object({
   token: z.string(),
   meaning: z.string(),
+  // The same surface form "go" means different things in English vs German;
+  // dedup keys must scope by the language being learned. Optional + default ''
+  // for old records that predate this field — readers should treat empty as
+  // an unknown language pairing and avoid cross-language collapse.
+  targetLang: z.string().default(''),
   mastery: z.number(),
   interval: z.number(),
   easeFactor: z.number(),
   nextReviewAt: z.string(),
   reviewCount: z.number().int(),
   lapseCount: z.number().int(),
+  // Reverse link to the script that first introduced this token, so the SR
+  // queue UI can offer "back to the source lesson" navigation. Optional for
+  // legacy data; new captures always populate it.
+  firstSeenIn: z
+    .object({
+      slug: z.string(),
+      lessonIndex: z.number().int().nonnegative(),
+      scriptIndex: z.number().int().nonnegative(),
+    })
+    .optional(),
 });
 
 export const TransformRecordSchema = z.object({
@@ -181,6 +200,52 @@ export const CFSRSSchema = z.object({
 });
 
 export type CFSRS = z.infer<typeof CFSRSSchema>;
+
+// --- Per-event document schemas ---
+//
+// Events that are append-only (transforms, attempts, roleplay messages) live
+// as individual PouchDB documents. This makes them conflict-free under
+// multi-device sync — two devices writing concurrently produce distinct doc
+// IDs that merge naturally, instead of two writers racing on the same array
+// inside a shared document. ID convention is `<slug>:<type>:<discriminator>`
+// so a single course's events enumerate cheaply via listByPrefix.
+
+export const EventDocBaseSchema = z.object({
+  type: z.enum(['transform', 'attempt', 'roleplay-session', 'roleplay-msg']),
+  slug: z.string(),
+  createdAt: z.string(),
+});
+
+export const TransformEventSchema = EventDocBaseSchema.extend({
+  type: z.literal('transform'),
+  data: TransformRecordSchema,
+});
+
+export const AttemptEventSchema = EventDocBaseSchema.extend({
+  type: z.literal('attempt'),
+  lessonIndex: z.number().int().nonnegative(),
+  scriptIndex: z.number().int().nonnegative(),
+  data: AttemptRecordSchema,
+});
+
+export const RoleplaySessionEventSchema = EventDocBaseSchema.extend({
+  type: z.literal('roleplay-session'),
+  sessionId: z.string(),
+  context: z.string(),
+  sourceLang: z.string(),
+  targetLang: z.string(),
+});
+
+export const RoleplayMessageEventSchema = EventDocBaseSchema.extend({
+  type: z.literal('roleplay-msg'),
+  sessionId: z.string(),
+  data: RoleplayMessageSchema,
+});
+
+export type TransformEvent = z.infer<typeof TransformEventSchema>;
+export type AttemptEvent = z.infer<typeof AttemptEventSchema>;
+export type RoleplaySessionEvent = z.infer<typeof RoleplaySessionEventSchema>;
+export type RoleplayMessageEvent = z.infer<typeof RoleplayMessageEventSchema>;
 
 export const CFRecordSchema = z.object({
   // packageId is null for the synthetic _global.cfrecord that holds Transform

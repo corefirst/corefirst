@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { generateObject, experimental_transcribe as transcribe } from 'ai';
 import { speechEvalModel, sttModel } from '@/src/lib/ai';
 import { appendAttempt, readPackageManifest, captureVocabulary } from '@/src/lib/storage';
+import { getUserId } from '@/src/lib/auth/user';
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_AUDIO_TYPES = new Set([
@@ -85,25 +86,32 @@ Return the transcription you were given as-is in the "transcription" field.
     const scriptIndex = typeof scriptIndexRaw === 'string' ? Number.parseInt(scriptIndexRaw, 10) : -1;
 
     try {
+      const userId = await getUserId(request);
       let packageId: string | null = null;
       if (packageSlug && packageSlug !== 'global' && packageSlug !== '_global') {
         try {
-          const manifest = await readPackageManifest(packageSlug);
+          const manifest = await readPackageManifest(userId, packageSlug);
           packageId = manifest.packageId;
 
-          // Auto-capture vocabulary for this lesson
+          // Auto-capture vocabulary for this lesson, scoped by targetLang and
+          // linked back to the script that introduced it.
           if (lessonIndex >= 0 && manifest.lessons[lessonIndex]) {
             const tokens = manifest.lessons[lessonIndex].vocabulary_focus;
             if (tokens && tokens.length > 0) {
-              await captureVocabulary(tokens);
+              await captureVocabulary(
+                userId,
+                manifest.targetLang,
+                tokens,
+                { slug: packageSlug, lessonIndex, scriptIndex: Math.max(scriptIndex, 0) },
+              );
             }
           }
         } catch {
           // Not a real package or manifest missing
         }
       }
-      
-      await appendAttempt(packageSlug, packageId, lessonIndex, scriptIndex, {
+
+      await appendAttempt(userId, packageSlug, packageId, lessonIndex, scriptIndex, {
         transcription: evaluation.transcription,
         overallScore: evaluation.score,
         pronunciation: evaluation.pronunciation,

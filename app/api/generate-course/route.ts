@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { CoursewareOrchestrator } from '@/src/generator/orchestrator';
 import { buildAndWritePackage } from '@/src/generator/package-builder';
+import { getUserId } from '@/src/lib/auth/user';
 
 const GenerateCourseRequestSchema = z.object({
   age_group: z.string().min(1),
@@ -40,11 +41,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Course generation failed' }, { status: 500 });
     }
 
+    const userId = await getUserId(request);
     const written = await buildAndWritePackage({
       manifest: result,
       sourceLang,
       targetLang,
       generateImages: parsed.data.generateImages,
+      userId,
     });
 
     return NextResponse.json({

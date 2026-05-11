@@ -1,22 +1,25 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { BlobStore } from './adapter';
-import { mediaDir } from './paths';
+import { mediaDir, DEFAULT_USER_ID } from './paths';
 
 export class FileSystemBlobStore implements BlobStore {
-  constructor(private baseDir: string = mediaDir()) {}
+  private baseDir: string;
+
+  constructor(userId: string = DEFAULT_USER_ID) {
+    this.baseDir = mediaDir(userId);
+  }
 
   async save(filename: string, data: Buffer | Blob): Promise<string> {
     const fullPath = path.join(this.baseDir, filename);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
-    
+
     if (data instanceof Blob) {
       const arrayBuffer = await data.arrayBuffer();
       await fs.writeFile(fullPath, new Uint8Array(arrayBuffer));
     } else {
       await fs.writeFile(fullPath, new Uint8Array(data));
     }
-    
     return filename;
   }
 
@@ -41,7 +44,7 @@ export class FileSystemBlobStore implements BlobStore {
   }
 
   getUrl(filename: string): string {
-    // In Next.js applications, this typically maps to /api/media/[filename]
+    // Maps to /api/media/[filename]; the route resolves userId from the request.
     return `/api/media/${filename}`;
   }
 }

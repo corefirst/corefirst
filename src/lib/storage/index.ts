@@ -1,11 +1,18 @@
 export {
-  packagePath,
-  recordPath,
-  globalRecordPath,
+  DEFAULT_USER_ID,
+  normalizeUserId,
+  userRoot,
   packagesDir,
   recordsDir,
   mediaDir,
+  packagePath,
+  manifestPath,
+  recordPath,
+  logPath,
+  globalLogPath,
+  globalSRSPath,
   mediaPath,
+  globalRecordPath,
   buildSlug,
   ensureDataDirs,
 } from './paths';
@@ -13,14 +20,21 @@ export {
 export {
   PackageManifestSchema,
   PACKAGE_FORMAT_VERSION,
+  VocabularyRecordSchema,
   type PackageManifest,
   type PackageLesson,
   type PackageScript,
   type CFRecord,
+  type CFState,
+  type CFSRS,
   type AttemptRecord,
   type TransformRecord,
   type RoleplaySessionRecord,
   type RoleplayMessage,
+  type TransformEvent,
+  type AttemptEvent,
+  type RoleplaySessionEvent,
+  type RoleplayMessageEvent,
 } from './schema';
 
 export {
@@ -29,6 +43,8 @@ export {
   readPackageAudio,
   readPackageImage,
   listPackages,
+  resolveUniqueSlug,
+  pruneOrphanMedia,
   PackageNotFoundError,
   PackageCorruptError,
   type WritePackageInput,
@@ -45,7 +61,8 @@ export {
   readAllProgress,
   captureVocabulary,
   RecordCorruptError,
-  db, // PouchDB 实例
+  db,
+  providerFor,
   type AttemptInput,
   type RoleplayUpsertInput,
 } from './record';

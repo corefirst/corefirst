@@ -5,6 +5,11 @@ export const LessonScriptSchema = z.object({
   cflt_l1: z.string(),
   cflt_l2: z.string(),
   standard_l2: z.string(),
+  // Natural native-language rendering. Used by the learning-mode demo to anchor
+  // the CRST rearrangement against an everyday sentence. Optional because legacy
+  // generations and older stored packages predate this field — orchestrator
+  // backfills it from the audit pass when missing.
+  standard_l1: z.string().default(''),
   // SSML is the most fragile field — `<prosody>` etc. inside a JSON string is
   // a common breakage point for weaker JSON-mode models. Optional w/ default
   // empty string; orchestrator falls back to wrapping standard_l2 if missing.

@@ -6,6 +6,7 @@ import { CFLTVisual } from '../components/CFLTVisual';
 import { VoiceChallenge } from '../components/VoiceChallenge';
 import { ProgressDashboard } from '../components/ProgressDashboard';
 import { CFLTBuilder } from '../components/CFLTBuilder';
+import { CFLTDemo } from '../components/CFLTDemo';
 import { CFLTChat } from '../components/CFLTChat';
 import { TransformHistory } from '../components/TransformHistory';
 import { RoleplayHistory } from '../components/RoleplayHistory';
@@ -98,6 +99,9 @@ export default function Home() {
 
   const [audioLoading, setAudioLoading] = useState<string | null>(null);
   const [completedPuzzles, setCompletedPuzzles] = useState<Set<string>>(new Set());
+  // Per-script toggle between the learning demo (default — CRST is shown, not
+  // gated) and the optional rearrange-the-blocks practice exercise.
+  const [puzzleMode, setPuzzleMode] = useState<Record<string, 'learn' | 'practice'>>({});
 
   // When the user fills inferred CRST slots, ask the server to re-render the
   // standard sentence using all four confirmed slot contents. Debounced so
@@ -626,21 +630,52 @@ export default function Home() {
                     {lesson.cflt_scripts.map((script: LessonScript, j: number) => {
                       const puzzleId = `puzzle-${i}-${j}`;
                       const isComplete = completedPuzzles.has(puzzleId);
+                      const activeMode = puzzleMode[puzzleId] ?? 'learn';
 
                       return (
                         <div key={j} className="group relative bg-white border border-slate-100 p-6 rounded-3xl hover:border-blue-200 transition-all hover:shadow-lg hover:shadow-blue-50">
                           {!isComplete ? (
                             <div className="space-y-4">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-[10px] font-black uppercase bg-slate-200 text-slate-500 px-2 py-0.5 rounded inline-flex items-center gap-1">
-                                  <User className="w-3 h-3" />{script.speaker}
-                                </span>
-                                <span className="text-xs font-bold text-slate-400 italic">Arrange the logic to unlock this dialogue</span>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-[10px] font-black uppercase bg-slate-200 text-slate-500 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                                    <User className="w-3 h-3" />{script.speaker}
+                                  </span>
+                                  {activeMode === 'practice' && (
+                                    <span className="text-xs font-bold text-slate-400 italic">
+                                      {tr(uiLang, 'practiceHint')}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex bg-slate-100 p-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0">
+                                  <button
+                                    onClick={() => setPuzzleMode(prev => ({ ...prev, [puzzleId]: 'learn' }))}
+                                    className={`px-3 py-1 rounded-md transition-colors ${activeMode === 'learn' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                  >
+                                    {tr(uiLang, 'modeLearning')}
+                                  </button>
+                                  <button
+                                    onClick={() => setPuzzleMode(prev => ({ ...prev, [puzzleId]: 'practice' }))}
+                                    className={`px-3 py-1 rounded-md transition-colors ${activeMode === 'practice' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                                  >
+                                    {tr(uiLang, 'modePractice')}
+                                  </button>
+                                </div>
                               </div>
-                              <CFLTBuilder
-                                cfltString={script.cflt_l1}
-                                onSuccess={() => markPuzzleComplete(puzzleId, i, j)}
-                              />
+                              {activeMode === 'learn' ? (
+                                <CFLTDemo
+                                  standardL1={script.standard_l1 || ''}
+                                  cfltL1={script.cflt_l1}
+                                  standardL2={script.standard_l2}
+                                  uiLang={uiLang}
+                                  onContinue={() => markPuzzleComplete(puzzleId, i, j)}
+                                />
+                              ) : (
+                                <CFLTBuilder
+                                  cfltString={script.cflt_l1}
+                                  onSuccess={() => markPuzzleComplete(puzzleId, i, j)}
+                                />
+                              )}
                             </div>
                           ) : (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>

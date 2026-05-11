@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { readAllProgress, readGlobalRecord } from '@/src/lib/storage';
+import { getUserId } from '@/src/lib/auth/user';
 
 const MAX_SESSIONS = 100;
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const { records } = await readAllProgress();
-    const global = await readGlobalRecord();
+    const userId = await getUserId(request);
+    const { records } = await readAllProgress(userId);
+    const global = await readGlobalRecord(userId);
     const all = global ? [global, ...records.filter((r) => r.packageSlug !== global.packageSlug)] : records;
 
     const roleplaySessions = all

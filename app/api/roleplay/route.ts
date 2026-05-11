@@ -7,6 +7,7 @@ import * as fs from 'fs/promises';
 import { mediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
 import { contentHash } from '@/src/lib/storage/hash';
 import { TTSFactory } from '@/src/core/tts/factory';
+import { getUserId } from '@/src/lib/auth/user';
 
 const ALLOWED_LANGUAGES = new Set([
   'Chinese', 'English', 'Japanese', 'Korean', 'Vietnamese', 'Spanish', 'French', 'German',
@@ -38,7 +39,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unsupported language' }, { status: 400 });
     }
 
-    await ensureDataDirs();
+    const userId = await getUserId(request);
+    await ensureDataDirs(userId);
 
     // 1. Process and Save user audio if present (Commit-on-Submit)
     let savedAudioFile: string | undefined;
@@ -47,7 +49,7 @@ export async function POST(request: Request) {
       const hash = contentHash(audio.data);
       const extension = (audio.type?.split('/')[1] || 'webm').replace(/;.*$/, '');
       savedAudioFile = `${hash}.${extension}`;
-      const poolFile = mediaPath(savedAudioFile);
+      const poolFile = mediaPath(userId, savedAudioFile);
       try { await fs.access(poolFile); } catch { await fs.writeFile(poolFile, audioBytes); }
     }
 
@@ -77,7 +79,7 @@ export async function POST(request: Request) {
       const text = fullResult.user_analysis.corrected;
       const hash = contentHash(text);
       const filename = `${hash}.mp3`;
-      const poolFile = mediaPath(filename);
+      const poolFile = mediaPath(userId, filename);
       try {
         await fs.access(poolFile);
         correctedAudioFile = filename;
@@ -120,7 +122,7 @@ export async function POST(request: Request) {
       ];
       try {
         const finalTitle = result.session_title || context || safeContext;
-        await upsertRoleplaySession(packageSlug ?? null, {
+        await upsertRoleplaySession(userId, packageSlug ?? null, {
           sessionId, context: finalTitle, sourceLang, targetLang, newMessages,
         });
       } catch (err) {

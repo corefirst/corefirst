@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { contentHash } from '@/src/lib/storage/hash';
 import { mediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
+import { getUserId } from '@/src/lib/auth/user';
 
 const MAX_TTS_LEN = 4096;
 
@@ -20,9 +21,10 @@ export async function POST(request: Request) {
       );
     }
 
+    const userId = await getUserId(request);
     const hash = contentHash(text);
     const filename = `${hash}.mp3`;
-    const poolFile = mediaPath(filename);
+    const poolFile = mediaPath(userId, filename);
 
     try {
       // 1. Try to serve from global media pool
@@ -36,7 +38,7 @@ export async function POST(request: Request) {
       });
     } catch {
       // 2. Generate if not in pool
-      await ensureDataDirs();
+      await ensureDataDirs(userId);
       const provider = TTSFactory.getProvider();
       const audio = await provider.generateAudio(text);
 

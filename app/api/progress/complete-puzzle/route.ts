@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { completePuzzle } from '@/src/lib/storage';
+import { getUserId } from '@/src/lib/auth/user';
 
 const CompletePuzzleSchema = z.object({
   packageId: z.string().nullable().optional(),
@@ -21,8 +22,8 @@ export async function POST(request: Request) {
 
     const { packageSlug, packageId, lessonIndex, scriptIndex } = parsed.data;
 
-    // Use empty string as fallback for packageId if missing, record layer handles nulls
-    await completePuzzle(packageSlug, packageId || '', lessonIndex, scriptIndex);
+    const userId = await getUserId(request);
+    await completePuzzle(userId, packageSlug, packageId ?? null, lessonIndex, scriptIndex);
 
     return NextResponse.json({ success: true });
   } catch (error) {

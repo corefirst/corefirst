@@ -4,10 +4,13 @@ import { TTSFactory } from '@/src/core/tts/factory';
 import { VisualFactory } from '@/src/core/visuals/factory';
 import {
   buildSlug,
+  resolveUniqueSlug,
   PACKAGE_FORMAT_VERSION,
   writePackage,
   mediaPath,
   ensureDataDirs,
+  pruneOrphanMedia,
+  DEFAULT_USER_ID,
   type PackageManifest,
   type WritePackageResult,
 } from '@/src/lib/storage';
@@ -20,39 +23,42 @@ export interface BuildPackageInput {
   targetLang: string;
   /** When false, skip image generation entirely (e.g. cost / latency control). */
   generateImages?: boolean;
+  /** Owner of this course package. Defaults to 'local' for single-user mode. */
+  userId?: string;
 }
 
 /**
- * Renders a `CoursewareManifest` (the LLM-facing schema in
- * src/types/courseware.ts) into a `.corefirst` package on disk: pre-renders
- * one MP3 per script and one optional WebP per lesson using Content-Addressable
- * Storage (CAS) for deduplication.
+ * Renders a `CoursewareManifest` into a `.corefirst` Lite manifest (and
+ * optional Full ZIP) under the owning user's data root, populating the
+ * per-user CAS media pool. The slug includes `topic` and gets a `-N` suffix
+ * when an existing manifest already owns the base slug with a different
+ * packageId, so multiple courses on the same industry/age/lang can coexist.
  */
-export async function buildAndWritePackage(input: BuildPackageInput): Promise<WritePackageResult> {
-  await ensureDataDirs();
-  const packageManifest = mapToPackageManifest(input);
+export async function buildAndWritePackage(
+  input: BuildPackageInput,
+): Promise<WritePackageResult> {
+  const userId = input.userId ?? DEFAULT_USER_ID;
+  await ensureDataDirs(userId);
+
+  const packageManifest = await mapToPackageManifest(input, userId);
 
   const tts = TTSFactory.getProvider();
   const audioMap = new Map<string, Uint8Array>();
-  
+
   for (const lesson of packageManifest.lessons) {
     for (const script of lesson.scripts) {
       const hash = contentHash(script.ssml);
       const filename = `${hash}.mp3`;
       script.audioFile = filename;
-      
-      const poolFile = mediaPath(filename);
+
+      const poolFile = mediaPath(userId, filename);
       let audio: Uint8Array | null = null;
-      
       try {
-        // Try to reuse from global pool
         audio = new Uint8Array(await fs.readFile(poolFile));
       } catch {
-        // Not in pool; generate and save
         try {
-          const bytes = await tts.generateAudio(script.ssml);
-          audio = bytes;
-          await fs.writeFile(poolFile, bytes);
+          audio = await tts.generateAudio(script.ssml);
+          await fs.writeFile(poolFile, audio);
         } catch (err) {
           console.error(
             `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
@@ -60,10 +66,7 @@ export async function buildAndWritePackage(input: BuildPackageInput): Promise<Wr
           );
         }
       }
-      
-      if (audio) {
-        audioMap.set(`media/${filename}`, audio);
-      }
+      if (audio) audioMap.set(`media/${filename}`, audio);
     }
   }
 
@@ -73,19 +76,16 @@ export async function buildAndWritePackage(input: BuildPackageInput): Promise<Wr
     for (const lesson of packageManifest.lessons) {
       const prompt = lesson.visual_generation_prompts[0];
       if (!prompt) continue;
-      
+
       const hash = contentHash(prompt);
       const filename = `${hash}.webp`;
       lesson.imageFile = filename;
-      
-      const poolFile = mediaPath(filename);
-      let image: Uint8Array | null = null;
 
+      const poolFile = mediaPath(userId, filename);
+      let image: Uint8Array | null = null;
       try {
-        // Try to reuse from global pool
         image = new Uint8Array(await fs.readFile(poolFile));
       } catch {
-        // Not in pool; generate and save
         try {
           const dataUrl = await visuals.generateImage(prompt);
           const bytes = decodeDataUrl(dataUrl);
@@ -100,21 +100,43 @@ export async function buildAndWritePackage(input: BuildPackageInput): Promise<Wr
           );
         }
       }
-      
-      if (image) {
-        imageMap.set(`media/${filename}`, image);
-      }
+      if (image) imageMap.set(`media/${filename}`, image);
     }
   }
 
-  return writePackage({ manifest: packageManifest, audio: audioMap, images: imageMap });
+  const result = await writePackage(userId, {
+    manifest: packageManifest,
+    audio: audioMap,
+    images: imageMap,
+  });
+
+  // Sweep orphans in the background — best-effort, never block the response.
+  pruneOrphanMedia(userId).catch((err) =>
+    console.error('[package-builder] pruneOrphanMedia failed:', (err as Error).message),
+  );
+
+  return result;
 }
 
-function mapToPackageManifest(input: BuildPackageInput): PackageManifest {
+async function mapToPackageManifest(
+  input: BuildPackageInput,
+  userId: string,
+): Promise<PackageManifest> {
   const { manifest } = input;
-  const slug = buildSlug(manifest.industry_context, input.targetLang, manifest.age_group);
+  const baseSlug = buildSlug(
+    manifest.industry_context,
+    input.targetLang,
+    manifest.age_group,
+    manifest.topic,
+  );
+  const packageId = randomUUID();
+  // resolveUniqueSlug returns the base slug if free; or the same slug if it's
+  // owned by this packageId (re-save); or `-2`/`-3`/… if a DIFFERENT course
+  // already owns it. Eliminates the silent-overwrite bug.
+  const slug = await resolveUniqueSlug(userId, baseSlug, packageId);
+
   return {
-    packageId: randomUUID(),
+    packageId,
     slug,
     topic: manifest.topic,
     ageGroup: manifest.age_group,
@@ -135,6 +157,7 @@ function mapToPackageManifest(input: BuildPackageInput): PackageManifest {
         cfltL1: s.cflt_l1,
         cfltL2: s.cflt_l2,
         standardL2: s.standard_l2,
+        standardL1: s.standard_l1 ?? '',
         ssml: s.ssml,
       })),
     })),

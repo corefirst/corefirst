@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readAllProgress } from '@/src/lib/storage';
 import { listPackages } from '@/src/lib/storage/package';
+import { getUserId } from '@/src/lib/auth/user';
 
 const ACTIVITY_WINDOW_DAYS = 30;
 const TOP_PACKAGES = 5;
@@ -70,11 +71,12 @@ interface ProgressResponse {
   vocabulary: VocabularyDistribution;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const userId = await getUserId(request);
     const [{ records, vocabulary: allVocabulary }, packageMatches] = await Promise.all([
-      readAllProgress(), 
-      listPackages()
+      readAllProgress(userId),
+      listPackages(userId)
     ]);
 
     const slugToTopic = new Map(packageMatches.map((p) => [p.slug, p.manifest.topic]));
