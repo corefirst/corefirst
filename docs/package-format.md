@@ -1,67 +1,41 @@
 # Package Format Specification — CoreFirst
 
-> Version: 1.0.0 | Status: Active | Last Updated: 2026-05-07  
+> Software version: 0.2.0 | Status: Active | Last Updated: 2026-05-11
 > Companion documents: `docs/storage-design.md`, `docs/tech-design.md`
 
 ---
 
 ## 1. Overview
 
-This document is the authoritative technical specification for the two CoreFirst file formats: `.corefirst` (course package) and `.cfrecord` (learning record). It covers the complete schema for every field, the internal structure of each format, the algorithms used to generate packages, and the procedures for loading and exporting them.
+This document specifies the on-disk shapes for CoreFirst persistence:
 
-Readers of this document are expected to be working on the CoreFirst application code or tooling. For a higher-level conceptual description of the storage model, see `docs/storage-design.md`.
+1. **`<slug>.json`** — Lite manifest (V3 primary form) — the source of truth for course content
+2. **`<slug>.corefirst`** — Full ZIP package (V3 optional export form) — embeds the manifest + media for offline distribution
+3. **PouchDB collections** — Per-user learner records (state, events, SRS)
+4. **CAS media pool** — Hash-named blobs in `data/users/<userId>/media/`
 
----
+V1 and V2 legacy formats (inline-audio ZIP, plain `.cfrecord` JSON, single-doc `cflog`) are read-only-compatible; on first run migration scripts upgrade them in place.
 
-## 2. The `.corefirst` Package Format
-
-### 2.1 Container Structure (V2)
-
-A `.corefirst` file is a **ZIP archive**. In V2, media assets are stored in a flat `media/` directory named by their SHA-256 hash.
-
-```
-<slug>.corefirst  (ZIP archive)
-├── manifest.json           # Required — full CoursewareManifest
-└── media/
-    ├── abc123_...mp3       # Script audio named by hash
-    ├── def456_...webp      # Lesson image named by hash
-    └── ...
-```
-
-Existing V1 packages using `audio/` and `images/` directories are supported for backward compatibility but should be migrated to V2 for CAS benefits.
+For the high-level architecture story see `docs/storage-design.md`.
 
 ---
 
-## 3. `manifest.json` Schema (V2)
+## 2. Course Package — Lite Manifest (`<slug>.json`)
 
-### 3.1 `ScriptSchema` Extension
+The **Lite manifest** is the V3 primary form: a single JSON file under `data/users/<userId>/packages/<slug>.json` containing the entire `PackageManifest`. Media is referenced by hash (`audioFile` / `imageFile` fields) and lives in the per-user CAS pool, not inside the manifest.
 
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `audioHash` | string (hex) | Yes (V2) | SHA-256 hash of the `ssml` string. Used to resolve the file in `media/[hash].mp3`. |
-
-### 3.2 `LessonSchema` Extension
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `imageHash` | string (hex) | No | SHA-256 hash of the first visual prompt. Used to resolve the file in `media/[hash].webp`. |
-
-### 2.2 `manifest.json` Schema
-
-`manifest.json` contains the serialized `CoursewareManifest` object. The complete schema follows.
-
-#### 2.2.1 Top-Level Object
+### 2.1 Top-Level Object
 
 ```json
 {
   "packageId": "550e8400-e29b-41d4-a716-446655440000",
-  "slug": "it-english-adult",
+  "slug": "it-english-adult-networking",
   "topic": "Business Networking",
   "ageGroup": "adult",
   "industry": "IT",
   "sourceLang": "Chinese",
   "targetLang": "English",
-  "createdAt": "2026-05-07T10:00:00.000Z",
+  "createdAt": "2026-05-11T10:00:00.000Z",
   "version": "1",
   "lessons": [ ... ]
 }
@@ -69,445 +43,431 @@ Existing V1 packages using `audio/` and `images/` directories are supported for 
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `packageId` | string (UUID v4) | Yes | Canonical unique identifier for this package. Immutable after generation. Used to match against `.cfrecord` files. |
-| `slug` | string | Yes | Human-readable filename base. Derived from `industry + targetLang + ageGroup`, lowercased and hyphenated. |
-| `topic` | string | Yes | Course topic as requested by the learner. |
-| `ageGroup` | string | Yes | Age group persona used during generation. Allowed values: `"adult"`, `"teen"`, `"child"`. |
-| `industry` | string | Yes | Industry context injected into the generation prompt. |
-| `sourceLang` | string | Yes | Learner's native language (full name, e.g., `"Chinese"`, `"Spanish"`). |
-| `targetLang` | string | Yes | Target language being learned (full name, e.g., `"English"`, `"Japanese"`). |
-| `createdAt` | string (ISO 8601) | Yes | UTC timestamp of package creation. |
-| `version` | string | Yes | Package format version. Current value: `"1"`. Readers must reject packages with an unrecognized version. |
-| `lessons` | array of `LessonSchema` | Yes | Ordered array of lesson objects. Minimum one lesson. |
+| `packageId` | string (UUID v4) | Yes | Canonical identifier. Immutable after generation. |
+| `slug` | string | Yes | Filename base and join key for every state/event doc. Derived from `industry + targetLang + ageGroup + topic` (see §2.5). |
+| `topic` | string | Yes | Course topic. Editable via `PATCH /api/courses/[slug]` — the slug is **not** regenerated when topic changes. |
+| `ageGroup` | string | Yes | Age persona. |
+| `industry` | string | Yes | Industry context. |
+| `sourceLang` | string | Yes | Learner's native language. |
+| `targetLang` | string | Yes | Target language. |
+| `createdAt` | string (ISO 8601) | Yes | Package creation timestamp. |
+| `version` | string | Yes | Format version. Current: `"1"`. |
+| `lessons` | array of `LessonSchema` | Yes | Ordered lessons (min 1). |
 
-#### 2.2.2 `LessonSchema` Object
-
-Each element of `lessons[]` conforms to this schema.
+### 2.2 `LessonSchema`
 
 ```json
 {
   "lessonIndex": 0,
   "title": "Breaking the Ice at a Tech Conference",
-  "scenario_desc": "You are attending a tech conference and want to start a conversation with a fellow attendee.",
+  "scenario_desc": "...",
   "vocabulary_focus": [
     { "token": "leverage", "meaning": "to use something to its maximum advantage" }
   ],
-  "visual_generation_prompts": [
-    "A bustling tech conference hall with attendees networking, modern setting, professional atmosphere"
-  ],
+  "visual_generation_prompts": ["..."],
+  "imageFile": "a1b2c3d4e5f6a7b8.webp",
   "scripts": [ ... ]
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `lessonIndex` | number (integer, 0-based) | Yes | Position of this lesson within the course. Determines file naming for audio and images. |
-| `title` | string | Yes | Lesson title as generated. |
-| `scenario_desc` | string | Yes | Scenario description providing situational context for the learner. |
-| `vocabulary_focus` | array of `{ token: string, meaning: string }` | Yes | Key vocabulary items introduced in this lesson. |
-| `visual_generation_prompts` | array of string | Yes | Image generation prompts. The first prompt (`[0]`) is used to generate `images/l{lessonIndex}.webp`. |
-| `scripts` | array of `ScriptSchema` | Yes | Ordered dialogue lines within this lesson. |
+| `lessonIndex` | integer ≥ 0 | Yes | Position; matches state/event doc references. |
+| `title` | string | Yes | |
+| `scenario_desc` | string | Yes | |
+| `vocabulary_focus` | array `{token, meaning}` | Yes | Captured into SRS on practice. |
+| `visual_generation_prompts` | string[] | Yes | First prompt feeds image generation. |
+| `imageFile` | string | No | Hash filename of the lesson image (`<hash>.webp`). Resolved from the per-user CAS pool. Absent when image generation was skipped or failed. |
+| `videoFile` | string | No | Forward-compat slot for lesson video. |
+| `scripts` | array of `ScriptSchema` | Yes | Dialogue lines. |
 
-#### 2.2.3 `ScriptSchema` Object
-
-Each element of `lessons[].scripts[]` conforms to this schema.
+### 2.3 `ScriptSchema`
 
 ```json
 {
   "scriptIndex": 0,
   "speaker": "User",
-  "cfltL1": "[核心动作: 很高兴认识你] [条件: 在这次会议上] [空间: 在技术展台旁边]",
-  "cfltL2": "[Core Action: Nice to meet you] [Condition: at this conference] [Space: near the tech booth]",
-  "standardL2": "It's great meeting you here at the tech booth.",
-  "ssml": "<speak>It's great meeting you here at the <emphasis level=\"strong\">tech booth</emphasis>.</speak>"
+  "cfltL1": "[Core: 没出门] [Reason: 因为下雨] [Space: 在家] [Time: 昨天下午]",
+  "cfltL2": "[Core: I didn't go out] [Reason: because it rained] [Space: at home] [Time: yesterday afternoon]",
+  "standardL2": "I didn't go out yesterday afternoon because it rained.",
+  "standardL1": "昨天下午下雨我就没出门。",
+  "ssml": "<speak>...</speak>",
+  "audioFile": "deadbeef12345678.mp3"
 }
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `scriptIndex` | number (integer, 0-based) | Yes | Position of this script within the lesson. Used to derive the audio filename `l{lessonIndex}s{scriptIndex}.mp3`. |
-| `speaker` | string | Yes | Speaker label. Typically `"User"` or `"AI Coach"`. |
-| `cfltL1` | string | Yes | Script line restructured into the CFLT four-element sequence in the learner's native language. |
-| `cfltL2` | string | Yes | Token-swapped CFLT output in the target language. Used for the CFLT block arrangement puzzle. |
-| `standardL2` | string | Yes | Polished idiomatic target-language sentence. Shown after the puzzle is completed. |
-| `ssml` | string | Yes | SSML markup of `standardL2` with prosody tags on the `[Core Action]` block. Consumed by the TTS provider at generation time to produce the audio file. |
+| `scriptIndex` | integer ≥ 0 | Yes | Position within the lesson. |
+| `speaker` | string | Yes | Role label (e.g. `"User"`, `"AI Coach"`). |
+| `cfltL1` | string | Yes | CRST-restructured sentence in the source language. |
+| `cfltL2` | string | Yes | Token-swapped CRST in the target language. |
+| `standardL2` | string | Yes | Polished idiomatic target sentence. Shown after Practice mode unlocks. |
+| `standardL1` | string | No (default `""`) | Natural source-language rendering. Used by **Learn mode** to anchor the CRST decomposition demo. Optional — older packages predate this field; UI falls back to `standardL2` when empty. Backfilled by the orchestrator's audit pass. |
+| `ssml` | string | Yes | SSML with prosody on `[Core]`. Hashes into `audioFile`. |
+| `audioFile` | string | No | Hash filename of the audio (`<hash>.mp3`). Resolved from the CAS pool. Absent when TTS generation failed. |
+| `videoFile` | string | No | Forward-compat slot. |
 
-### 2.3 Audio File Naming
+### 2.4 CAS Media Pool
 
-Audio files are stored under `audio/` using the pattern `l{lessonIndex}s{scriptIndex}.mp3`:
+Media for the Lite manifest lives at `data/users/<userId>/media/<hash>.<ext>`:
 
-- Both indices are **0-based integers**.
-- The audio file for lesson `i`, script `j` is `audio/l{i}s{j}.mp3`.
-- Audio files are **pre-rendered at package creation time** from `ScriptSchema.ssml` via the TTS provider.
-- The total number of audio files equals the sum of `scripts.length` across all lessons.
+* `<hash>` is `sha256(content).slice(0, 16)` — 16 hex chars from `src/lib/storage/hash.ts`
+  * Audio: `sha256(script.ssml)`
+  * Image: `sha256(lesson.visual_generation_prompts[0])`
+* Same content across two courses ⇒ one file on disk (zero-cost dedup)
+* `pruneOrphanMedia(userId)` reclaims unreferenced hashes — runs after every `writePackage` and `deletePackage`
+* HTTP-served at `/api/media/<filename>` (validates filename against `/^[a-f0-9]{16}\.(mp3|webp|mp4|webm)$/` to prevent path traversal)
 
-Examples:
+### 2.5 Slug Formula
 
-| Lesson Index | Script Index | Audio File Path |
-|-------------|-------------|-----------------|
-| 0 | 0 | `audio/l0s0.mp3` |
-| 0 | 4 | `audio/l0s4.mp3` |
-| 2 | 1 | `audio/l2s1.mp3` |
+```
+slug = asciiSlug(industry) + '-' + asciiSlug(targetLang) + '-' + asciiSlug(ageGroup) + '-' + asciiSlug(topic)
+```
 
-### 2.4 Image File Naming
+Where `asciiSlug(s) = s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')`.
 
-Images are stored under `images/` using the pattern `l{lessonIndex}.webp`:
+When `topic` contains only non-ASCII characters (e.g. Chinese topic for a Chinese learner), `asciiSlug(topic)` is empty; the formula falls back to `'t' + shortHash(topic)` where `shortHash` is a 32-bit FNV-1a in base 36.
 
-- One image per lesson, derived from `LessonSchema.visual_generation_prompts[0]`.
-- The image for lesson `i` is `images/l{i}.webp`.
-- Images are **optional**. A `.corefirst` package is valid even if the `images/` directory is absent or partially populated.
-- Format is WebP to balance quality and file size.
+**Collision handling**: `resolveUniqueSlug(userId, baseSlug, packageId)`:
+* Slug free → returns `baseSlug`
+* Slug owned by the same `packageId` (re-save) → returns `baseSlug`
+* Slug owned by a *different* `packageId` → appends `-2`, `-3`, … until free
+
+**Slug validation at API boundaries**: every route handler that consumes `[slug]` rejects anything outside `/^[a-z0-9-]+$/` with HTTP 400 before any storage call. This blocks `..` traversal via the URL.
 
 ---
 
-## 3. The `.cfrecord` Learning Record Format
+## 3. Course Package — Full ZIP (`<slug>.corefirst`)
+
+Optional sharing/export format. Created when `writePackage(userId, {…, saveFull: true})` is called. The Lite manifest is always written alongside; the ZIP is for portability.
 
 ### 3.1 Container Structure
 
-A `.cfrecord` file is a **plain UTF-8 JSON file**. It is human-readable and can be opened in any text editor.
+```
+<slug>.corefirst (ZIP, level 0 — MP3/WebP are already compressed)
+├── manifest.json        # Identical content to <slug>.json
+└── media/
+    ├── <hash>.mp3       # Inline audio referenced by manifest.lessons[*].scripts[*].audioFile
+    └── <hash>.webp      # Inline image referenced by manifest.lessons[*].imageFile
+```
+
+The ZIP is purely a transport — when imported on a fresh device, the reader extracts the manifest, places it in `data/users/<userId>/packages/<slug>.json`, and populates the CAS pool from `media/`.
+
+### 3.2 Legacy V1 ZIP Format
+
+V1 packages used positional filenames `audio/l<i>s<j>.mp3` and `images/l<i>.webp`. The reader still recognizes this form as a fallback when neither Lite manifest nor V3 `media/` entries are present — see `readPackageAudio` / `readPackageImage` in `src/lib/storage/package.ts`. New packages always emit V3.
+
+---
+
+## 4. Learner Records — PouchDB Collections
+
+Per-user PouchDB instances under `data/users/<userId>/records/db_<collection>/`. Three collections:
+
+### 4.1 `states` collection
+
+One doc per slug (plus `'global'` for the ad-hoc no-course context). Stores lesson/script progress flags.
 
 ```json
 {
-  "packageId": "550e8400-e29b-41d4-a716-446655440000",
-  "packageSlug": "it-english-adult",
-  "lastStudiedAt": "2026-05-07T14:30:00.000Z",
-  "lessons": [ ... ],
-  "vocabulary": [ ... ],
+  "_id": "it-english-adult-networking",
+  "_rev": "1-...",
+  "packageId": "550e8400-...",
+  "packageSlug": "it-english-adult-networking",
+  "lastStudiedAt": "2026-05-11T14:30:00.000Z",
+  "lessons": [
+    {
+      "lessonIndex": 0,
+      "scripts": [
+        { "scriptIndex": 0, "puzzleCompleted": true }
+      ]
+    }
+  ]
+}
+```
+
+Schema: `CFStateSchema` (`src/lib/storage/schema.ts`). Updates go through `mutate()` because `puzzleCompleted = true` is idempotent and concurrent practice across devices is expected.
+
+### 4.2 `events` collection — Per-event documents
+
+Each learner event is its own document, ID-prefixed by slug for efficient `listByPrefix` enumeration. **This is the V3 conflict-free pattern**: distinct doc IDs cannot collide under multi-device replication.
+
+| Event Type | ID Convention | Body Schema |
+|---|---|---|
+| Transform | `<slug>:transform:<isoTime>:<rand>` | `TransformEventSchema` |
+| Voice attempt | `<slug>:attempt:<lesson>:<script>:<isoTime>:<rand>` | `AttemptEventSchema` |
+| Roleplay session metadata | `<slug>:roleplay-session:<sessionId>` | `RoleplaySessionEventSchema` |
+| Roleplay message | `<slug>:roleplay-msg:<sessionId>:<isoTime>:<rand>` | `RoleplayMessageEventSchema` |
+
+Common fields on every event doc: `type`, `slug`, `createdAt`. Type-specific:
+
+**Transform event** (`TransformEventSchema`):
+
+```json
+{
+  "_id": "global:transform:2026-05-11T09:15:00.123Z:a1b2c3",
+  "type": "transform",
+  "slug": "global",
+  "createdAt": "2026-05-11T09:15:00.123Z",
+  "data": {
+    "inputText": "...",
+    "sourceLang": "Chinese",
+    "targetLang": "English",
+    "cfltL1": "...",
+    "cfltL2": "...",
+    "standardL2": "...",
+    "createdAt": "2026-05-11T09:15:00.123Z"
+  }
+}
+```
+
+**Attempt event** (`AttemptEventSchema`):
+
+```json
+{
+  "_id": "it-english-adult-networking:attempt:0:0:2026-05-11T14:31:00.000Z:f0e1d2",
+  "type": "attempt",
+  "slug": "it-english-adult-networking",
+  "lessonIndex": 0,
+  "scriptIndex": 0,
+  "createdAt": "2026-05-11T14:31:00.000Z",
+  "data": {
+    "createdAt": "2026-05-11T14:31:00.000Z",
+    "transcription": "...",
+    "overallScore": 87,
+    "pronunciation": 91,
+    "logicStress": 83,
+    "feedback": "...",
+    "scoreCoreAction": null,
+    "scoreCondition": null,
+    "scoreSpaceContext": null,
+    "scoreTime": null
+  }
+}
+```
+
+The four nullable `score*` fields are Phase 2 per-CRST-slot scoring; null in Phase 1.
+
+**Roleplay session metadata** (`RoleplaySessionEventSchema`):
+
+```json
+{
+  "_id": "global:roleplay-session:11111111-2222-4333-8444-555555555555",
+  "type": "roleplay-session",
+  "slug": "global",
+  "sessionId": "11111111-...",
+  "context": "Job interview at a startup",
+  "sourceLang": "Chinese",
+  "targetLang": "English",
+  "createdAt": "2026-05-11T11:00:00.000Z"
+}
+```
+
+The session metadata doc holds the editable `context` (renameable via `PATCH /api/history/roleplay/sessions/[sessionId]`). Cascade-deleted with all messages by `deleteRoleplaySession`.
+
+**Roleplay message** (`RoleplayMessageEventSchema`):
+
+```json
+{
+  "_id": "global:roleplay-msg:11111111-...:2026-05-11T11:00:45.000Z:9a8b7c",
+  "type": "roleplay-msg",
+  "slug": "global",
+  "sessionId": "11111111-...",
+  "createdAt": "2026-05-11T11:00:45.000Z",
+  "data": {
+    "role": "user",
+    "content": "I have five years of experience.",
+    "createdAt": "2026-05-11T11:00:45.000Z",
+    "audioFile": "<hash>.webm",
+    "correctedAudioFile": "<hash>.mp3",
+    "userAnalysis": { ... },
+    "coachAnalysis": { ... },
+    "feedback": null
+  }
+}
+```
+
+`userAnalysis` and `coachAnalysis` are present only when CRST analysis was enabled at the time of the turn — see `data.userAnalysis` / `data.coachAnalysis` shapes in `src/lib/storage/schema.ts`.
+
+### 4.3 `srs` collection — Spaced Repetition
+
+Single doc keyed `'user'`. Holds the entire per-user vocabulary deck.
+
+```json
+{
+  "_id": "user",
+  "_rev": "...",
+  "updatedAt": "2026-05-11T14:31:00.000Z",
+  "vocabulary": [
+    {
+      "token": "leverage",
+      "meaning": "to use something to its maximum advantage",
+      "targetLang": "English",
+      "mastery": 60,
+      "interval": 4,
+      "easeFactor": 2.5,
+      "nextReviewAt": "2026-05-15T00:00:00.000Z",
+      "reviewCount": 3,
+      "lapseCount": 0,
+      "firstSeenIn": {
+        "slug": "it-english-adult-networking",
+        "lessonIndex": 0,
+        "scriptIndex": 0
+      }
+    }
+  ]
+}
+```
+
+* **Uniqueness**: composite key `(targetLang, token)`. Same surface form in different target languages tracked independently.
+* **`firstSeenIn`**: reverse link to the script that introduced the token. Cleared by `orphanVocabularyForSlug` when the source course is deleted — the entry stays (mastery is real cognitive progress), only the back-link is broken.
+* **Updates**: `mutate()`.
+
+### 4.4 Legacy `.cfrecord` shape (read-only compatibility)
+
+The V2 unified `.cfrecord` schema (`CFRecordSchema`) is still exposed by `readRecord` for backward compatibility with code that hasn't migrated to the per-event readers (`listTransformEvents`, `listRoleplaySessions`). The legacy shape is synthesized from `states` + `events` + `srs` at read time:
+
+```json
+{
+  "packageId": "...",
+  "packageSlug": "...",
+  "lastStudiedAt": "...",
+  "lessons": [ { "lessonIndex": 0, "scripts": [ ... ] } ],
+  "vocabulary": [],
   "transforms": [ ... ],
   "roleplaySessions": [ ... ]
 }
 ```
 
-### 3.2 Top-Level Object
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `packageId` | string (UUID v4) | Yes | The `packageId` of the associated `.corefirst` package. Primary key for matching. |
-| `packageSlug` | string | Yes | Slug of the associated package. Used as the filename base and as a human-readable reference. |
-| `lastStudiedAt` | string (ISO 8601) | Yes | Timestamp of the most recent study session. Updated on every write. |
-| `lessons` | array of lesson progress objects | Yes | Per-lesson progress. Indexed to match `LessonSchema.lessonIndex`. |
-| `vocabulary` | array of `VocabularyRecord` | Yes | Vocabulary mastery records. May be empty array. |
-| `transforms` | array of `TransformRecord` | Yes | Transform Mode history. May be empty array. |
-| `roleplaySessions` | array of `RoleplaySessionRecord` | Yes | Roleplay sessions. May be empty array. |
-
-### 3.3 Lesson Progress Object
-
-Each entry in `lessons[]` corresponds to one lesson in the `.corefirst` package.
-
-```json
-{
-  "lessonIndex": 0,
-  "scripts": [
-    {
-      "scriptIndex": 0,
-      "puzzleCompleted": true,
-      "attempts": [ ... ]
-    }
-  ]
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `lessonIndex` | number (integer, 0-based) | Corresponds to `LessonSchema.lessonIndex`. |
-| `scripts` | array of script progress objects | Per-script progress. |
-| `scripts[].scriptIndex` | number (integer, 0-based) | Corresponds to `ScriptSchema.scriptIndex`. |
-| `scripts[].puzzleCompleted` | boolean | Whether the learner has successfully completed the CFLT block arrangement puzzle for this script. Default `false`. |
-| `scripts[].attempts` | array of `AttemptRecord` | Voice attempt records for this script. May be empty array. |
-
-### 3.4 `AttemptRecord` Schema
-
-Each element of `scripts[].attempts[]` records one voice attempt by the learner.
-
-```json
-{
-  "createdAt": "2026-05-07T14:31:00.000Z",
-  "transcription": "It's great meeting you here at the tech booth.",
-  "overallScore": 87,
-  "pronunciation": 91,
-  "logicStress": 83,
-  "feedback": "Good emphasis on 'meeting'. Try to stress 'tech booth' more firmly.",
-  "scoreCoreAction": null,
-  "scoreCondition": null,
-  "scoreSpaceContext": null,
-  "scoreTime": null
-}
-```
-
-| Field | Type | Nullable | Phase | Description |
-|-------|------|----------|-------|-------------|
-| `createdAt` | string (ISO 8601) | No | 1 | Timestamp of the attempt. |
-| `transcription` | string | No | 1 | STT-transcribed text of the learner's actual utterance. |
-| `overallScore` | number (0–100) | No | 1 | Composite score. |
-| `pronunciation` | number (0–100) | No | 1 | Phonetic accuracy score. |
-| `logicStress` | number (0–100) | No | 1 | Prosodic emphasis score for the `[Core Action]` block. A CoreFirst-specific signal: correct stress on the Core Action element is the primary CFLT prosody marker. |
-| `feedback` | string | No | 1 | Natural-language coaching feedback generated by the LLM evaluator. |
-| `scoreCoreAction` | number (0–100) | Yes | 2 | Per-block CFLT accuracy for the `[Core Action/Result]` element. Null in Phase 1. |
-| `scoreCondition` | number (0–100) | Yes | 2 | Per-block CFLT accuracy for the `[Condition/Reason]` element. Null in Phase 1. |
-| `scoreSpaceContext` | number (0–100) | Yes | 2 | Per-block CFLT accuracy for the `[Space/Context]` element. Null in Phase 1. |
-| `scoreTime` | number (0–100) | Yes | 2 | Per-block CFLT accuracy for the `[Time]` element. Null in Phase 1. |
-
-Phase 2 fields are present in Phase 1 records as `null`. No record migration is required when Phase 2 scoring is activated.
-
-### 3.5 `VocabularyRecord` Schema
-
-Each entry in `vocabulary[]` tracks the learner's mastery of a single vocabulary token using the SM-2 spaced repetition algorithm.
-
-```json
-{
-  "token": "leverage",
-  "meaning": "to use something to its maximum advantage",
-  "mastery": 60,
-  "interval": 4,
-  "easeFactor": 2.5,
-  "nextReviewAt": "2026-05-11T00:00:00.000Z",
-  "reviewCount": 3,
-  "lapseCount": 0
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `token` | string | Vocabulary token (word or phrase). |
-| `meaning` | string | Definition or translation in the learner's native language. |
-| `mastery` | number (0–100) | Presentation-layer mastery score. Derived from `interval` and `reviewCount` for UI display; not used by the SM-2 scheduler directly. |
-| `interval` | number (integer, days) | Current SM-2 review interval. Starts at `1`. Grows multiplicatively with each successful review. |
-| `easeFactor` | number (float) | SM-2 ease factor. Starts at `2.5`. Decreases on lapses; floor is `1.3`. |
-| `nextReviewAt` | string (ISO 8601) | Scheduled next review timestamp, computed as `now + interval days`. |
-| `reviewCount` | number (integer) | Total number of review events, successful or not. |
-| `lapseCount` | number (integer) | Number of times the item has regressed (a previously-mastered item was answered incorrectly). |
-
-**Uniqueness:** One `VocabularyRecord` per `token`. If the same token appears in multiple lessons, mastery is tracked once and applies across all occurrences.
-
-### 3.6 `TransformRecord` Schema
-
-Each entry in `transforms[]` records one invocation of Transform Mode that was associated with this course package.
-
-```json
-{
-  "inputText": "我想在会议上认识新朋友",
-  "sourceLang": "Chinese",
-  "targetLang": "English",
-  "cfltL1": "[核心动作: 认识新朋友] [条件: 想要] [空间: 在会议上]",
-  "cfltL2": "[Core Action: make new friends] [Condition: I want to] [Space: at the conference]",
-  "standardL2": "I'd love to make new connections at the conference.",
-  "createdAt": "2026-05-07T09:15:00.000Z"
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `inputText` | string | Raw user input before transformation. |
-| `sourceLang` | string | Learner's native language at time of transform. |
-| `targetLang` | string | Target language at time of transform. |
-| `cfltL1` | string | Input restructured into CFLT four-element sequence in native language. |
-| `cfltL2` | string | Token-swapped CFLT output in target language. |
-| `standardL2` | string | Polished idiomatic target-language output. |
-| `createdAt` | string (ISO 8601) | Timestamp of the transform invocation. |
-
-### 3.7 `RoleplaySessionRecord` Schema
-
-Each entry in `roleplaySessions[]` records one Roleplay Mode conversation thread.
-
-```json
-{
-  "sessionId": "11111111-2222-4333-8444-555555555555",
-  "context": "Job interview for a senior software engineer role at a startup",
-  "sourceLang": "Chinese",
-  "targetLang": "English",
-  "createdAt": "2026-05-07T11:00:00.000Z",
-  "messages": [
-    {
-      "role": "assistant",
-      "content": "Welcome! Please tell me about yourself.",
-      "createdAt": "2026-05-07T11:00:05.000Z"
-    },
-    {
-      "role": "user",
-      "content": "I have five years of experience in backend development.",
-      "createdAt": "2026-05-07T11:00:45.000Z"
-    }
-  ]
-}
-```
-
-**Top-level fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `sessionId` | string (UUID v4) | Stable session identifier minted by the client on the first turn. Subsequent `/api/roleplay` POSTs with the same `sessionId` append to this entry; new IDs create new entries. Required. |
-| `context` | string | Scenario/persona description injected into the system prompt for this session. |
-| `sourceLang` | string | Learner's native language. |
-| `targetLang` | string | Target language. |
-| `createdAt` | string (ISO 8601) | Session creation timestamp. |
-| `messages` | array of `MessageRecord` | Ordered conversation turns. |
-
-**`MessageRecord` fields:**
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `role` | string | `"user"` or `"assistant"`. |
-| `content` | string | Raw message text. |
-| `createdAt` | string (ISO 8601) | Message timestamp. Used to reconstruct turn order. |
+`vocabulary` is always empty on the legacy shape — the SRS deck is global and lives in the `srs` collection.
 
 ---
 
-## 4. Package Generation Flow
+## 5. Package Generation Flow
 
-When the Courseware Generator creates a new course, it produces a `.corefirst` package in four sequential stages.
+Implemented by `buildAndWritePackage` in `src/generator/package-builder.ts`.
 
 ### Stage 1 — Generate CoursewareManifest
 
-The orchestrator calls the LLM with a structured courseware prompt. The LLM returns a `CoursewareManifest` object conforming to `CoursewareManifestSchema` (see `src/types/courseware.ts`). The manifest includes all lesson titles, scenario descriptions, vocabulary focus items, visual prompts, and all script fields including CFLT representations and SSML. A `packageId` UUID is generated at this point and written into the manifest.
+LLM produces the `CoursewareManifest` per `CoursewareManifestSchema` in `src/types/courseware.ts`. A `packageId` UUID is minted. The slug is computed via `buildSlug(industry, targetLang, ageGroup, topic)` then run through `resolveUniqueSlug(userId, baseSlug, packageId)` to handle collisions.
 
-**Input:** `{ topic, ageGroup, industry, sourceLang, targetLang }`  
-**Output:** `CoursewareManifest` (all fields except audio/image paths, which are determined by index)
+The orchestrator runs an audit pass over every script through `CFLTTransformer` to backfill `standard_l1` from `standard_l2` when the generator didn't produce it.
 
-### Stage 2 — Render Audio
+### Stage 2 — Render Audio via CAS
 
-For each script in each lesson, the orchestrator calls the TTS provider with `script.ssml`:
-
-```
-for each lesson[i]:
-  for each lesson[i].scripts[j]:
-    audioBuffer = TTS.synthesize(scripts[j].ssml)
-    save audioBuffer → audio/l{i}s{j}.mp3
-```
-
-Audio files are generated in lesson order, then script order within each lesson. All audio files must be present before bundling.
-
-**TTS provider:** Configured via `TTS_PROVIDER` environment variable. See `src/core/tts/`.
-
-### Stage 3 — Render Images (Optional)
-
-For each lesson, the orchestrator calls the image generation provider with `lesson.visual_generation_prompts[0]`:
+For each script:
 
 ```
-for each lesson[i]:
-  imageBuffer = ImageGen.generate(lesson[i].visual_generation_prompts[0])
-  save imageBuffer → images/l{i}.webp
-```
+hash = sha256(script.ssml).slice(0, 16)
+script.audioFile = `${hash}.mp3`
+poolFile = data/users/<userId>/media/<hash>.mp3
 
-Image generation is optional. If the image provider is unavailable or the generation fails, the package is still written without the `images/` directory. The application handles absent images gracefully.
-
-**Image provider:** The `imageGen` feature picks provider + model via the standard precedence — `IMAGE_GEN_PROVIDER` / `IMAGE_GEN_MODEL` (per-feature) > `TEXT_TO_IMAGE_PROVIDER` (capability default) > baked-in `google` / `imagen-4.0-generate-001`. Implementation: `src/lib/ai/text-to-image/`.
-
-### Stage 4 — Bundle into ZIP
-
-The orchestrator assembles the final archive:
-
-```
-zip = ZipWriter()
-zip.add("manifest.json", JSON.stringify(manifest, null, 2))
-for each audio file:
-  zip.add("audio/l{i}s{j}.mp3", audioBuffer)
-for each image file (if generated):
-  zip.add("images/l{i}.webp", imageBuffer)
-zip.write("data/packages/{slug}.corefirst")
-```
-
-The slug is derived from the manifest fields: `{industry}-{targetLang}-{ageGroup}`, lowercased and hyphenated. The `data/packages/` directory is created if it does not exist.
-
-After writing the package file, the orchestrator creates an empty `.cfrecord` stub in `data/records/{slug}.cfrecord` to establish the record file for this package.
-
----
-
-## 5. Package Import Flow
-
-To load a `.corefirst` package for study, the application follows these steps.
-
-### Step 1 — Read and Validate the Archive
-
-```
-archive = ZipReader.open("data/packages/{slug}.corefirst")
-manifestJson = archive.readEntry("manifest.json")
-manifest = JSON.parse(manifestJson)
-
-if manifest.version !== SUPPORTED_VERSION:
-  throw PackageVersionError(manifest.version)
-```
-
-Validation checks: `packageId` is a valid UUID, `version` is a recognized value, `lessons` is a non-empty array, all `lessonIndex` and `scriptIndex` values are sequential non-negative integers.
-
-### Step 2 — Resolve the Learning Record
-
-```
-candidatePath = "data/records/" + manifest.slug + ".cfrecord"
-
-if fileExists(candidatePath):
-  record = JSON.parse(readFile(candidatePath))
-  if record.packageId === manifest.packageId:
-    // Progress matched by packageId — restore
-  else:
-    // Slug collision, different package — create new record
-    record = createEmptyRecord(manifest)
+if poolFile exists:
+  reuse                                  # CAS hit — same SSML across courses
 else:
-  record = createEmptyRecord(manifest)
-  writeFile(candidatePath, JSON.stringify(record))
+  audio = TTS.synthesize(script.ssml)
+  fs.writeFile(poolFile, audio)
 ```
 
-Matching is always performed by `packageId`, not by slug. A slug collision (two different packages producing the same slug) results in a new record file.
+### Stage 3 — Render Images via CAS
 
-### Step 3 — Load Audio on Demand
+Same pattern: `hash = sha256(visual_generation_prompts[0]).slice(0,16)`; `lesson.imageFile = '<hash>.webp'`. Image generation is optional — failures are logged and the manifest writes without `imageFile`.
 
-Audio files are loaded lazily from the archive as the learner progresses through scripts:
+### Stage 4 — Write Manifest and Optional ZIP
 
-```
-function getAudio(lessonIndex, scriptIndex):
-  path = "audio/l" + lessonIndex + "s" + scriptIndex + ".mp3"
-  return archive.readEntry(path)  // returns ArrayBuffer
-```
+`writePackage(userId, input)`:
 
-The archive is kept open for the duration of the study session and closed when the learner exits the course. Audio buffers are not cached in memory; each playback request reads from the archive.
+1. Always writes `<slug>.json` (the Lite manifest)
+2. When `input.saveFull` is true, also bundles a `<slug>.corefirst` ZIP with the manifest and inline media
+
+After write, `pruneOrphanMedia(userId)` runs in the background to reclaim hashes dropped by the new manifest (re-generating a course no longer leaks the old TTS files).
 
 ---
 
-## 6. Learning Record Export Flow
+## 6. Package Import Flow
 
-A `.cfrecord` file can be exported at any time. Because it is a plain JSON file, no serialization step is required beyond reading the file from disk.
+`readPackageManifest(userId, slug)`:
 
-### Programmatic Export
+1. Try Lite manifest at `<slug>.json` (fast path)
+2. Fall back to Full ZIP at `<slug>.corefirst` and read the embedded `manifest.json` (sharing path)
+3. Throw `PackageNotFoundError` if neither exists
 
-```
-sourcePath = "data/records/" + slug + ".cfrecord"
-destinationPath = userChosenDestination + "/" + slug + ".cfrecord"
-copyFile(sourcePath, destinationPath)
-```
+Audio/image readers (`readPackageAudio`, `readPackageImage`) prefer the per-user CAS pool, fall back to ZIP-embedded media, and finally to the V1 positional filename fallback (`audio/l<i>s<j>.mp3`).
 
-### Import on Another Device
-
-```
-copyFile(userProvidedPath, "data/records/" + slug + ".cfrecord")
-// The application will match it to the package on next launch via packageId
-```
-
-If a `.cfrecord` file is placed in `data/records/` and no matching `.corefirst` package is present in `data/packages/`, the record is loaded but the course content is unavailable. The application displays a prompt asking the learner to import the corresponding package.
+Learner records do not need to be imported — they live in PouchDB and are created on first write.
 
 ---
 
-## 7. Version Field and Format Evolution
+## 7. Delete and Rename Operations
 
-The `version` field in `manifest.json` is a string representing the package format version. The current value is `"1"`.
+### 7.1 Course (`<slug>.json` + everything keyed by slug)
 
-| Version | Description |
-|---------|-------------|
-| `"1"` | Initial format. This specification. |
+`deletePackage(userId, slug)` cascade (see `docs/storage-design.md` §6.5 for per-step details):
 
-**Forward-compatibility rules:**
+| Step | Action |
+|---|---|
+| `manifest` | `fs.unlink` the Lite JSON + Full ZIP if present |
+| `state` | `db.remove` the `states/<slug>` doc |
+| `events` | `listByPrefix(EVENTS, '<slug>:')` then `removeMany` (single `bulkDocs` round-trip) |
+| `vocab` | `mutate(SRS, 'user')` clears `firstSeenIn` for entries from this slug. Entries themselves preserved. |
+| `media` | `pruneOrphanMedia(userId)` reclaims orphaned hashes |
 
-- The application must reject packages with a `version` value it does not recognize.
-- New required fields added in a future version must not share names with existing fields unless they replace them with backward-compatible semantics.
-- New optional fields added to `manifest.json` must be ignored by older readers (tolerant reader principle).
-- The `.cfrecord` format does not carry an explicit version field in v1. If the format evolves, a `version` field will be added to the top-level object.
+Returns `{ok, steps[], errors[]}`. The HTTP route returns `207 Multi-Status` on partial failure so the cascade is observable end-to-end.
+
+`renamePackageTopic(userId, slug, newTopic)`:
+* Reads the Lite manifest, replaces `topic`, writes it back
+* **Slug stays unchanged** — every event doc and state doc keys on slug; renaming would orphan everything
+
+### 7.2 Roleplay session
+
+`deleteRoleplaySession(userId, slug, sessionId)`:
+* Lists `<slug>:roleplay-msg:<sessionId>:` prefix → batch tombstone all message docs + the session metadata doc
+
+`renameRoleplaySession(userId, slug, sessionId, newContext)`:
+* `mutate()` the `<slug>:roleplay-session:<sessionId>` doc to update `context`
+
+### 7.3 Individual events
+
+`deleteHistoryEvent(userId, eventId)` — tombstones one doc by its full PouchDB `_id`. Used for single transform delete and single roleplay-message delete.
+
+All deletes are **idempotent** (404 → success) so concurrent multi-device deletes don't error.
 
 ---
 
-## 8. Related Documents
+## 8. Format Versioning
 
-- `docs/storage-design.md` — High-level storage architecture, directory layout, naming conventions, and sync model
-- `docs/tech-design.md` — System architecture, module breakdown, and API route design
-- `docs/prd.md` — Product requirements and feature priorities
-- `docs/features/courseware-generator.md` — Courseware Generator feature spec
-- `src/types/courseware.ts` — Zod schema for `CoursewareManifestSchema`
-- `src/core/tts/` — TTS provider interface and implementations
-- `src/core/visuals/` — Image generation provider interface and implementations
+| Version | Format |
+|---------|--------|
+| `"1"` | V1: ZIP-only, positional audio filenames, inline media (legacy) |
+| `"1"` | V2: Lite JSON + Full ZIP, CAS hashes, separate `audio_hash`/`image_hash` fields (legacy) |
+| `"1"` | V3 (current): Lite + Full, `audioFile`/`imageFile` strings, multi-user partitioning |
+
+The on-disk `version` field is still `"1"` because all three iterations are forward/backward compatible at the manifest level — the differences are layout-level (where files live, where media live) and handled by the readers.
+
+When the **manifest schema** itself breaks, the field will increment.
+
+---
+
+## 9. Migration Scripts
+
+Located in `src/lib/storage/`:
+
+| Script | What it does |
+|---|---|
+| `migrate-v2.ts` | V1 positional-audio ZIPs → V2 Lite manifest + CAS pool (`audioHash` → `audioFile`). Run as `npx tsx src/lib/storage/migrate-v2.ts <userId>`. |
+| `migrate-to-pouch.ts` | V2 `.cfstate` / `.cflog` / `.cfsrs` JSON files → PouchDB collections. **Also splits the legacy single-doc `logs` collection into per-event docs in the `events` collection.** Original files renamed to `.bak`. Run as `npx tsx src/lib/storage/migrate-to-pouch.ts <userId>`. |
+
+V3 multi-user partitioning is currently a manual one-time move: `mkdir -p data/users/local && mv data/{packages,records,media} data/users/local/`. Migration scripts then run per-user.
+
+---
+
+## 10. Related Documents
+
+- `docs/storage-design.md` — Architecture overview, sync model, naming conventions
+- `docs/tech-design.md` — System modules, API routes
+- `docs/prd.md` — Product features and KPIs
+- `docs/features/courseware-generator.md` — Generator feature spec
+- `src/types/courseware.ts` — `CoursewareManifestSchema`
+- `src/lib/storage/schema.ts` — All persistence schemas (state, events, SRS, package)
+- `src/lib/storage/package.ts` — Manifest IO, slug resolution, CAS pool, GC
+- `src/lib/storage/record.ts` — Event readers/writers, mutate-based RMW, cascade deletes

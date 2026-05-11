@@ -1,6 +1,6 @@
 # Provider & Storage Architecture
 
-> Version: 1.0.0 | Status: Implemented | Last Updated: 2026-05-09
+> Software version: 0.1.0 | Status: Implemented | Last Updated: 2026-05-09
 > Companion documents: `docs/prd.md`, `docs/tech-design.md`, `docs/storage-design.md`, `docs/package-format.md`, `docs/learning-architecture.md`
 
 ---

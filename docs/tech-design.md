@@ -1,6 +1,6 @@
 # Technical Design — CoreFirst
 
-> Version: 1.0.0 | Status: Active | Last Updated: 2026-05-07  
+> Software version: 0.2.0 | Status: Active | Last Updated: 2026-05-11  
 > Companion document to: `docs/prd.md`
 
 ---
@@ -27,13 +27,20 @@ To support the vision of a 100% private, BYOK (Bring Your Own Key) ecosystem acr
 ```
 ┌─────────────────────────────────────────────────────┐
 │                   Browser (React 19)                 │
-│  CFLTBlock  CFLTBuilder  VoiceChallenge  Dashboard   │
+│  CFLTBlock  CFLTBuilder  CFLTDemo  VoiceChallenge    │
+│  TransformHistory  RoleplayHistory  CourseHistory    │
 └───────────────────┬─────────────────────────────────┘
                     │ HTTP (fetch)
+                    │ + X-User-Id header / cf_user_id cookie
 ┌───────────────────▼─────────────────────────────────┐
 │             Next.js API Routes (Edge/Node)            │
 │  /transform  /generate-course  /speech-eval  /tts    │
 │  /roleplay   /generate-image   /progress  /transcribe│
+│  /courses/[slug]  (GET, DELETE, PATCH)                │
+│  /history/transforms  (GET, DELETE)                   │
+│  /history/roleplay/sessions  (GET, DELETE, PATCH)     │
+│  /history/roleplay/messages  (DELETE)                 │
+│  /history/courses  (GET)  /media/[filename]  (GET)    │
 └─────┬──────────────┬──────────────┬─────────────────┘
       │              │              │
  ┌────▼─────┐  ┌─────▼─────┐  ┌─────▼───────┐
@@ -51,18 +58,24 @@ To support the vision of a 100% private, BYOK (Bring Your Own Key) ecosystem acr
 │              src/  (TypeScript modules)               │
 │  core/transformer.ts   core/system_prompt.md          │
 │  generator/orchestrator.ts  generator/courseware_prompt.md │
-│  generator/package-builder.ts  (audio + image render)  │
+│  generator/package-builder.ts  (audio + image CAS)    │
 │  lib/ai/  (text/image/speech/transcription/video)     │
-│  lib/storage/  (.corefirst + .cfrecord I/O)           │
+│  lib/auth/user.ts  (userId resolution + normalize)    │
+│  lib/storage/  (paths, PouchDB provider, package, record,│
+│                 schemas, migrations, hash)            │
 │  core/tts/   core/visuals/   (provider façades)       │
 └──────────────────────────┬──────────────────────────┘
-                           │ fs read/write
-                    ┌──────▼──────────┐
-                    │      data/      │
-                    │   packages/     │  *.corefirst (ZIP)
-                    │   records/      │  *.cfrecord (JSON) +
-                    │                 │  _global.cfrecord
-                    └─────────────────┘
+                           │ fs + PouchDB
+                    ┌──────▼──────────────────────┐
+                    │  data/users/<userId>/        │
+                    │  ├─ packages/   *.json,      │
+                    │  │              *.corefirst  │
+                    │  ├─ media/      <hash>.mp3,  │
+                    │  │              <hash>.webp  │
+                    │  └─ records/    db_states/   │
+                    │                 db_events/   │
+                    │                 db_srs/      │
+                    └─────────────────────────────┘
 ```
 
 ---
@@ -95,27 +108,46 @@ The shared model registry lives in `src/lib/ai/`, split per *capability* (text, 
 
 Each route is a thin adapter: validate input → call core module → return JSON. No business logic lives in routes.
 
+Every route reads `userId` via `getUserId(request)` from `src/lib/auth/user.ts` (resolution order: `X-User-Id` header → `cf_user_id` cookie → `COREFIRST_DEFAULT_USER` env → `'local'`). The id is whitelist-normalized so an attacker cannot use it to traverse out of their namespace.
+
+Every route that consumes a `[slug]` URL param validates it against `/^[a-z0-9-]+$/` before any storage call, blocking path traversal via `..` segments.
+
 | Route | Core Module | External Service | Storage Side Effects |
 |-------|------------|-----------------|----------------------|
-| `POST /api/transform` | `src/core/transformer.ts` | Text (per `TEXT_PROVIDER`) | Append `transforms[]` to `.cfrecord` (or `_global.cfrecord`) |
-| `POST /api/generate-course` | `src/generator/orchestrator.ts` + `src/generator/package-builder.ts` | Text + Image + TTS | Write `data/packages/<slug>.corefirst` |
-| `POST /api/speech-eval` | inline prompt | STT + Text | Append `attempts[]` to `.cfrecord` when packageSlug provided |
-| `POST /api/tts` | `src/core/tts/factory.ts` | TTS (`gpt-4o-mini-tts`) | None — real-time only |
-| `POST /api/roleplay` | inline | Text (multi-turn) | Upsert `roleplaySessions[]` by `sessionId` |
+| `POST /api/transform` | `src/core/transformer.ts` | Text (per `TEXT_PROVIDER`) | Append per-event doc to `events/<slug>:transform:<isoTime>:<rand>` |
+| `POST /api/generate-course` | `src/generator/orchestrator.ts` + `src/generator/package-builder.ts` | Text + Image + TTS | Write `data/users/<userId>/packages/<slug>.json` (Lite) + optional `.corefirst` ZIP; populate CAS pool; run `pruneOrphanMedia` |
+| `POST /api/speech-eval` | inline prompt | STT + Text | Append per-event doc to `events/<slug>:attempt:<lesson>:<script>:<isoTime>:<rand>`; capture vocabulary into SRS deck |
+| `POST /api/tts` | `src/core/tts/factory.ts` | TTS (`gpt-4o-mini-tts`) | CAS-cached at `data/users/<userId>/media/<hash>.mp3`; only synthesizes on cache miss |
+| `POST /api/roleplay` | inline | Text (multi-turn) | Upsert session metadata doc; append per-message doc per turn; CAS-cache user audio + corrected audio |
 | `POST /api/transcribe` | inline | STT | None |
-| `POST /api/generate-image` | `src/core/visuals/factory.ts` (façade) → `src/lib/ai/text-to-image/factory.ts` | Image (per `IMAGE_GEN_PROVIDER` / `TEXT_TO_IMAGE_PROVIDER`) | None |
-| `GET /api/progress` | `src/lib/storage` | None | Reads all `.cfrecord` files |
+| `POST /api/generate-image` | `src/core/visuals/factory.ts` (façade) → `src/lib/ai/text-to-image/factory.ts` | Image (per `IMAGE_GEN_PROVIDER` / `TEXT_TO_IMAGE_PROVIDER`) | CAS-cached in per-user media pool |
+| `GET /api/progress` | `src/lib/storage` | None | Aggregates per-user `events` + `srs` collections |
+| `GET /api/courses/[slug]` | `src/lib/storage` | None | Reads Lite manifest |
+| `DELETE /api/courses/[slug]` | `src/lib/storage` | None | 5-step cascade (manifest + state + events + vocab back-links + media GC); returns 200 on full success, 207 with `{ok:false, steps, errors}` on partial |
+| `PATCH /api/courses/[slug]` | `src/lib/storage` | None | Renames manifest `topic` (slug immutable) |
+| `GET /api/history/transforms` | `src/lib/storage` | None | `listTransformEvents(userId)` over `events` collection, MAX 200 |
+| `DELETE /api/history/transforms/[eventId]` | `src/lib/storage` | None | Tombstones one transform event doc (idempotent) |
+| `GET /api/history/roleplay` | `src/lib/storage` | None | `listRoleplaySessions(userId)` over `events` collection, MAX 100 |
+| `DELETE /api/history/roleplay/sessions/[sessionId]?slug=…` | `src/lib/storage` | None | Cascade-tombstone session metadata + all messages |
+| `PATCH /api/history/roleplay/sessions/[sessionId]?slug=…` | `src/lib/storage` | None | Renames session `context` |
+| `DELETE /api/history/roleplay/messages/[eventId]` | `src/lib/storage` | None | Tombstones one message doc |
+| `GET /api/history/courses` | `src/lib/storage` | None | Per-user `listPackages` |
+| `GET /api/media/[filename]` | `src/lib/storage` | None | Resolves filename against per-user CAS pool; validates filename regex |
 
 ### 2.4 Frontend Components (`components/`)
 
 | Component | Purpose |
 |-----------|---------|
-| `CFLTBlock.tsx` | Renders a single CFLT analysis: color-coded sequence blocks + corrections |
-| `CFLTBuilder.tsx` | Gamified drag-and-drop sentence sorter (Framer Motion Reorder) |
-| `CFLTVisual.tsx` | Visual CFLT sequence diagram |
-| `CFLTChat.tsx` | Chat interface for Dynamic Roleplay |
+| `CFLTBlock.tsx` | Renders a single CRST analysis: color-coded sequence blocks + corrections |
+| `CFLTBuilder.tsx` | Practice mode (opt-in): drag-and-drop sentence sorter (Framer Motion Reorder) |
+| `CFLTDemo.tsx` | Learn mode (default): animated CRST decomposition showing `standard_l1` → four blocks |
+| `CFLTVisual.tsx` | Visual CRST sequence diagram |
+| `CFLTChat.tsx` | Chat interface for Roleplay |
 | `VoiceChallenge.tsx` | Audio recorder + score display |
 | `ProgressDashboard.tsx` | Recharts analytics: score trend, vocabulary mastery |
+| `TransformHistory.tsx` | Transform event list + per-entry delete |
+| `RoleplayHistory.tsx` | Roleplay session list + session rename/delete + per-message delete |
+| `CourseHistory.tsx` | Course list + per-row open/rename/delete |
 
 ### 2.5 Hooks (`hooks/`)
 
@@ -127,17 +159,24 @@ Each route is a thin adapter: validate input → call core module → return JSO
 
 ## 3. Data Model
 
-CoreFirst persists no data in any database. Course content and learner progress both live as files on the local filesystem:
+CoreFirst persists data through a per-user hybrid: PouchDB for structured records, filesystem for media and course manifests. Everything is partitioned by `userId` under `data/users/<userId>/`.
 
-- **`data/packages/<slug>.corefirst`** — ZIP archive holding `manifest.json` (full `CoursewareManifest`), pre-rendered `audio/l{i}s{j}.mp3`, and optional `images/l{i}.webp`. Read-only after creation.
-- **`data/media/`** — Global content-addressable storage (CAS) pool for deduplicated audio and images.
-- **`data/records/<slug>.cfstate`** — Lightweight JSON file holding course-specific progress.
-- **`data/records/<slug>.cflog`** — Heavy JSON file holding event logs (attempts, roleplay, transforms).
-- **`data/records/_global.cfrecord`** — same JSON shape as a per-package record but with `packageId: null`. Holds Transform / Roleplay history that is not tied to any specific course.
+- **`data/users/<userId>/packages/<slug>.json`** — Lite course manifest (V3 primary form): full `PackageManifest` with media referenced by hash. Editable: `topic` via `PATCH`; immutable: `slug` (it's the join key for every event doc).
+- **`data/users/<userId>/packages/<slug>.corefirst`** — Optional Full ZIP for sharing/export. Bundles the manifest + media for offline distribution.
+- **`data/users/<userId>/media/<hash>.<ext>`** — Per-user CAS pool. Audio (`<hash>.mp3`) keyed by `sha256(ssml)`, images (`<hash>.webp`) keyed by `sha256(prompt)`. Swept by `pruneOrphanMedia(userId)` after every package rewrite and delete.
+- **`data/users/<userId>/records/db_states/`** — PouchDB LevelDB for the `states` collection: per-slug lesson/script progress flags.
+- **`data/users/<userId>/records/db_events/`** — PouchDB LevelDB for the `events` collection: **per-event** documents (transforms, attempts, roleplay sessions, roleplay messages). Each event is its own doc, ID-prefixed by slug.
+- **`data/users/<userId>/records/db_srs/`** — PouchDB LevelDB for the `srs` collection: single doc `user` holding the global vocabulary deck (composite key `(targetLang, token)`).
 
-Schemas are defined in `src/lib/storage/schema.ts` and `docs/package-format.md`. The persistence layer (atomic writes via `<file>.tmp` + `fs.rename`, per-file mutex, Zod validation on read and write) lives in `src/lib/storage/`.
+**Conflict-safe writes**: the storage layer uses two primitives:
+- `db.put(coll, newUniqueId, …)` for append-only events (no conflicts because IDs are unique)
+- `db.mutate(coll, id, mutator)` for shared docs (state flags, SRS deck) — re-runs the mutator on every 409 against the freshly-read document, so concurrent writers compose instead of clobbering
 
-**`logicStress`** is a CoreFirst-specific metric persisted in each `AttemptRecord`: it measures whether the learner correctly stressed the `[Core Action]` block in speech, reinforcing the CFLT cognitive protocol at the phonetic level.
+The previous "per-file mutex + tmp+rename atomic write" model has been replaced by PouchDB revisions and tombstones; the only remaining filesystem-level atomic write is the manifest JSON (single writer per slug; concurrent writes for the same slug are impossible by construction).
+
+Schemas are defined in `src/lib/storage/schema.ts`; the full on-disk specification lives in `docs/package-format.md`.
+
+**`logicStress`** is a CoreFirst-specific metric persisted in each attempt event: it measures whether the learner correctly stressed the `[Core Action]` block in speech, reinforcing the CRST cognitive protocol at the phonetic level.
 
 ---
 
@@ -288,16 +327,21 @@ Selecting a CLI provider for a non-text feature is rejected at module load with 
 
 ### Storage location
 
-Local data lives under `./data/`:
+Local data lives under `./data/users/<userId>/`:
 
 ```
-data/
-  packages/    # *.corefirst (ZIP archive: manifest.json + audio + images)
-  records/     # *.cfrecord (per-package JSON), plus _global.cfrecord for
-               # Transform/Roleplay history outside any course context
+data/users/<userId>/
+  packages/    # <slug>.json (Lite manifest) + optional <slug>.corefirst (Full ZIP)
+  media/       # <hash>.mp3, <hash>.webp (per-user CAS pool, GC-swept)
+  records/     # PouchDB LevelDB instances
+    db_states/ # CFStateSchema — per-slug progress flags
+    db_events/ # Per-event docs: transforms, attempts, roleplay session+messages
+    db_srs/    # CFSRSSchema — global vocabulary deck (one doc 'user')
 ```
 
-Override the root via `COREFIRST_DATA_DIR=/some/path`. There is no database, no migration, and no remote sync within the local app — multi-device sync is handled by a separate SaaS project (see `docs/storage-design.md` §6).
+Override the data root via `COREFIRST_DATA_DIR=/some/path`. The default `userId` is `'local'`; a single-user install never sees the partitioning.
+
+PouchDB infrastructure (per-event docs + revisions + tombstones) is sync-ready; the live multi-device sync against a SaaS registry is a separate planned phase (`docs/storage-design.md` §7).
 
 ### Adding an Industry Module
 

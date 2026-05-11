@@ -1,6 +1,6 @@
 # Product Requirements Document — CoreFirst
 
-> Version: 1.0.0 | Status: Active | Last Updated: 2026-05-07
+> Software version: 0.2.0 | Status: Active | Last Updated: 2026-05-11
 
 ---
 
@@ -177,6 +177,35 @@ Pre-built token vocabularies for IT, Medical, Finance, Hospitality sectors.
 
 **Status:** Currently free-text via the `industry_context` field on `GenerationRequest` (the LLM is instructed to draw on industry-appropriate vocabulary). Structured JSON token packs and a dedicated injection slot in `src/generator/courseware_prompt.md` are not yet built; community-contributed packs are welcome.
 
+#### F-12: Multi-User Storage Partitioning
+Per-user data isolation enabling multiple learners on a shared device (and serving as the foundation for the SaaS sync layer).
+
+**Inputs:** `userId` resolved from `X-User-Id` header → `cf_user_id` cookie → `COREFIRST_DEFAULT_USER` env → `'local'`. Normalized through a `/[a-z0-9_-]/` whitelist at the auth boundary.
+
+**Outputs:** All packages, media, and PouchDB records partitioned under `data/users/<userId>/`. Cross-user reads/writes are mechanically impossible — every storage function takes `userId` as its first argument.
+
+**Status:** Shipped. `src/lib/auth/user.ts` resolves; `src/lib/storage/paths.ts` partitions; every API route extracts and forwards. Default `'local'` user means single-user installs behave unchanged.
+
+#### F-13: History Management (Edit + Delete)
+User control over their own history: delete unwanted records, rename session/course titles, with multi-device sync friendliness.
+
+**Capabilities:**
+- Per-entry delete for transforms, roleplay messages
+- Cascade delete for roleplay sessions (metadata + all messages in one `bulkDocs` round-trip)
+- Cascade delete for courses (manifest + state + events + vocab back-links + media GC; partial-failure observable via HTTP 207)
+- Rename for roleplay session `context` and course `topic` (slugs and sessionIds are immutable join keys)
+
+**Sync semantics:** All deletes are hard-delete via PouchDB tombstones (`_deleted: true`) — propagates correctly across devices. All operations idempotent (404 → 200) so concurrent multi-device deletes never error.
+
+**Status:** Shipped. UI buttons in `TransformHistory.tsx`, `RoleplayHistory.tsx`, `CourseHistory.tsx`; API routes under `app/api/history/*` and `app/api/courses/[slug]`.
+
+#### F-14: Sync-Safe Per-Event Persistence
+Every learner event (transform / voice attempt / roleplay message) is a distinct PouchDB document with a unique stable ID. Foundation for live multi-device sync via PouchDB replication.
+
+**Why it matters:** The previous "single doc with arrays of events" pattern produced `_conflicts` on concurrent multi-device writes; per-event docs eliminate that conflict class entirely. Distinct IDs cannot collide.
+
+**Status:** Shipped storage-side. Live replication to a SaaS CouchDB endpoint is a separate planned phase.
+
 ---
 
 ## 6. Out of Scope
@@ -188,7 +217,8 @@ Pre-built token vocabularies for IT, Medical, Finance, Hospitality sectors.
 | Offline mode | LLM API dependency requires connectivity |
 | L1 acquisition (children learning first language) | Fundamentally different from CFLT's L2 use case |
 | Hard-coded local dictionary | MVP is fully LLM-driven for iteration speed |
-| User authentication / accounts | Intentionally omitted in v1; local/session persistence only |
+| Live multi-device replication endpoint | PouchDB infrastructure ready (F-14); the SaaS registry + sync service is the next major project, not part of the local app |
+| User authentication backend | Local app accepts userId from header/cookie/env but does not authenticate it — the SaaS registry layer (when shipped) handles identity proofing |
 | LLM-protocol layer (Apcore ecosystem integration) | Belongs to a sister project in the apcore ecosystem; see §11 Related Projects |
 
 ---

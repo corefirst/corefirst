@@ -11,16 +11,17 @@ The Roleplay Coach is an AI-driven conversational module that serves as the **ou
 
 **Included:**
 - **Multi-Turn Dialogue:** Maintaining the full message history in memory and passing it as context to the LLM on every turn.
-- **CFLT Enforcement:** Detecting deviations in the user's logic sequence and generating targeted, natural-language coaching feedback.
-- **CFLT Self-Annotation:** Each AI reply includes a `cflt_analysis` field that exposes the coach's own CFLT block structure, reinforcing the method by example.
+- **CRST Enforcement:** Detecting deviations in the user's logic sequence and generating targeted, natural-language coaching feedback.
+- **CRST Self-Annotation:** Each AI reply includes a `coach_analysis` object that exposes the coach's own CRST block structure, reinforcing the method by example. The user's turn carries a parallel `user_analysis` block with corrections, error list, and CRST decomposition.
+- **Session Persistence:** Every session is upserted as a per-event PouchDB document; every message (user and assistant) is stored as its own event document with `userAnalysis`, `coachAnalysis`, `feedback`, and CAS audio references.
+- **Session History UI:** `RoleplayHistory` lists every past session with message counts and timestamps; each row exposes Rename / Delete; each message exposes a Delete button.
 - **TTS Playback:** Playing AI messages aloud via `/api/tts`, with a per-message `ssml` field providing prosody hints that emphasize Core blocks.
-- **Voice Input:** Recording user speech via `useRecorder`, transcribing it through `/api/transcribe`, and pre-filling the text input for user review before sending.
-- **Context Injection:** An optional free-text `context` field (e.g., "Job interview at a tech company") that steers the scenario without changing the coaching rules.
+- **Voice Input + Corrected-Voice Output:** Recording user speech via `useRecorder` and transcribing it through `/api/transcribe`; on submit, the user's original voice blob is saved to the CAS pool (`audioFile`), and the coach's corrected sentence is TTS'd and also stored (`correctedAudioFile`) so the learner can compare.
+- **Context Injection:** An optional free-text `context` field (e.g., "Job interview at a tech company") that steers the scenario without changing the coaching rules. The session's `context` is editable post-hoc via Rename.
 
 **Excluded:**
 - **VoiceChallenge on AI Replies:** Pronunciation evaluation of AI-generated text is not implemented in the current phase.
-- **Session Persistence and History** *(Phase 1)*: Saving `RoleplaySession` entries to `.cfrecord`, the session list view, and re-opening past conversations are deferred.
-- **Cross-Mode Vocabulary Update** *(Phase 3)*: Propagating vocabulary from AI responses to the vocabulary mastery section of `.cfrecord` is deferred.
+- **Cross-Mode Vocabulary Update** *(Phase 3)*: Propagating vocabulary from AI responses to the SRS deck is deferred.
 - **Automatic Course Suggestions** *(Phase 3)*: Post-conversation weak-pattern detection triggering targeted Course recommendations is deferred.
 
 ## Core Responsibilities
@@ -41,11 +42,27 @@ The Roleplay Coach is an AI-driven conversational module that serves as the **ou
 - `context` *(optional)* — free-text scenario description; sanitized of control characters and capped at `MAX_CONTEXT_LEN` (500 chars) before prompt injection
 
 ### Outputs
-`RoleplayResponseSchema` (Zod schema, `app/api/roleplay/route.ts`):
+
+Two response shapes depending on `analysisEnabled`:
+
+**Full** (`RoleplayResponseSchemaFull` — when analysis is on):
 - `reply` (string) — the coach's standard conversational response in the target language
 - `ssml` (string) — SSML-tagged version of `reply` with prosody emphasis on Core blocks
-- `cflt_analysis` (string) — comma-delimited CFLT block decomposition of the coach's own reply
-- `feedback` (string | null) — targeted coaching note if the user's logic deviated from CFLT; `null` if compliant
+- `user_analysis` — `{ corrected, errors[], crst: {core, reason, space, time}, standard_l1 }` decomposition of the user's last turn
+- `coach_analysis` — `{ crst, standard_l1 }` decomposition of the coach's own reply
+- `feedback` (string | null) — targeted coaching note when the user's logic deviated; `null` if compliant
+- `session_title` (string | optional) — 5–10-word summary in `sourceLang`, used as the session's `context` when the user didn't supply one
+- `audioFile` / `correctedAudioFile` (strings, returned alongside the parsed body) — CAS pool filenames for the user's original recording and the coach's TTS'd correction
+
+**Lean** (`RoleplayResponseSchemaLean` — analysis off):
+- `reply`, `ssml`, `feedback`, `session_title` only — no per-CRST decomposition
+
+### Edit / Delete API
+
+- `PATCH /api/history/roleplay/sessions/[sessionId]?slug=<slug>` body `{ context: string }` → rename session
+- `DELETE /api/history/roleplay/sessions/[sessionId]?slug=<slug>` → cascade-delete session metadata + every message via prefix scan + `bulkDocs` tombstone
+- `DELETE /api/history/roleplay/messages/[eventId]` → tombstone one message; session and other messages preserved
+- All deletes are idempotent (404 → 200)
 
 ### Dependencies
 - **Text Provider** — the `roleplay` feature uses `roleplayModel` from `src/lib/ai/`; resolved via `ROLEPLAY_PROVIDER` / `ROLEPLAY_MODEL` > `TEXT_PROVIDER` / `TEXT_MODEL` > baked-in default (`google` + `gemini-3-flash-preview`). Used with `generateObject` (Vercel AI SDK) to guarantee structured output conforming to `RoleplayResponseSchema`. Subscription CLIs (`cli/claude`, `cli/gemini`) are also valid.
@@ -95,13 +112,23 @@ Before dispatching to the LLM, the serialized message history is checked against
 ### Context Sanitization
 The optional `context` string is stripped of all ASCII control characters (`\x00–\x1F`, `\x7F`) and truncated to 500 characters before interpolation into the system prompt, preventing prompt injection via the scenario field.
 
+### Per-Event Persistence (Sync-Safe)
+
+Each `upsertRoleplaySession` call writes/updates the session metadata doc (keyed by `sessionId`) and then appends each new message as **its own PouchDB document** with the ID pattern `<slug>:roleplay-msg:<sessionId>:<isoTime>:<rand>`. Two devices replying in the same session at the same time produce distinct message docs that merge naturally during sync — no `_conflicts` to resolve, no lost writes.
+
+### Session-Level Rename / Delete
+
+`renameRoleplaySession` runs `mutate()` on the session metadata doc — atomic, conflict-safe, and only updates the `context` field (sessionId and slug are immutable join keys).
+
+`deleteRoleplaySession` runs `listByPrefix(EVENTS, '<slug>:roleplay-msg:<sessionId>:')` then bulk-tombstones every message doc plus the metadata doc in a single `bulkDocs` round-trip. Tombstones replicate across devices via PouchDB's normal sync.
+
 ## Constraints
 
 - **`MAX_MESSAGES_JSON_LEN`:** 4096 bytes — maximum allowed size of the JSON-serialized message history per request.
 - **`MAX_CONTEXT_LEN`:** 500 characters — maximum length of the injected scenario context after sanitization.
 - **`ALLOWED_LANGUAGES`:** `{ Chinese, English, Japanese, Spanish, French, German }` — both `sourceLang` and `targetLang` must be members of this set; all other values return `HTTP 400`.
 - **Audio upload limit:** 10 MB per request to `/api/transcribe`.
-- **In-memory state only (Phase 1):** Message history is held in React component state and is lost on page reload until session persistence to `.cfrecord` is implemented.
+- **Persistence**: Sessions and messages are written to PouchDB as per-event docs (`events` collection); React state is the cache, not the source of truth. Page reload reloads from `GET /api/history/roleplay`.
 
 ## Error Handling
 
@@ -116,7 +143,7 @@ The optional `context` string is stripped of all ASCII control characters (`\x00
 
 | Phase | Capability |
 |-------|-----------|
-| **Current** | In-memory multi-turn dialogue, CFLT enforcement, CFLT self-annotation, voice input, TTS playback |
-| **Phase 1** | Session persistence to `.cfrecord` `roleplaySessions[]` array, session list view, re-open past conversations |
+| **Current** | Multi-turn dialogue with full CRST analysis (user + coach), per-event PouchDB persistence, session list + rename + cascade delete + per-message delete, voice input + corrected-voice TTS, multi-user partitioning |
 | **Phase 2** | VoiceChallenge on AI replies — pronunciation evaluation of coach-generated text |
-| **Phase 3** | Post-conversation weak-pattern detection → targeted Course suggestions; AI vocabulary → vocabulary mastery section of `.cfrecord` |
+| **Phase 3** | Post-conversation weak-pattern detection → targeted Course suggestions; AI vocabulary → SRS deck capture |
+| **Phase 4** | Live multi-device sync via SaaS registry (PouchDB infrastructure ready; replication endpoint outstanding) |

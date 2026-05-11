@@ -18,13 +18,13 @@ Transform Mode is the discovery entry point of the CoreFirst learning journey. A
 - **Standard Output Display:** The polished idiomatic `standard_l2` string rendered as a prominent quote inside a blue card, with a `PlayCircle` TTS button.
 - **TTS Playback:** Clicking the `PlayCircle` button POSTs `standard_l2` to `/api/tts` and plays the returned `audio/mpeg` stream. Audio loading state is tracked per-call to disable the button while synthesis is in progress.
 - **VoiceChallenge Practice:** After the result is displayed, a `VoiceChallenge` component is rendered with `expectedText = standard_l2`, giving the learner an immediate opportunity to record and receive a CFLT prosody evaluation.
-- **Transform History (Phase 1):** Each successful `/api/transform` response is persisted as an entry in the learner's `.cfrecord` file under the `transforms[]` array (fields: `inputText`, `sourceLang`, `targetLang`, `cfltL1`, `cfltL2`, `standardL2`, `standardL1`, `isCflmCompliant`, `corrections`, `timestamp`). History is viewable from the Stats/History tab.
+- **Transform History:** Each successful `/api/transform` response is persisted as its own per-event PouchDB document in the `events` collection, ID-prefixed `<slug>:transform:<isoTime>:<rand>` (or `global:transform:…` for ad-hoc usage outside a course). Doc carries `{type, slug, createdAt, data: {inputText, sourceLang, targetLang, cfltL1, cfltL2, standardL2, createdAt}}`. History is viewable from the History panel; each entry exposes a Delete button (`DELETE /api/history/transforms/[eventId]`).
+- **Multi-user partitioning:** Every operation takes a `userId` (resolved from `X-User-Id` header → `cf_user_id` cookie → env → `'local'`); each user's transforms live in their own PouchDB instance under `data/users/<userId>/records/db_events/`.
 
 **Excluded:**
-- **Cross-Mode Suggestions (Phase 3):** Topic detection and "Generate a Course on this topic" prompts are not present in Phase 1. Vocabulary annotation of recognized `cflt_l2` tokens against the vocabulary mastery section of `.cfrecord` is also Phase 3.
-- **Vocabulary Tagging (Phase 2):** Surfacing mastery level indicators inline with individual CFLT block tokens is a Phase 2 capability dependent on the vocabulary mastery section of `.cfrecord` being populated.
+- **Cross-Mode Suggestions (Phase 3):** Topic detection and "Generate a Course on this topic" prompts are not present in Phase 1. Vocabulary annotation of recognized `cflt_l2` tokens against the SRS deck is also Phase 3.
+- **Vocabulary Tagging (Phase 2):** Surfacing mastery level indicators inline with individual CFLT block tokens is a Phase 2 capability dependent on the SRS deck being populated.
 - **Per-Element CFLT Voice Scores (Phase 2):** `VoiceChallenge` renders Phase 1 scores only (`overallScore`, `pronunciation`, `logicStress`). The four per-block CFLT sub-scores (`scoreCoreAction`, `scoreCondition`, `scoreSpaceContext`, `scoreTime`) are reserved for Phase 2.
-- **Authenticated Sessions:** Transform Mode has no login requirement and no per-user isolation in Phase 1. Multi-user tenancy is out of scope.
 
 ## Core Responsibilities
 
@@ -32,7 +32,8 @@ Transform Mode is the discovery entry point of the CoreFirst learning journey. A
 2. **CFLT Result Rendering** — Parses and displays the four-element `cflt_l1` and `cflt_l2` structures as labeled block sequences, and presents `standard_l2` as the polished target output.
 3. **Audio Playback Orchestration** — Manages per-sentence TTS loading state and Audio object lifecycle, routing requests through `/api/tts` and playing the response stream in the browser.
 4. **VoiceChallenge Integration** — Mounts the `VoiceChallenge` component below the result with the correct `expectedText`, `sourceLang`, and `targetLang` props, enabling immediate spoken practice without navigation.
-5. **History Persistence (Phase 1)** — Records every successful Transform call as an entry in the `transforms[]` array of the learner's `.cfrecord` file, providing the data anchor for future vocabulary detection and cross-mode navigation (Phase 3).
+5. **History Persistence** — Writes every successful Transform call as a per-event PouchDB document in the user's `events` collection. Sync-safe across devices (each transform is its own doc — no array-of-transforms RMW conflicts). The eventId is surfaced to the UI for targeted delete.
+6. **History Editing** — Exposes Delete on every transform history entry via `DELETE /api/history/transforms/[eventId]`. Idempotent; tombstones replicate across devices.
 
 ## Interfaces
 
@@ -73,8 +74,13 @@ Receives:
 
 ### Dependencies
 - **Logic Transformer Engine** — `CFLTTransformer` in `src/core/transformer.ts`; see `docs/features/logic-transformer.md`.
-- **TTS Factory** — `TTSFactory` in `src/core/tts/factory.ts`, backed by `OpenAITTSProvider` using `gpt-4o-mini-tts`. TTS is called in real time on demand — no caching layer.
-- **`.cfrecord` File** — Persistence target for each transform invocation; entries are appended to the `transforms[]` array (Phase 1).
+- **TTS Factory** — `TTSFactory` in `src/core/tts/factory.ts`; default `OpenAITTSProvider` using `gpt-4o-mini-tts`. TTS is cached per-user in the CAS pool (`data/users/<userId>/media/<hash>.mp3`) — same `standard_l2` text produces a cache hit and skips synthesis.
+- **PouchDB `events` collection** — Per-event documents are the persistence target. `appendTransform(userId, slug, data)` writes a new doc; `listTransformEvents(userId)` enumerates; `deleteHistoryEvent(userId, eventId)` removes one.
+
+### Edit / Delete API
+
+- `DELETE /api/history/transforms/[eventId]` → tombstone one transform doc. Idempotent (404 → 200). Tombstone replicates across devices via PouchDB sync.
+- No PATCH — transforms are immutable historical events. To "edit" a transform, delete it and submit a new one.
 
 ## Data Flow
 
@@ -85,7 +91,7 @@ graph TD
     C --> D[CFLTTransformer processes input]
     D --> E{LLM returns CFLTResponse?}
     E -- Error --> F[Error state shown in UI]
-    E -- Success --> G[Append entry to .cfrecord transforms[] — Phase 1]
+    E -- Success --> G[Write per-event PouchDB doc: events/global:transform:isoTime:rand]
     G --> H[CFLTResponse stored in transformResult state]
     H --> I[cflt_l1 blocks rendered: CFLT Thinking Structure]
     H --> J[cflt_l2 blocks rendered: Target Language Mapping]
@@ -114,8 +120,11 @@ Transform Mode is designed so that the learner can complete a full exposure-to-p
 
 This loop can be repeated on the same sentence to improve `logicStress` or `pronunciation` scores, or the learner can type a new sentence to start the cycle again.
 
-### Lightweight Operation in Phase 1
-`/api/transform` requires no external database. The route instantiates `CFLTTransformer`, calls `transform()`, returns the result, and then appends the record to `.cfrecord` as a background write. This makes Transform the fastest and most resilient endpoint in the system — safe to experiment with new prompt variants. History persistence is not a prerequisite for the response; a write failure is logged but never surfaced to the user.
+### Resilient Lightweight Operation
+`/api/transform` instantiates `CFLTTransformer`, calls `transform()`, returns the result, and then `appendTransform(userId, packageSlug ?? null, …)` writes a per-event doc as a background fire-and-forget. This makes Transform the fastest and most resilient endpoint in the system — safe to experiment with new prompt variants. History persistence is not a prerequisite for the response; a write failure is logged but never surfaced to the user.
+
+### Sync-Safe by Construction
+Each transform is its own document with a stable ID. Two devices submitting transforms at the same time produce distinct doc IDs that merge cleanly during PouchDB replication — no `_conflicts`, no lost writes.
 
 ### Language Pair Parameterization
 Both `sourceLang` and `targetLang` are passed through to the transformer and to the `VoiceChallenge` component. `sourceLang` is particularly significant: when set to `Chinese`, the `speech-eval` evaluator generates Pinyin-anchored phonetic migration feedback, leveraging the learner's existing phonological knowledge to bridge to English pronunciation.
@@ -133,13 +142,14 @@ Both `sourceLang` and `targetLang` are passed through to the transformer and to 
 - **LLM Transformation Failure:** If `CFLTTransformer.transform()` returns an `{ error }` object or throws, the route returns `500 Transformation failed`. The UI renders an inline error state and the result card is not shown.
 - **TTS Generation Failure:** `/api/tts` returns `500 TTS generation failed`. The `PlayCircle` button exits its loading state; the learner can retry without losing the transform result.
 - **VoiceChallenge Errors:** Microphone permission errors and evaluation failures are handled within the `VoiceChallenge` component and displayed inline below the result card. They do not affect the Transform result display.
-- **History Write Failure (Phase 1):** `.cfrecord` write failures are logged server-side but do not cause the API response to fail. The learner receives their CFLT result even if the history entry could not be persisted.
+- **History Write Failure:** `appendTransform` failures are logged server-side but do not cause the API response to fail. The learner receives their CFLT result even if the history entry could not be persisted.
+- **History Delete:** `deleteHistoryEvent` is idempotent — concurrent multi-device deletes (or retries) never return an error.
 
 ## Phased Rollout
 
 | Phase | Transform Mode additions |
 |-------|--------------------------|
-| **Phase 1 — Foundation** | Full CFLT display, TTS playback, VoiceChallenge (Phase 1 scores), `.cfrecord` transform history persistence, Stats/History tab |
-| **Phase 2 — Progress Tracking** | `VoiceChallenge` renders four per-block CFLT sub-scores (`scoreCoreAction`, `scoreCondition`, `scoreSpaceContext`, `scoreTime`) once the Phase 2 evaluator prompt is deployed |
-| **Phase 3 — Cross-mode Integration** | Vocabulary mastery annotations on `cflt_l2` blocks from `.cfrecord`; "Generate a Course on this topic" prompt surfaced after transform result; `standardL2` tokens upserted to vocabulary mastery in `.cfrecord` with Transform-mode mastery weight |
-| **Phase 4 — CFLT Profiling** | Per-user CFLT weakness radar incorporates Transform Mode voice attempt sub-scores; SM-2 spaced repetition review scheduling surfaces weak vocabulary tokens within the Transform input suggestions |
+| **Phase 1 — Foundation (current)** | Full CRST display, TTS playback w/ CAS cache, VoiceChallenge, per-event PouchDB history persistence + per-entry delete, multi-user partitioning, History tab |
+| **Phase 2 — Progress Tracking** | `VoiceChallenge` renders four per-block CRST sub-scores (`scoreCoreAction`, `scoreCondition`, `scoreSpaceContext`, `scoreTime`) once the Phase 2 evaluator prompt is deployed |
+| **Phase 3 — Cross-mode Integration** | Vocabulary mastery annotations on `cflt_l2` blocks from SRS deck; "Generate a Course on this topic" prompt surfaced after transform result; `standardL2` tokens upserted to SRS with Transform-mode mastery weight |
+| **Phase 4 — CRST Profiling and Sync** | Per-user CRST weakness radar incorporates Transform Mode voice attempt sub-scores; SM-2 review schedule surfaces weak vocabulary as Transform input suggestions; live multi-device sync via SaaS registry |
