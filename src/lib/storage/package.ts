@@ -8,6 +8,7 @@ import {
   manifestPath,
   packagesDir,
   mediaPath,
+  mediaDir,
   DEFAULT_USER_ID,
 } from './paths';
 
@@ -274,7 +275,7 @@ export async function pruneOrphanMedia(
   const referenced = await collectReferencedMedia(userId);
   let onDisk: string[] = [];
   try {
-    onDisk = await fs.readdir(path.join(packagesDir(userId), '..', 'media'));
+    onDisk = await fs.readdir(mediaDir(userId));
   } catch {
     return [];
   }
