@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Loader2, AlertCircle, BookOpen, Clock, FolderOpen } from 'lucide-react';
+import { Loader2, AlertCircle, BookOpen, Clock, FolderOpen, Trash2, Pencil, Check, X } from 'lucide-react';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 import type { CoursewareManifest } from '../src/types/courseware';
 
@@ -48,6 +48,51 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [loadingSlug, setLoadingSlug] = useState<string | null>(null);
+  const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
+  const [renamingSlug, setRenamingSlug] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const handleDelete = async (slug: string) => {
+    if (!window.confirm(tr(uiLang, 'confirmDeleteCourse'))) return;
+    setDeletingSlug(slug);
+    try {
+      const res = await fetch(`/api/courses/${encodeURIComponent(slug)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete failed');
+      setItems((prev) => (prev ?? []).filter((c) => c.slug !== slug));
+    } catch (err) {
+      console.error('[CourseHistory] delete error:', err);
+    } finally {
+      setDeletingSlug(null);
+    }
+  };
+
+  const startRename = (course: CourseSummary) => {
+    setRenamingSlug(course.slug);
+    setRenameValue(course.topic);
+  };
+
+  const cancelRename = () => {
+    setRenamingSlug(null);
+    setRenameValue('');
+  };
+
+  const saveRename = async (slug: string, original: string) => {
+    const next = renameValue.trim();
+    if (!next || next === original) return cancelRename();
+    try {
+      const res = await fetch(`/api/courses/${encodeURIComponent(slug)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: next }),
+      });
+      if (!res.ok) throw new Error('rename failed');
+      setItems((prev) => (prev ?? []).map((c) => (c.slug === slug ? { ...c, topic: next } : c)));
+    } catch (err) {
+      console.error('[CourseHistory] rename error:', err);
+    } finally {
+      cancelRename();
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -117,6 +162,8 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
       <ul className="space-y-3">
         {list.map((course) => {
           const isLoading = loadingSlug === course.slug;
+          const isDeleting = deletingSlug === course.slug;
+          const isRenaming = renamingSlug === course.slug;
           return (
             <li
               key={course.slug}
@@ -131,7 +178,29 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
                   <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
                     {tr(uiLang, 'historyTopicLabel')}
                   </p>
-                  <p className="text-slate-900 font-black truncate">{course.topic}</p>
+                  {isRenaming ? (
+                    <div className="flex items-center gap-1">
+                      <input
+                        autoFocus
+                        type="text"
+                        value={renameValue}
+                        onChange={(e) => setRenameValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveRename(course.slug, course.topic);
+                          if (e.key === 'Escape') cancelRename();
+                        }}
+                        className="flex-1 px-2 py-1 text-base font-bold text-slate-900 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      />
+                      <button onClick={() => saveRename(course.slug, course.topic)} className="p-1 text-amber-600 hover:bg-amber-50 rounded">
+                        <Check className="w-4 h-4" />
+                      </button>
+                      <button onClick={cancelRename} className="p-1 text-slate-400 hover:bg-slate-50 rounded">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-slate-900 font-black truncate">{course.topic}</p>
+                  )}
                   <p className="text-xs text-slate-500 mt-1 truncate">
                     {course.industry} · {course.ageGroup}
                   </p>
@@ -139,19 +208,40 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
                     {tr(uiLang, 'historyLessonCount', String(course.lessonCount))}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleLoad(course.slug)}
-                  disabled={isLoading}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-xs font-black uppercase tracking-wider transition-colors shrink-0"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <FolderOpen className="w-4 h-4" />
-                  )}
-                  {tr(uiLang, 'historyLoadCourse')}
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => startRename(course)}
+                    aria-label={tr(uiLang, 'rename')}
+                    title={tr(uiLang, 'rename')}
+                    className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(course.slug)}
+                    disabled={isDeleting}
+                    aria-label={tr(uiLang, 'delete')}
+                    title={tr(uiLang, 'delete')}
+                    className="p-2 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLoad(course.slug)}
+                    disabled={isLoading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white text-xs font-black uppercase tracking-wider transition-colors"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <FolderOpen className="w-4 h-4" />
+                    )}
+                    {tr(uiLang, 'historyLoadCourse')}
+                  </button>
+                </div>
               </div>
             </li>
           );

@@ -2,15 +2,19 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  Sparkles, 
-  Loader2, 
-  AlertCircle, 
-  MessageSquare, 
-  ChevronDown, 
-  ChevronRight, 
-  Clock, 
-  PlayCircle 
+import {
+  Sparkles,
+  Loader2,
+  AlertCircle,
+  MessageSquare,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  PlayCircle,
+  Trash2,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 
@@ -34,6 +38,7 @@ interface CoachAnalysis {
 }
 
 interface RoleplayMessage {
+  eventId: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
@@ -111,6 +116,85 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
   const [hasError, setHasError] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [audioLoading, setAudioLoading] = useState<string | null>(null);
+  const [deletingSession, setDeletingSession] = useState<string | null>(null);
+  const [deletingMessage, setDeletingMessage] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const deleteSession = async (s: RoleplaySessionItem) => {
+    if (!window.confirm(tr(uiLang, 'confirmDeleteRoleplaySession'))) return;
+    setDeletingSession(s.sessionId);
+    try {
+      const qs = s.packageSlug && s.packageSlug !== 'global' ? `?slug=${encodeURIComponent(s.packageSlug)}` : '';
+      const res = await fetch(`/api/history/roleplay/sessions/${encodeURIComponent(s.sessionId)}${qs}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('delete session failed');
+      setSessions((prev) => (prev ?? []).filter((x) => x.sessionId !== s.sessionId));
+    } catch (err) {
+      console.error('[RoleplayHistory] delete session error:', err);
+    } finally {
+      setDeletingSession(null);
+    }
+  };
+
+  const deleteMessage = async (sessionId: string, eventId: string) => {
+    if (!eventId) return;
+    if (!window.confirm(tr(uiLang, 'confirmDeleteRoleplayMessage'))) return;
+    setDeletingMessage(eventId);
+    try {
+      const res = await fetch(`/api/history/roleplay/messages/${encodeURIComponent(eventId)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('delete msg failed');
+      setSessions((prev) =>
+        (prev ?? []).map((s) =>
+          s.sessionId === sessionId
+            ? {
+                ...s,
+                messages: s.messages.filter((m) => m.eventId !== eventId),
+                messageCount: Math.max(0, s.messageCount - 1),
+              }
+            : s,
+        ),
+      );
+    } catch (err) {
+      console.error('[RoleplayHistory] delete message error:', err);
+    } finally {
+      setDeletingMessage(null);
+    }
+  };
+
+  const startRename = (s: RoleplaySessionItem) => {
+    setRenaming(s.sessionId);
+    setRenameValue(s.context);
+  };
+
+  const cancelRename = () => {
+    setRenaming(null);
+    setRenameValue('');
+  };
+
+  const saveRename = async (s: RoleplaySessionItem) => {
+    const next = renameValue.trim();
+    if (!next || next === s.context) return cancelRename();
+    try {
+      const qs = s.packageSlug && s.packageSlug !== 'global' ? `?slug=${encodeURIComponent(s.packageSlug)}` : '';
+      const res = await fetch(`/api/history/roleplay/sessions/${encodeURIComponent(s.sessionId)}${qs}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context: next }),
+      });
+      if (!res.ok) throw new Error('rename failed');
+      setSessions((prev) =>
+        (prev ?? []).map((x) => (x.sessionId === s.sessionId ? { ...x, context: next } : x)),
+      );
+    } catch (err) {
+      console.error('[RoleplayHistory] rename error:', err);
+    } finally {
+      cancelRename();
+    }
+  };
 
   const playAudio = useCallback(async (text: string, id: string, audioFile?: string) => {
     if (!text.trim() && !audioFile) return;
@@ -166,22 +250,69 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
           const isOpen = expanded.has(session.sessionId);
           return (
             <li key={session.sessionId} className="border border-slate-100 rounded-2xl overflow-hidden hover:border-emerald-200 transition-all">
-              <button type="button" onClick={() => toggle(session.sessionId)} className="w-full p-5 text-left hover:bg-slate-50 transition-colors" aria-expanded={isOpen}>
-                <div className="flex items-center justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  <span>{session.sourceLang} → {session.targetLang}</span>
-                  <span>{formatTimestamp(session.lastMessageAt, uiLang)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{tr(uiLang, 'historyContextLabel')}</p>
-                    <p className="text-slate-700 font-medium truncate">{session.context}</p>
+              <div className="relative">
+                <button type="button" onClick={() => toggle(session.sessionId)} className="w-full p-5 pr-24 text-left hover:bg-slate-50 transition-colors" aria-expanded={isOpen}>
+                  <div className="flex items-center justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <span>{session.sourceLang} → {session.targetLang}</span>
+                    <span>{formatTimestamp(session.lastMessageAt, uiLang)}</span>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{tr(uiLang, 'historyMessageCount', String(session.messageCount))}</span>
-                    {isOpen ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">{tr(uiLang, 'historyContextLabel')}</p>
+                      {renaming === session.sessionId ? (
+                        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            autoFocus
+                            type="text"
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveRename(session);
+                              if (e.key === 'Escape') cancelRename();
+                            }}
+                            className="flex-1 px-2 py-1 text-sm font-medium text-slate-700 border border-emerald-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-200"
+                          />
+                          <button onClick={(e) => { e.stopPropagation(); saveRename(session); }} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded">
+                            <Check className="w-4 h-4" />
+                          </button>
+                          <button onClick={(e) => { e.stopPropagation(); cancelRename(); }} className="p-1 text-slate-400 hover:bg-slate-50 rounded">
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <p className="text-slate-700 font-medium truncate">{session.context}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">{tr(uiLang, 'historyMessageCount', String(session.messageCount))}</span>
+                      {isOpen ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                    </div>
                   </div>
-                </div>
-              </button>
+                </button>
+                {renaming !== session.sessionId && (
+                  <div className="absolute top-3 right-12 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); startRename(session); }}
+                      aria-label={tr(uiLang, 'rename')}
+                      title={tr(uiLang, 'rename')}
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); deleteSession(session); }}
+                      disabled={deletingSession === session.sessionId}
+                      aria-label={tr(uiLang, 'delete')}
+                      title={tr(uiLang, 'delete')}
+                      className="p-1.5 rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                    >
+                      {deletingSession === session.sessionId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                    </button>
+                  </div>
+                )}
+              </div>
               <AnimatePresence initial={false}>
                 {isOpen && (
                   <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
@@ -193,7 +324,20 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
                           <div key={audioId} className={`p-3 rounded-xl space-y-2 ${m.role === 'user' ? 'bg-blue-50 text-blue-900' : 'bg-slate-50 text-slate-800'}`}>
                             <div className="flex items-center justify-between gap-2">
                               <div className="text-[10px] font-black uppercase tracking-widest opacity-60">{m.role}</div>
-                              <button onClick={() => playAudio(m.userAnalysis?.corrected || m.content, audioId, m.audioFile)} disabled={isPlaying} className={`transition-colors ${m.role === 'user' ? 'text-blue-400 hover:text-blue-600' : 'text-slate-400 hover:text-blue-500'}`}>{isPlaying ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}</button>
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => playAudio(m.userAnalysis?.corrected || m.content, audioId, m.audioFile)} disabled={isPlaying} className={`transition-colors ${m.role === 'user' ? 'text-blue-400 hover:text-blue-600' : 'text-slate-400 hover:text-blue-500'}`}>{isPlaying ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}</button>
+                                {m.eventId && (
+                                  <button
+                                    onClick={() => deleteMessage(session.sessionId, m.eventId)}
+                                    disabled={deletingMessage === m.eventId}
+                                    aria-label={tr(uiLang, 'delete')}
+                                    title={tr(uiLang, 'delete')}
+                                    className="text-slate-300 hover:text-red-600 transition-colors disabled:opacity-50"
+                                  >
+                                    {deletingMessage === m.eventId ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <div className="whitespace-pre-wrap leading-relaxed text-base font-medium">{m.content}</div>
                             {m.role === 'user' && m.userAnalysis && (

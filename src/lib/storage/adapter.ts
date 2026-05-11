@@ -49,8 +49,14 @@ export interface DataStore {
    */
   listByPrefix(collection: string, prefix: string): Promise<any[]>;
 
-  /** Remove a document. */
+  /**
+   * Remove a document. Idempotent — a missing document is treated as a
+   * successful removal so multi-device races don't surface as errors.
+   */
   remove(collection: string, id: string): Promise<void>;
+
+  /** Batch removal — single round-trip when the backend supports it. */
+  removeMany(collection: string, ids: string[]): Promise<void>;
 }
 
 /**

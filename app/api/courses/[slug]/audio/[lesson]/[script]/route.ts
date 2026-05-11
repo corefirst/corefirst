@@ -4,8 +4,14 @@ import { getUserId } from '@/src/lib/auth/user';
 
 interface Params { slug: string; lesson: string; script: string }
 
+// Defense in depth — see app/api/courses/[slug]/route.ts for rationale.
+const SLUG_RE = /^[a-z0-9-]+$/;
+
 export async function GET(request: Request, ctx: { params: Promise<Params> }) {
   const { slug, lesson, script } = await ctx.params;
+  if (!slug || !SLUG_RE.test(slug)) {
+    return NextResponse.json({ error: 'Invalid slug' }, { status: 400 });
+  }
   const lessonIndex = Number(lesson);
   const scriptIndex = Number(script);
   if (!Number.isInteger(lessonIndex) || lessonIndex < 0 ||

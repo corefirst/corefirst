@@ -57,6 +57,10 @@ type DictKey =
   | 'demoHeader' | 'demoSkip' | 'demoContinue'
   | 'naturalSentenceHeader' | 'crstArrangementHeader'
   | 'modeLearning' | 'modePractice' | 'practiceHint'
+  // History edit/delete chrome
+  | 'delete' | 'rename'
+  | 'confirmDeleteTransform' | 'confirmDeleteRoleplaySession'
+  | 'confirmDeleteRoleplayMessage' | 'confirmDeleteCourse'
   // Stats / progress dashboard
   | 'statsLoading' | 'statsErrorLoad' | 'statsEmptyTitle' | 'statsEmptyBody'
   | 'statsSectionStreak' | 'statsSectionAbility' | 'statsSectionMemory'
@@ -125,6 +129,12 @@ const en: Dict = {
   modeLearning: 'Learn',
   modePractice: 'Practice',
   practiceHint: 'Drag the blocks into CRST order to unlock the dialogue',
+  delete: 'Delete',
+  rename: 'Rename',
+  confirmDeleteTransform: 'Delete this transform from your history?',
+  confirmDeleteRoleplaySession: 'Delete this roleplay session and all its messages?',
+  confirmDeleteRoleplayMessage: 'Delete this message?',
+  confirmDeleteCourse: 'Delete this course? Audio and practice records will be removed; vocabulary mastery is kept.',
   statsLoading: 'Loading your progress…',
   statsErrorLoad: 'Could not load progress data. Please refresh.',
   statsEmptyTitle: 'Your Journey Begins Soon',
@@ -216,6 +226,12 @@ const zh: Dict = {
   modeLearning: '学习',
   modePractice: '练习',
   practiceHint: '把方块拖回 CRST 顺序，解锁这句对白',
+  delete: '删除',
+  rename: '重命名',
+  confirmDeleteTransform: '从历史中删除这条转换记录？',
+  confirmDeleteRoleplaySession: '删除整个角色扮演会话和所有消息？',
+  confirmDeleteRoleplayMessage: '删除这条消息？',
+  confirmDeleteCourse: '删除这门课程？音频和练习记录会被清除，但已掌握的词汇会保留。',
   statsLoading: '正在加载你的进度…',
   statsErrorLoad: '无法加载进度数据，请刷新页面。',
   statsEmptyTitle: '你的旅程即将开始',
@@ -345,6 +361,12 @@ const ja: Dict = {
   modeLearning: '学習',
   modePractice: '練習',
   practiceHint: 'ブロックを CRST 順に並べてセリフをアンロック',
+  delete: '削除',
+  rename: '名前変更',
+  confirmDeleteTransform: 'この変換履歴を削除しますか？',
+  confirmDeleteRoleplaySession: 'このロールプレイセッションと全メッセージを削除しますか？',
+  confirmDeleteRoleplayMessage: 'このメッセージを削除しますか？',
+  confirmDeleteCourse: 'このコースを削除しますか？音声と練習記録は削除されますが、習得済み語彙は保持されます。',
   langEnglish: '英語', langChinese: '中国語', langJapanese: '日本語',
   langKorean: '韓国語', langVietnamese: 'ベトナム語',
   langSpanish: 'スペイン語', langFrench: 'フランス語', langGerman: 'ドイツ語',
@@ -436,6 +458,12 @@ const ko: Dict = {
   modeLearning: '학습',
   modePractice: '연습',
   practiceHint: '블록을 CRST 순서로 배치해 대화를 잠금 해제하세요',
+  delete: '삭제',
+  rename: '이름 변경',
+  confirmDeleteTransform: '이 변환 기록을 삭제할까요?',
+  confirmDeleteRoleplaySession: '이 역할극 세션과 모든 메시지를 삭제할까요?',
+  confirmDeleteRoleplayMessage: '이 메시지를 삭제할까요?',
+  confirmDeleteCourse: '이 코스를 삭제할까요? 오디오와 연습 기록은 제거되지만 학습한 어휘는 유지됩니다.',
   langEnglish: '영어', langChinese: '중국어', langJapanese: '일본어',
   langKorean: '한국어', langVietnamese: '베트남어',
   langSpanish: '스페인어', langFrench: '프랑스어', langGerman: '독일어',
@@ -527,6 +555,12 @@ const vi: Dict = {
   modeLearning: 'Học',
   modePractice: 'Luyện tập',
   practiceHint: 'Kéo các khối về đúng thứ tự CRST để mở khóa lời thoại',
+  delete: 'Xóa',
+  rename: 'Đổi tên',
+  confirmDeleteTransform: 'Xóa bản chuyển đổi này khỏi lịch sử?',
+  confirmDeleteRoleplaySession: 'Xóa toàn bộ phiên đóng vai cùng tất cả tin nhắn?',
+  confirmDeleteRoleplayMessage: 'Xóa tin nhắn này?',
+  confirmDeleteCourse: 'Xóa khóa học này? Âm thanh và lịch sử luyện tập sẽ bị xóa, nhưng từ vựng đã thuộc vẫn được giữ lại.',
   langEnglish: 'tiếng Anh', langChinese: 'tiếng Trung', langJapanese: 'tiếng Nhật',
   langKorean: 'tiếng Hàn', langVietnamese: 'tiếng Việt',
   langSpanish: 'tiếng Tây Ban Nha', langFrench: 'tiếng Pháp', langGerman: 'tiếng Đức',

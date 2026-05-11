@@ -291,6 +291,119 @@ export async function pruneOrphanMedia(
   return removed;
 }
 
+export type DeletePackageStep = 'manifest' | 'state' | 'events' | 'vocab' | 'media';
+
+export interface DeletePackageStepResult {
+  step: DeletePackageStep;
+  ok: boolean;
+  error?: string;
+}
+
+export interface DeletePackageResult {
+  /** True iff every step succeeded. False on any partial failure. */
+  ok: boolean;
+  /** Ordered per-step outcomes — useful for surfacing partial cascades in logs. */
+  steps: DeletePackageStepResult[];
+  /** Step name → error message for the failures (subset of `steps`). */
+  errors: { step: DeletePackageStep; error: string }[];
+}
+
+/**
+ * Cascade-delete a course package and every learner record associated with it.
+ *
+ *  1. `manifest` — Removes the manifest JSON (and the `.corefirst` ZIP if present)
+ *  2. `state`    — Tombstones the `state` doc for this slug — sync-safe across devices
+ *  3. `events`   — Tombstones every event doc with this slug prefix (transforms /
+ *                  attempts / roleplay sessions+messages anchored to this course)
+ *  4. `vocab`    — Clears `firstSeenIn` from vocabulary entries that pointed here,
+ *                  but keeps the mastery progress (the learner already learned
+ *                  those words)
+ *  5. `media`    — Sweeps the per-user CAS media pool — audio/image hashes that
+ *                  no surviving manifest references get reclaimed
+ *
+ * Best-effort cascade — a failure on one step does not abort the others, but
+ * the result captures every step's outcome so partial cascades are observable
+ * in logs and the caller can surface them. The slug is the join key throughout
+ * so partial cleanup remains coherent (no dangling references; only orphans,
+ * which a later `pruneOrphanMedia` sweep catches).
+ */
+export async function deletePackage(
+  userId: string,
+  slug: string,
+): Promise<DeletePackageResult> {
+  // Dynamic import to avoid record.ts ↔ package.ts circular dep at module init.
+  const { removeStateDoc, listEventIdsForSlug, orphanVocabularyForSlug, providerFor } =
+    await import('./record');
+
+  const steps: DeletePackageStepResult[] = [];
+  const errors: { step: DeletePackageStep; error: string }[] = [];
+
+  const run = async (step: DeletePackageStep, fn: () => Promise<void>): Promise<void> => {
+    try {
+      await fn();
+      steps.push({ step, ok: true });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error(`[deletePackage] step "${step}" failed for ${userId}/${slug}:`, message);
+      steps.push({ step, ok: false, error: message });
+      errors.push({ step, error: message });
+    }
+  };
+
+  // 1. Delete manifest files (Lite JSON + optional Full ZIP).
+  // `fs.unlink` on a missing file is not a failure (the cascade is idempotent
+  // by design) — only surface actual IO errors as a step failure.
+  await run('manifest', async () => {
+    for (const p of [manifestPath(userId, slug), packagePath(userId, slug)]) {
+      try {
+        await fs.unlink(p);
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
+      }
+    }
+  });
+
+  // 2. Tombstone the per-slug state doc.
+  await run('state', () => removeStateDoc(userId, slug));
+
+  // 3. Tombstone every event doc for this slug.
+  await run('events', async () => {
+    const eventIds = await listEventIdsForSlug(userId, slug);
+    if (eventIds.length > 0) {
+      await providerFor(userId).removeMany('events', eventIds);
+    }
+  });
+
+  // 4. Orphan vocabulary references — keep entries, drop the source link.
+  await run('vocab', () => orphanVocabularyForSlug(userId, slug));
+
+  // 5. Sweep orphan media — only files unique to the deleted course are removed.
+  await run('media', async () => {
+    await pruneOrphanMedia(userId);
+  });
+
+  return { ok: errors.length === 0, steps, errors };
+}
+
+/**
+ * Rename a course's display topic. We deliberately do NOT change the slug —
+ * the slug is the join key for state docs, event docs, and media references,
+ * so changing it would orphan all history. Only `manifest.topic` (and the
+ * derived UI title) is editable.
+ */
+export async function renamePackageTopic(
+  userId: string,
+  slug: string,
+  newTopic: string,
+): Promise<void> {
+  const trimmed = newTopic.trim();
+  if (!trimmed) throw new Error('topic must not be empty');
+  const manifest = await readPackageManifest(userId, slug);
+  manifest.topic = trimmed;
+  const mPath = manifestPath(userId, slug);
+  await fs.writeFile(mPath, JSON.stringify(manifest, null, 2));
+}
+
 async function collectReferencedMedia(userId: string): Promise<Set<string>> {
   const refs = new Set<string>();
   const packages = await listPackages(userId);

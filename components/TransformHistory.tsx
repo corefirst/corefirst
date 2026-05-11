@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronRight, Clock, PlayCircle } from 'lucide-react';
+import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronRight, Clock, PlayCircle, Trash2 } from 'lucide-react';
 import { CFLTBlock, type CFLTBlockType } from './CFLTBlock';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 
 interface TransformItem {
+  eventId: string;
   inputText: string;
   sourceLang: string;
   targetLang: string;
@@ -61,6 +62,23 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
   const [hasError, setHasError] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [audioLoading, setAudioLoading] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const handleDelete = async (eventId: string) => {
+    if (!window.confirm(tr(uiLang, 'confirmDeleteTransform'))) return;
+    setDeleting(eventId);
+    try {
+      const res = await fetch(`/api/history/transforms/${encodeURIComponent(eventId)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('delete failed');
+      setItems((prev) => (prev ?? []).filter((t) => t.eventId !== eventId));
+    } catch (err) {
+      console.error('[TransformHistory] delete error:', err);
+    } finally {
+      setDeleting(null);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -148,8 +166,9 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
 
       <ul className="space-y-3">
         {list.map((item, i) => {
-          const id = `${item.createdAt}-${i}`;
+          const id = item.eventId || `${item.createdAt}-${i}`;
           const isOpen = expanded.has(id);
+          const isDeleting = deleting === item.eventId;
           const l1Blocks = splitToBlocks(item.cfltL1);
           const l2Blocks = splitToBlocks(item.cfltL2);
 
@@ -158,27 +177,41 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
               key={id}
               className="border border-slate-100 rounded-2xl overflow-hidden hover:border-blue-200 hover:shadow-md hover:shadow-blue-50 transition-all"
             >
-              <button
-                type="button"
-                onClick={() => toggle(id)}
-                className="w-full p-5 text-left hover:bg-slate-50 transition-colors"
-                aria-expanded={isOpen}
-              >
-                <div className="flex items-center justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  <span>{item.sourceLang} → {item.targetLang}</span>
-                  <span>{formatTimestamp(item.createdAt, uiLang)}</span>
-                </div>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
-                      {tr(uiLang, 'historyInputLabel')}
-                    </p>
-                    <p className="text-slate-700 font-medium truncate">{item.inputText}</p>
-                    <p className="text-slate-900 font-black italic mt-2 truncate">"{item.standardL2}"</p>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => toggle(id)}
+                  className="w-full p-5 text-left hover:bg-slate-50 transition-colors"
+                  aria-expanded={isOpen}
+                >
+                  <div className="flex items-center justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <span>{item.sourceLang} → {item.targetLang}</span>
+                    <span>{formatTimestamp(item.createdAt, uiLang)}</span>
                   </div>
-                  {isOpen ? <ChevronDown className="w-4 h-4 text-slate-400 mt-1 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 mt-1 shrink-0" />}
-                </div>
-              </button>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">
+                        {tr(uiLang, 'historyInputLabel')}
+                      </p>
+                      <p className="text-slate-700 font-medium truncate">{item.inputText}</p>
+                      <p className="text-slate-900 font-black italic mt-2 truncate">"{item.standardL2}"</p>
+                    </div>
+                    {isOpen ? <ChevronDown className="w-4 h-4 text-slate-400 mt-1 shrink-0" /> : <ChevronRight className="w-4 h-4 text-slate-400 mt-1 shrink-0" />}
+                  </div>
+                </button>
+                {item.eventId && (
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); handleDelete(item.eventId); }}
+                    disabled={isDeleting}
+                    aria-label={tr(uiLang, 'delete')}
+                    title={tr(uiLang, 'delete')}
+                    className="absolute top-3 right-12 p-1.5 rounded-lg text-slate-300 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                  >
+                    {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                  </button>
+                )}
+              </div>
 
               <AnimatePresence initial={false}>
                 {isOpen && (

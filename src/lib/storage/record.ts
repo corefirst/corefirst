@@ -244,7 +244,138 @@ export async function upsertRoleplaySession(
   }
 }
 
-// --- readers ---
+// --- per-event readers (return eventId so UI can target deletes) ---
+
+export interface TransformHistoryEntry {
+  eventId: string;
+  slug: string;
+  createdAt: string;
+  inputText: string;
+  sourceLang: string;
+  targetLang: string;
+  cfltL1: string;
+  cfltL2: string;
+  standardL2: string;
+}
+
+export interface RoleplayMessageEntry {
+  eventId: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+  audioFile?: string;
+  correctedAudioFile?: string;
+  userAnalysis?: any;
+  coachAnalysis?: any;
+  feedback?: string | null;
+}
+
+export interface RoleplaySessionEntry {
+  sessionId: string;
+  slug: string;
+  context: string;
+  sourceLang: string;
+  targetLang: string;
+  createdAt: string;
+  messages: RoleplayMessageEntry[];
+}
+
+/**
+ * List all transform events across one slug (or all slugs when slug=null).
+ * The `eventId` on each entry is the PouchDB doc ID — clients pass it back to
+ * the DELETE endpoint to remove individual entries.
+ */
+export async function listTransformEvents(
+  userId: string,
+  slug?: string | null,
+): Promise<TransformHistoryEntry[]> {
+  const provider = providerFor(userId);
+  const docs = slug
+    ? await provider.listByPrefix(COL.EVENTS, `${toId(slug)}:transform:`)
+    : await provider.list(COL.EVENTS);
+  const out: TransformHistoryEntry[] = [];
+  for (const d of docs) {
+    if (!d || d.type !== 'transform' || !d.data) continue;
+    out.push({
+      eventId: d._id,
+      slug: d.slug,
+      createdAt: d.createdAt,
+      inputText: d.data.inputText,
+      sourceLang: d.data.sourceLang,
+      targetLang: d.data.targetLang,
+      cfltL1: d.data.cfltL1,
+      cfltL2: d.data.cfltL2,
+      standardL2: d.data.standardL2,
+    });
+  }
+  out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  return out;
+}
+
+/**
+ * List all roleplay sessions with their messages. Each message carries an
+ * `eventId` for single-message delete, plus the session has a stable
+ * `sessionId` for cascade delete / rename.
+ */
+export async function listRoleplaySessions(
+  userId: string,
+  slug?: string | null,
+): Promise<RoleplaySessionEntry[]> {
+  const provider = providerFor(userId);
+  const docs = slug
+    ? await provider.listByPrefix(COL.EVENTS, `${toId(slug)}:`)
+    : await provider.list(COL.EVENTS);
+
+  const sessionsBySlug = new Map<string, RoleplaySessionEntry>();
+  const messagesBySession = new Map<string, RoleplayMessageEntry[]>();
+
+  for (const d of docs) {
+    if (!d) continue;
+    if (d.type === 'roleplay-session') {
+      sessionsBySlug.set(`${d.slug}::${d.sessionId}`, {
+        sessionId: d.sessionId,
+        slug: d.slug,
+        context: d.context,
+        sourceLang: d.sourceLang,
+        targetLang: d.targetLang,
+        createdAt: d.createdAt,
+        messages: [],
+      });
+    } else if (d.type === 'roleplay-msg') {
+      const key = `${d.slug}::${d.sessionId}`;
+      if (!messagesBySession.has(key)) messagesBySession.set(key, []);
+      const data = d.data || {};
+      messagesBySession.get(key)!.push({
+        eventId: d._id,
+        role: data.role,
+        content: data.content,
+        createdAt: d.createdAt,
+        audioFile: data.audioFile,
+        correctedAudioFile: data.correctedAudioFile,
+        userAnalysis: data.userAnalysis,
+        coachAnalysis: data.coachAnalysis,
+        feedback: data.feedback ?? null,
+      });
+    }
+  }
+
+  const out: RoleplaySessionEntry[] = [];
+  for (const [key, session] of sessionsBySlug) {
+    const msgs = (messagesBySession.get(key) ?? []).sort((a, b) =>
+      a.createdAt.localeCompare(b.createdAt),
+    );
+    session.messages = msgs;
+    out.push(session);
+  }
+  out.sort((a, b) => {
+    const aLast = a.messages[a.messages.length - 1]?.createdAt ?? a.createdAt;
+    const bLast = b.messages[b.messages.length - 1]?.createdAt ?? b.createdAt;
+    return bLast.localeCompare(aLast);
+  });
+  return out;
+}
+
+// --- legacy readers (no eventId — backwards-compat shape) ---
 
 export async function readRecord(
   userId: string,
@@ -355,6 +486,125 @@ export async function readRecord(
 
 export async function readGlobalRecord(userId: string): Promise<CFRecord | null> {
   return readRecord(userId, GLOBAL_SLUG);
+}
+
+// --- delete / edit operations ---
+//
+// Hard delete via PouchDB tombstones. Each device that syncs the database sees
+// the `_deleted: true` doc and applies the removal locally, so a delete on one
+// device propagates correctly to all others. Operations are idempotent: a
+// repeated delete (or a delete that races with another device's delete) is a
+// no-op rather than an error.
+
+/**
+ * Delete a single history event (transform / roleplay message / attempt). The
+ * eventId is the PouchDB `_id` of the event doc, which the history APIs surface
+ * to the client precisely for this purpose. Idempotent on missing IDs.
+ */
+export async function deleteHistoryEvent(
+  userId: string,
+  eventId: string,
+): Promise<void> {
+  await providerFor(userId).remove(COL.EVENTS, eventId);
+}
+
+/**
+ * Delete a roleplay session and all of its messages in one cascade. We find
+ * every msg doc by ID prefix (`<slug>:roleplay-msg:<sessionId>:*`) plus the
+ * single session metadata doc and tombstone them via bulk_docs. Safe against
+ * concurrent writes — anything that arrives after the listByPrefix scan just
+ * stays around as a stray, which `readRecord` ignores (no session metadata
+ * → not surfaced).
+ */
+export async function deleteRoleplaySession(
+  userId: string,
+  slug: string | null,
+  sessionId: string,
+): Promise<void> {
+  const provider = providerFor(userId);
+  const slugId = toId(slug);
+  const msgPrefix = `${slugId}:roleplay-msg:${sessionId}:`;
+  const msgDocs = await provider.listByPrefix(COL.EVENTS, msgPrefix);
+  const ids = msgDocs.map((d: any) => d._id).filter(Boolean);
+  ids.push(`${slugId}:roleplay-session:${sessionId}`);
+  await provider.removeMany(COL.EVENTS, ids);
+}
+
+/**
+ * Rename a roleplay session's `context` (the human-friendly title). The slug
+ * and sessionId never change — those are join keys for the message stream.
+ */
+export async function renameRoleplaySession(
+  userId: string,
+  slug: string | null,
+  sessionId: string,
+  newContext: string,
+): Promise<void> {
+  const provider = providerFor(userId);
+  const slugId = toId(slug);
+  const sessionDocId = `${slugId}:roleplay-session:${sessionId}`;
+  const trimmed = newContext.trim();
+  if (!trimmed) throw new Error('context must not be empty');
+  await provider.mutate<any>(COL.EVENTS, sessionDocId, (current) => {
+    if (!current) {
+      throw new Error(`Roleplay session ${sessionId} not found`);
+    }
+    return { ...current, context: trimmed };
+  });
+}
+
+/**
+ * Find every event document associated with a slug. Used by `deletePackage`
+ * to cascade-clear history when a whole course is removed.
+ */
+export async function listEventIdsForSlug(
+  userId: string,
+  slug: string,
+): Promise<string[]> {
+  const provider = providerFor(userId);
+  const docs = await provider.listByPrefix(COL.EVENTS, `${toId(slug)}:`);
+  return docs.map((d: any) => d._id).filter(Boolean);
+}
+
+export async function removeStateDoc(userId: string, slug: string): Promise<void> {
+  await providerFor(userId).remove(COL.STATE, toId(slug));
+}
+
+/**
+ * Strip `firstSeenIn` references that point at a slug that's being deleted.
+ * The vocabulary entries themselves stay — the learner's mastery is real
+ * cognitive progress and shouldn't reset just because the source lesson was
+ * removed. Only the "back to source" link is cleared so the UI doesn't 404.
+ */
+export async function orphanVocabularyForSlug(
+  userId: string,
+  slug: string,
+): Promise<void> {
+  const provider = providerFor(userId);
+  // Bail out BEFORE invoking mutate when no SRS doc exists yet. The previous
+  // mutator-returns-null path caused mutate's `{...null, _id, updatedAt}` put
+  // to write a doc missing the required `vocabulary` array, corrupting the
+  // user's SRS for all future captureVocabulary calls.
+  const existing = await provider.get<CFSRS>(COL.SRS, 'user');
+  if (!existing) return;
+  await provider.mutate<CFSRS>(COL.SRS, 'user', (current) => {
+    if (!current) {
+      // Another writer deleted the SRS doc between our get() and the mutate
+      // read — nothing to orphan. Returning a valid empty SRS keeps the put
+      // safe instead of writing a malformed doc.
+      return { updatedAt: new Date().toISOString(), vocabulary: [] };
+    }
+    const slugId = toId(slug);
+    let changed = false;
+    for (const entry of current.vocabulary) {
+      if (entry.firstSeenIn && toId(entry.firstSeenIn.slug) === slugId) {
+        delete (entry as any).firstSeenIn;
+        changed = true;
+      }
+    }
+    if (changed) current.updatedAt = new Date().toISOString();
+    return current;
+  });
 }
 
 export async function readAllProgress(

@@ -134,10 +134,38 @@ export class PouchDBProvider implements DataStore {
     return result.rows.map((row: { doc?: unknown }) => row.doc);
   }
 
+  /**
+   * Hard-delete a document. Internally PouchDB creates a tombstone
+   * (`_deleted: true`) — that's the canonical sync-safe delete: other replicas
+   * see the tombstone during replication and apply the removal locally. 404
+   * is treated as success (idempotent delete) so retries / multi-device races
+   * don't surface as errors.
+   */
   async remove(collection: string, id: string): Promise<void> {
     const db = this.getDb(collection);
-    const doc = await db.get(id);
-    await db.remove(doc);
+    try {
+      const doc = await db.get(id);
+      await db.remove(doc);
+    } catch (err: any) {
+      if (err.status === 404) return; // already gone — nothing to do
+      throw err;
+    }
+  }
+
+  /**
+   * Batch delete via PouchDB's `_bulk_docs` with `_deleted` flags. Single
+   * round-trip + atomic per-doc tombstones that replicate cleanly. Skips
+   * documents that no longer exist (idempotent).
+   */
+  async removeMany(collection: string, ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    const db = this.getDb(collection);
+    const fetched: any = await db.allDocs({ keys: ids, include_docs: true });
+    const rows: any[] = fetched.rows ?? [];
+    const docs = rows
+      .filter((r) => r.doc && !r.error)
+      .map((r) => ({ ...r.doc, _deleted: true }));
+    if (docs.length > 0) await db.bulkDocs(docs);
   }
 
   async closeAll(): Promise<void> {
