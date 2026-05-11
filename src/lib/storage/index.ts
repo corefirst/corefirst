@@ -62,6 +62,7 @@ export {
   upsertRoleplaySession,
   readAllProgress,
   captureVocabulary,
+  updateVocabularyMastery,
   deleteHistoryEvent,
   deleteRoleplaySession,
   renameRoleplaySession,

@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generateObject, experimental_transcribe as transcribe } from 'ai';
 import { speechEvalModel, sttModel } from '@/src/lib/ai';
-import { appendAttempt, readPackageManifest, captureVocabulary } from '@/src/lib/storage';
+import {
+  appendAttempt,
+  readPackageManifest,
+  captureVocabulary,
+  updateVocabularyMastery,
+} from '@/src/lib/storage';
 import { getUserId } from '@/src/lib/auth/user';
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10 MB
@@ -14,6 +19,10 @@ const SpeechEvalSchema = z.object({
   score: z.number(),
   pronunciation: z.number(),
   logic_stress: z.number(),
+  score_core: z.number(),
+  score_condition: z.number(),
+  score_space: z.number(),
+  score_time: z.number(),
   transcription: z.string(),
   feedback: z.string(),
 });
@@ -63,7 +72,12 @@ Languages: From ${sourceLang} to ${targetLang}.
 Assess the speech based on:
 1. Pronunciation accuracy (0-100).
 2. Logic Stress: did the user emphasize the [Core Action] correctly? (0-100).
-3. Comparison: how close is the spoken text to the target?
+3. CFLT Element Breakdown (0-100 for each):
+   - score_core: Accuracy of the Core Action/Result element.
+   - score_condition: Accuracy of the Condition/Reason element.
+   - score_space: Accuracy of the Space/Context element.
+   - score_time: Accuracy of the Time element.
+4. Comparison: how close is the spoken text to the target?
 
 CRITICAL — Phonetic Migration:
 If ${sourceLang} is "Chinese", explain pronunciation errors using Pinyin references.
@@ -93,8 +107,7 @@ Return the transcription you were given as-is in the "transcription" field.
           const manifest = await readPackageManifest(userId, packageSlug);
           packageId = manifest.packageId;
 
-          // Auto-capture vocabulary for this lesson, scoped by targetLang and
-          // linked back to the script that introduced it.
+          // Auto-capture and update mastery for vocabulary in this lesson.
           if (lessonIndex >= 0 && manifest.lessons[lessonIndex]) {
             const tokens = manifest.lessons[lessonIndex].vocabulary_focus;
             if (tokens && tokens.length > 0) {
@@ -104,6 +117,11 @@ Return the transcription you were given as-is in the "transcription" field.
                 tokens,
                 { slug: packageSlug, lessonIndex, scriptIndex: Math.max(scriptIndex, 0) },
               );
+              
+              // Update mastery for each token based on this attempt's overall score.
+              for (const t of tokens) {
+                await updateVocabularyMastery(userId, manifest.targetLang, t.token, evaluation.score);
+              }
             }
           }
         } catch {
@@ -117,6 +135,10 @@ Return the transcription you were given as-is in the "transcription" field.
         pronunciation: evaluation.pronunciation,
         logicStress: evaluation.logic_stress,
         feedback: evaluation.feedback,
+        scoreCoreAction: evaluation.score_core,
+        scoreCondition: evaluation.score_condition,
+        scoreSpaceContext: evaluation.score_space,
+        scoreTime: evaluation.score_time,
       });
     } catch (err) {
       console.error('[speech-eval] Failed to persist attempt:', (err as Error).message);

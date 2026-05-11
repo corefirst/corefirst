@@ -11,6 +11,7 @@ import {
 import { providerFor, PouchDBProvider } from './pouch-provider';
 import { listPackages } from './package';
 import { DEFAULT_USER_ID, normalizeUserId } from './paths';
+import { calculateNextReview, scoreToQuality } from './srs';
 
 // Collections.
 //   states  — per-package `CFState`: idempotent progress flags (puzzleCompleted)
@@ -24,19 +25,34 @@ const COL = {
 
 const GLOBAL_SLUG = 'global';
 
-// Normalize a slug to PouchDB-safe form (no leading underscore).
+/** Normalize a slug to PouchDB-safe form (no leading underscore). */
 function toId(slug: string | null | undefined): string {
   if (!slug || slug === '_global' || slug === 'global') return GLOBAL_SLUG;
   return slug.startsWith('_') ? slug.substring(1) : slug;
 }
 
+/** Generate a unique ID with a sortable timestamp and random nonce. */
 function eventId(slug: string, type: string, ...extra: string[]): string {
   const ts = new Date().toISOString();
-  // Sort key inside the prefix: ISO time first then a short random nonce so
-  // bursts within the same millisecond never collide.
   const rand = randomBytes(3).toString('hex');
   const parts = [toId(slug), type, ...extra, ts, rand];
   return parts.join(':');
+}
+
+/** Robustly extract a field from a document that might be nested or flat. */
+function getVal(doc: any, key: string, fallback: any = undefined): any {
+  if (!doc) return fallback;
+  if (doc.data && typeof doc.data === 'object' && key in doc.data) return doc.data[key];
+  if (key in doc) return doc[key];
+  return fallback;
+}
+
+/** Detect event type from body or ID prefix. */
+function getDetectedType(doc: any): string | null {
+  if (doc.type) return doc.type;
+  const id = doc._id || '';
+  const parts = id.split(':');
+  return parts.length > 1 ? parts[1] : null;
 }
 
 export class RecordCorruptError extends Error {
@@ -46,11 +62,7 @@ export class RecordCorruptError extends Error {
   }
 }
 
-// Re-export the per-user PouchDB provider getter so consumers that need to
-// drop down to db.put/get/list can do so without re-importing internals.
 export { providerFor };
-
-/** Legacy export — returns the provider for the default user. */
 export const db = providerFor(DEFAULT_USER_ID);
 
 // --- vocabulary (SRS) ---
@@ -92,6 +104,45 @@ export async function captureVocabulary(
   });
 }
 
+export async function updateVocabularyMastery(
+  userId: string,
+  targetLang: string,
+  token: string,
+  score: number,
+): Promise<void> {
+  const provider = providerFor(userId);
+  const lang = targetLang.trim() || '';
+  const quality = scoreToQuality(score);
+
+  // Check before mutate: returning null from a mutate callback writes a
+  // corrupted doc (same bug that was fixed in orphanVocabularyForSlug).
+  const existing = await provider.get<CFSRS>(COL.SRS, 'user');
+  if (!existing?.vocabulary) return;
+
+  await provider.mutate<CFSRS>(COL.SRS, 'user', (current) => {
+    if (!current || !current.vocabulary) return current ?? { vocabulary: [], updatedAt: new Date().toISOString() };
+    
+    const entry = current.vocabulary.find(
+      (v) => v.token === token && (v.targetLang ?? '') === lang,
+    );
+    if (entry) {
+      const next = calculateNextReview(quality, {
+        interval: entry.interval || 0,
+        easeFactor: entry.easeFactor || 2.5,
+        reviewCount: entry.reviewCount || 0,
+      });
+      entry.interval = next.interval;
+      entry.easeFactor = next.easeFactor;
+      entry.reviewCount = next.reviewCount;
+      entry.nextReviewAt = next.nextReviewAt;
+      entry.mastery = Math.min(100, Math.round((entry.reviewCount / 10) * 100));
+      if (quality < 3) entry.lapseCount = (entry.lapseCount || 0) + 1;
+      current.updatedAt = new Date().toISOString();
+    }
+    return current;
+  });
+}
+
 // --- state (lesson/script progress flags) ---
 
 function emptyState(packageId: string | null, slug: string): CFState {
@@ -130,6 +181,10 @@ export interface AttemptInput {
   pronunciation: number;
   logicStress: number;
   feedback: string;
+  scoreCoreAction?: number;
+  scoreCondition?: number;
+  scoreSpaceContext?: number;
+  scoreTime?: number;
 }
 
 export async function appendAttempt(
@@ -144,7 +199,6 @@ export async function appendAttempt(
   const slugId = toId(slug);
   const now = new Date().toISOString();
 
-  // 1. Update state (idempotent — mutate() handles concurrent writers).
   await provider.mutate<CFState>(COL.STATE, slugId, (current) => {
     const state: CFState = current ?? emptyState(packageId, slug || GLOBAL_SLUG);
     state.lastStudiedAt = now;
@@ -154,8 +208,6 @@ export async function appendAttempt(
     return state;
   });
 
-  // 2. Write the attempt as its own event document. Distinct doc IDs eliminate
-  // PouchDB conflicts entirely under multi-writer / multi-device sync.
   const data: AttemptRecord = {
     createdAt: now,
     transcription: attempt.transcription,
@@ -163,10 +215,10 @@ export async function appendAttempt(
     pronunciation: attempt.pronunciation,
     logicStress: attempt.logicStress,
     feedback: attempt.feedback,
-    scoreCoreAction: null,
-    scoreCondition: null,
-    scoreSpaceContext: null,
-    scoreTime: null,
+    scoreCoreAction: attempt.scoreCoreAction ?? null,
+    scoreCondition: attempt.scoreCondition ?? null,
+    scoreSpaceContext: attempt.scoreSpaceContext ?? null,
+    scoreTime: attempt.scoreTime ?? null,
   };
   const id = eventId(slug || GLOBAL_SLUG, 'attempt', String(lesson), String(script));
   await provider.put(COL.EVENTS, id, {
@@ -218,8 +270,6 @@ export async function upsertRoleplaySession(
   const now = new Date().toISOString();
   const sessionDocId = `${slugId}:roleplay-session:${input.sessionId}`;
 
-  // The session metadata doc is keyed by sessionId, so concurrent upserts of
-  // the same session collapse onto the same doc — mutate() handles any race.
   await provider.mutate<any>(COL.EVENTS, sessionDocId, (current) => ({
     type: 'roleplay-session',
     slug: slugId,
@@ -230,8 +280,6 @@ export async function upsertRoleplaySession(
     createdAt: current?.createdAt ?? now,
   }));
 
-  // Each new message is its own document. No conflicts even if both the user
-  // and the assistant write into the same session simultaneously.
   for (const msg of input.newMessages) {
     const id = eventId(slug || GLOBAL_SLUG, 'roleplay-msg', input.sessionId);
     await provider.put(COL.EVENTS, id, {
@@ -244,7 +292,7 @@ export async function upsertRoleplaySession(
   }
 }
 
-// --- per-event readers (return eventId so UI can target deletes) ---
+// --- per-event readers ---
 
 export interface TransformHistoryEntry {
   eventId: string;
@@ -280,11 +328,6 @@ export interface RoleplaySessionEntry {
   messages: RoleplayMessageEntry[];
 }
 
-/**
- * List all transform events across one slug (or all slugs when slug=null).
- * The `eventId` on each entry is the PouchDB doc ID — clients pass it back to
- * the DELETE endpoint to remove individual entries.
- */
 export async function listTransformEvents(
   userId: string,
   slug?: string | null,
@@ -293,30 +336,29 @@ export async function listTransformEvents(
   const docs = slug
     ? await provider.listByPrefix(COL.EVENTS, `${toId(slug)}:transform:`)
     : await provider.list(COL.EVENTS);
+  
   const out: TransformHistoryEntry[] = [];
   for (const d of docs) {
-    if (!d || d.type !== 'transform' || !d.data) continue;
+    if (!d) continue;
+    const detectedType = getDetectedType(d);
+    const inputText = getVal(d, 'inputText');
+    if (detectedType !== 'transform' || !inputText) continue;
+
     out.push({
       eventId: d._id,
-      slug: d.slug,
-      createdAt: d.createdAt,
-      inputText: d.data.inputText,
-      sourceLang: d.data.sourceLang,
-      targetLang: d.data.targetLang,
-      cfltL1: d.data.cfltL1,
-      cfltL2: d.data.cfltL2,
-      standardL2: d.data.standardL2,
+      slug: d.slug || d._id.split(':')[0],
+      createdAt: d.createdAt || getVal(d, 'createdAt') || new Date(0).toISOString(),
+      inputText,
+      sourceLang: getVal(d, 'sourceLang', 'Chinese'),
+      targetLang: getVal(d, 'targetLang', 'English'),
+      cfltL1: getVal(d, 'cfltL1', ''),
+      cfltL2: getVal(d, 'cfltL2', ''),
+      standardL2: getVal(d, 'standardL2', ''),
     });
   }
-  out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  return out;
+  return out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
-/**
- * List all roleplay sessions with their messages. Each message carries an
- * `eventId` for single-message delete, plus the session has a stable
- * `sessionId` for cascade delete / rename.
- */
 export async function listRoleplaySessions(
   userId: string,
   slug?: string | null,
@@ -331,30 +373,39 @@ export async function listRoleplaySessions(
 
   for (const d of docs) {
     if (!d) continue;
-    if (d.type === 'roleplay-session') {
-      sessionsBySlug.set(`${d.slug}::${d.sessionId}`, {
-        sessionId: d.sessionId,
-        slug: d.slug,
-        context: d.context,
-        sourceLang: d.sourceLang,
-        targetLang: d.targetLang,
-        createdAt: d.createdAt,
+    const detectedType = getDetectedType(d);
+    const parts = d._id.split(':');
+
+    if (detectedType === 'roleplay-session') {
+      const sId = d.sessionId || parts[2];
+      const sSlug = d.slug || parts[0];
+      sessionsBySlug.set(`${sSlug}::${sId}`, {
+        sessionId: sId,
+        slug: sSlug,
+        context: d.context || '',
+        sourceLang: d.sourceLang || 'Chinese',
+        targetLang: d.targetLang || 'English',
+        createdAt: d.createdAt || new Date(0).toISOString(),
         messages: [],
       });
-    } else if (d.type === 'roleplay-msg') {
-      const key = `${d.slug}::${d.sessionId}`;
+    } else if (detectedType === 'roleplay-msg') {
+      const sId = d.sessionId || parts[2];
+      const sSlug = d.slug || parts[0];
+      if (!sId) continue;
+      
+      const key = `${sSlug}::${sId}`;
       if (!messagesBySession.has(key)) messagesBySession.set(key, []);
-      const data = d.data || {};
+      
       messagesBySession.get(key)!.push({
         eventId: d._id,
-        role: data.role,
-        content: data.content,
-        createdAt: d.createdAt,
-        audioFile: data.audioFile,
-        correctedAudioFile: data.correctedAudioFile,
-        userAnalysis: data.userAnalysis,
-        coachAnalysis: data.coachAnalysis,
-        feedback: data.feedback ?? null,
+        role: getVal(d, 'role', 'assistant'),
+        content: getVal(d, 'content', ''),
+        createdAt: d.createdAt || getVal(d, 'createdAt') || new Date(0).toISOString(),
+        audioFile: getVal(d, 'audioFile'),
+        correctedAudioFile: getVal(d, 'correctedAudioFile'),
+        userAnalysis: getVal(d, 'userAnalysis'),
+        coachAnalysis: getVal(d, 'coachAnalysis'),
+        feedback: getVal(d, 'feedback', null),
       });
     }
   }
@@ -367,15 +418,14 @@ export async function listRoleplaySessions(
     session.messages = msgs;
     out.push(session);
   }
-  out.sort((a, b) => {
-    const aLast = a.messages[a.messages.length - 1]?.createdAt ?? a.createdAt;
-    const bLast = b.messages[b.messages.length - 1]?.createdAt ?? b.createdAt;
-    return bLast.localeCompare(aLast);
+  return out.sort((a, b) => {
+    const aTime = a.messages[a.messages.length - 1]?.createdAt || a.createdAt;
+    const bTime = b.messages[b.messages.length - 1]?.createdAt || b.createdAt;
+    return bTime.localeCompare(aTime);
   });
-  return out;
 }
 
-// --- legacy readers (no eventId — backwards-compat shape) ---
+// --- record reconstruction ---
 
 export async function readRecord(
   userId: string,
@@ -396,48 +446,52 @@ export async function readRecord(
   const sessionMessages = new Map<string, RoleplayMessage[]>();
 
   for (const ev of events) {
-    if (!ev || typeof ev !== 'object') continue;
-    const e = ev as any;
-    switch (e.type) {
+    if (!ev) continue;
+    const type = getDetectedType(ev);
+    const data = ev.data || ev;
+    const parts = ev._id.split(':');
+
+    switch (type) {
       case 'transform':
-        transforms.push(e.data);
+        transforms.push(data);
         break;
       case 'attempt':
         attemptEvents.push({
-          lessonIndex: Number(e.lessonIndex),
-          scriptIndex: Number(e.scriptIndex),
-          data: e.data,
+          lessonIndex: Number(ev.lessonIndex ?? parts[2] ?? -1),
+          scriptIndex: Number(ev.scriptIndex ?? parts[3] ?? -1),
+          data,
         });
         break;
       case 'roleplay-session':
-        sessionMeta.set(e.sessionId, {
-          context: e.context,
-          sourceLang: e.sourceLang,
-          targetLang: e.targetLang,
-          createdAt: e.createdAt,
+        sessionMeta.set(ev.sessionId || parts[2], {
+          context: ev.context || '',
+          sourceLang: ev.sourceLang || 'Chinese',
+          targetLang: ev.targetLang || 'English',
+          createdAt: ev.createdAt || new Date(0).toISOString(),
         });
         break;
       case 'roleplay-msg':
-        if (!sessionMessages.has(e.sessionId)) sessionMessages.set(e.sessionId, []);
-        sessionMessages.get(e.sessionId)!.push(e.data);
+        const sId = ev.sessionId || parts[2];
+        if (sId) {
+          if (!sessionMessages.has(sId)) sessionMessages.set(sId, []);
+          sessionMessages.get(sId)!.push(data);
+        }
         break;
     }
   }
 
-  // Sort timestamps where order matters for the UI.
-  transforms.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  for (const list of sessionMessages.values()) {
-    list.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
-  }
-  attemptEvents.sort((a, b) => a.data.createdAt.localeCompare(b.data.createdAt));
+  // Sort logic
+  const sortTime = (a: any, b: any) => (a.createdAt || '').localeCompare(b.createdAt || '');
+  transforms.sort(sortTime);
+  for (const list of sessionMessages.values()) list.sort(sortTime);
+  attemptEvents.sort((a, b) => sortTime(a.data, b.data));
 
-  // Reconstruct lesson/script structure from state + per-script attempts.
   const lessonIndices = new Set<number>([
     ...(state?.lessons.map((l) => Number(l.lessonIndex)) ?? []),
     ...attemptEvents.map((a) => a.lessonIndex),
   ]);
 
-  const reconstructedLessons = Array.from(lessonIndices).map((lessonIdx) => {
+  const reconstructedLessons = Array.from(lessonIndices).filter(idx => idx >= 0).map((lessonIdx) => {
     const sLesson = state?.lessons.find((l) => Number(l.lessonIndex) === lessonIdx);
     const scriptIndices = new Set<number>([
       ...(sLesson?.scripts.map((s) => Number(s.scriptIndex)) ?? []),
@@ -445,7 +499,7 @@ export async function readRecord(
     ]);
     return {
       lessonIndex: lessonIdx,
-      scripts: Array.from(scriptIndices).map((scriptIdx) => {
+      scripts: Array.from(scriptIndices).filter(idx => idx >= 0).map((scriptIdx) => {
         const sScript = sLesson?.scripts.find((s) => Number(s.scriptIndex) === scriptIdx);
         const liveAttempts = attemptEvents
           .filter((a) => a.lessonIndex === lessonIdx && a.scriptIndex === scriptIdx)
@@ -471,11 +525,9 @@ export async function readRecord(
     }),
   );
 
-  const activeSlug = id === GLOBAL_SLUG ? GLOBAL_SLUG : (state?.packageSlug ?? slug);
-
   return {
     packageId: state?.packageId ?? null,
-    packageSlug: activeSlug,
+    packageSlug: id === GLOBAL_SLUG ? GLOBAL_SLUG : (state?.packageSlug ?? slug),
     lastStudiedAt: state?.lastStudiedAt ?? new Date().toISOString(),
     vocabulary: [],
     transforms,
@@ -489,80 +541,32 @@ export async function readGlobalRecord(userId: string): Promise<CFRecord | null>
 }
 
 // --- delete / edit operations ---
-//
-// Hard delete via PouchDB tombstones. Each device that syncs the database sees
-// the `_deleted: true` doc and applies the removal locally, so a delete on one
-// device propagates correctly to all others. Operations are idempotent: a
-// repeated delete (or a delete that races with another device's delete) is a
-// no-op rather than an error.
 
-/**
- * Delete a single history event (transform / roleplay message / attempt). The
- * eventId is the PouchDB `_id` of the event doc, which the history APIs surface
- * to the client precisely for this purpose. Idempotent on missing IDs.
- */
-export async function deleteHistoryEvent(
-  userId: string,
-  eventId: string,
-): Promise<void> {
+export async function deleteHistoryEvent(userId: string, eventId: string): Promise<void> {
   await providerFor(userId).remove(COL.EVENTS, eventId);
 }
 
-/**
- * Delete a roleplay session and all of its messages in one cascade. We find
- * every msg doc by ID prefix (`<slug>:roleplay-msg:<sessionId>:*`) plus the
- * single session metadata doc and tombstone them via bulk_docs. Safe against
- * concurrent writes — anything that arrives after the listByPrefix scan just
- * stays around as a stray, which `readRecord` ignores (no session metadata
- * → not surfaced).
- */
-export async function deleteRoleplaySession(
-  userId: string,
-  slug: string | null,
-  sessionId: string,
-): Promise<void> {
+export async function deleteRoleplaySession(userId: string, slug: string | null, sessionId: string): Promise<void> {
   const provider = providerFor(userId);
   const slugId = toId(slug);
-  const msgPrefix = `${slugId}:roleplay-msg:${sessionId}:`;
-  const msgDocs = await provider.listByPrefix(COL.EVENTS, msgPrefix);
-  const ids = msgDocs.map((d: any) => d._id).filter(Boolean);
+  const ids = (await provider.listByPrefix(COL.EVENTS, `${slugId}:roleplay-msg:${sessionId}:`))
+    .map((d: any) => d._id)
+    .filter(Boolean);
   ids.push(`${slugId}:roleplay-session:${sessionId}`);
   await provider.removeMany(COL.EVENTS, ids);
 }
 
-/**
- * Rename a roleplay session's `context` (the human-friendly title). The slug
- * and sessionId never change — those are join keys for the message stream.
- */
-export async function renameRoleplaySession(
-  userId: string,
-  slug: string | null,
-  sessionId: string,
-  newContext: string,
-): Promise<void> {
+export async function renameRoleplaySession(userId: string, slug: string | null, sessionId: string, newContext: string): Promise<void> {
   const provider = providerFor(userId);
-  const slugId = toId(slug);
-  const sessionDocId = `${slugId}:roleplay-session:${sessionId}`;
-  const trimmed = newContext.trim();
-  if (!trimmed) throw new Error('context must not be empty');
+  const sessionDocId = `${toId(slug)}:roleplay-session:${sessionId}`;
   await provider.mutate<any>(COL.EVENTS, sessionDocId, (current) => {
-    if (!current) {
-      throw new Error(`Roleplay session ${sessionId} not found`);
-    }
-    return { ...current, context: trimmed };
+    if (!current) throw new Error(`Roleplay session ${sessionId} not found`);
+    return { ...current, context: newContext.trim() || 'Untitled' };
   });
 }
 
-/**
- * Find every event document associated with a slug. Used by `deletePackage`
- * to cascade-clear history when a whole course is removed.
- */
-export async function listEventIdsForSlug(
-  userId: string,
-  slug: string,
-): Promise<string[]> {
-  const provider = providerFor(userId);
-  const docs = await provider.listByPrefix(COL.EVENTS, `${toId(slug)}:`);
+export async function listEventIdsForSlug(userId: string, slug: string): Promise<string[]> {
+  const docs = await providerFor(userId).listByPrefix(COL.EVENTS, `${toId(slug)}:`);
   return docs.map((d: any) => d._id).filter(Boolean);
 }
 
@@ -570,30 +574,12 @@ export async function removeStateDoc(userId: string, slug: string): Promise<void
   await providerFor(userId).remove(COL.STATE, toId(slug));
 }
 
-/**
- * Strip `firstSeenIn` references that point at a slug that's being deleted.
- * The vocabulary entries themselves stay — the learner's mastery is real
- * cognitive progress and shouldn't reset just because the source lesson was
- * removed. Only the "back to source" link is cleared so the UI doesn't 404.
- */
-export async function orphanVocabularyForSlug(
-  userId: string,
-  slug: string,
-): Promise<void> {
+export async function orphanVocabularyForSlug(userId: string, slug: string): Promise<void> {
   const provider = providerFor(userId);
-  // Bail out BEFORE invoking mutate when no SRS doc exists yet. The previous
-  // mutator-returns-null path caused mutate's `{...null, _id, updatedAt}` put
-  // to write a doc missing the required `vocabulary` array, corrupting the
-  // user's SRS for all future captureVocabulary calls.
   const existing = await provider.get<CFSRS>(COL.SRS, 'user');
   if (!existing) return;
   await provider.mutate<CFSRS>(COL.SRS, 'user', (current) => {
-    if (!current) {
-      // Another writer deleted the SRS doc between our get() and the mutate
-      // read — nothing to orphan. Returning a valid empty SRS keeps the put
-      // safe instead of writing a malformed doc.
-      return { updatedAt: new Date().toISOString(), vocabulary: [] };
-    }
+    if (!current) return { updatedAt: new Date().toISOString(), vocabulary: [] };
     const slugId = toId(slug);
     let changed = false;
     for (const entry of current.vocabulary) {
@@ -607,16 +593,11 @@ export async function orphanVocabularyForSlug(
   });
 }
 
-export async function readAllProgress(
-  userId: string = DEFAULT_USER_ID,
-): Promise<{ records: CFRecord[]; vocabulary: any[] }> {
+export async function readAllProgress(userId: string = DEFAULT_USER_ID): Promise<{ records: CFRecord[]; vocabulary: any[] }> {
   const provider = providerFor(userId);
   const [packageMatches, allStates, allEvents, srs] = await Promise.all([
     listPackages(userId),
     provider.list(COL.STATE) as Promise<any[]>,
-    // For dashboard aggregation we still need to know which slugs have events
-    // — but the EVENTS collection can be huge. We only pull `_id` keys here
-    // and bucket them by slug prefix to discover active slugs cheaply.
     listEventSlugs(provider),
     provider.get<CFSRS>(COL.SRS, 'user'),
   ]);
@@ -629,29 +610,25 @@ export async function readAllProgress(
   const records: CFRecord[] = [];
   await Promise.all(
     Array.from(slugs).map(async (s) => {
-      const r = await readRecord(userId, s);
-      if (r) records.push(r);
+      try {
+        const r = await readRecord(userId, s);
+        if (r) records.push(r);
+      } catch (e) {
+        console.error(`[readAllProgress] Failed for slug ${s}:`, e);
+      }
     }),
   );
 
   return { records, vocabulary: srs?.vocabulary ?? [] };
 }
 
-// Cheap discovery of which slugs have at least one event, without pulling all
-// event bodies into memory. We rely on `allDocs` returning rows with `id` only
-// when `include_docs` is omitted via listByPrefix… but our current adapter
-// always includes docs. As a pragmatic compromise, we scan with allDocs and
-// strip everything but the prefix before `:`. For multi-thousand-event
-// libraries this should later be replaced by a Mango query or a view.
 async function listEventSlugs(provider: PouchDBProvider): Promise<string[]> {
   const all = await provider.list(COL.EVENTS);
   const slugs = new Set<string>();
   for (const ev of all) {
-    if (!ev || typeof ev !== 'object') continue;
-    const idStr: string | undefined = (ev as any)._id;
-    if (!idStr) continue;
-    const i = idStr.indexOf(':');
-    if (i > 0) slugs.add(idStr.substring(0, i));
+    if (!ev?._id) continue;
+    const i = ev._id.indexOf(':');
+    if (i > 0) slugs.add(ev._id.substring(0, i));
   }
   return Array.from(slugs);
 }
@@ -667,11 +644,8 @@ function ensureLesson(state: CFState, lessonIndex: number) {
   return entry;
 }
 
-function ensureScript(
-  lesson: { scripts: { scriptIndex: number; puzzleCompleted: boolean; attempts?: AttemptRecord[] }[] },
-  scriptIndex: number,
-) {
-  let entry = lesson.scripts.find((s) => Number(s.scriptIndex) === scriptIndex);
+function ensureScript(lesson: any, scriptIndex: number) {
+  let entry = lesson.scripts.find((s: any) => Number(s.scriptIndex) === scriptIndex);
   if (!entry) {
     entry = { scriptIndex, puzzleCompleted: false };
     lesson.scripts.push(entry);
@@ -683,10 +657,10 @@ function dedupAttempts(attempts: AttemptRecord[]): AttemptRecord[] {
   const seen = new Set<string>();
   const out: AttemptRecord[] = [];
   for (const a of attempts) {
-    const key = `${a.createdAt}::${a.transcription}::${a.overallScore}`;
+    const key = `${a.createdAt}::${a.transcription}`;
     if (seen.has(key)) continue;
     seen.add(key);
     out.push(a);
   }
-  return out.sort((x, y) => x.createdAt.localeCompare(y.createdAt));
+  return out.sort((x, y) => (x.createdAt || '').localeCompare(y.createdAt || ''));
 }

@@ -1,0 +1,46 @@
+{
+  "project": "CoreFirst",
+  "version": "0.2.0",
+  "status": "active",
+  "lastUpdated": "2026-05-11",
+  "features": [
+    {
+      "id": "F-04",
+      "name": "Progress Analytics & SRS",
+      "status": "completed",
+      "tasks": [
+        {
+          "id": "T1",
+          "name": "Implement SM-2 SRS algorithm utility",
+          "priority": "P0",
+          "status": "completed"
+        },
+        {
+          "id": "T2",
+          "name": "Create updateVocabularyMastery in record.ts",
+          "priority": "P0",
+          "status": "completed"
+        },
+        {
+          "id": "T3",
+          "name": "Integrate SRS update into speech-eval API",
+          "priority": "P0",
+          "status": "completed"
+        },
+        {
+          "id": "T4",
+          "name": "Enhance evaluator prompt for 4-element sub-scores",
+          "priority": "P1",
+          "status": "completed"
+        },
+        {
+          "id": "T5",
+          "name": "Persist sub-scores in appendAttempt",
+          "priority": "P1",
+          "status": "completed"
+        }
+      ]
+    }
+  ],
+  "activeTask": null
+}
