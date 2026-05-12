@@ -7,9 +7,9 @@ import {
   resolveUniqueSlug,
   PACKAGE_FORMAT_VERSION,
   writePackage,
-  mediaPath,
+  sharedMediaPath,
   ensureDataDirs,
-  pruneOrphanMedia,
+  pruneSharedOrphanMedia,
   DEFAULT_USER_ID,
   type PackageManifest,
   type WritePackageResult,
@@ -51,7 +51,7 @@ export async function buildAndWritePackage(
       const filename = `${hash}.mp3`;
       script.audioFile = filename;
 
-      const poolFile = mediaPath(userId, filename);
+      const poolFile = sharedMediaPath(filename);
       let audio: Uint8Array | null = null;
       try {
         audio = new Uint8Array(await fs.readFile(poolFile));
@@ -81,7 +81,7 @@ export async function buildAndWritePackage(
       const filename = `${hash}.webp`;
       lesson.imageFile = filename;
 
-      const poolFile = mediaPath(userId, filename);
+      const poolFile = sharedMediaPath(filename);
       let image: Uint8Array | null = null;
       try {
         image = new Uint8Array(await fs.readFile(poolFile));
@@ -110,9 +110,9 @@ export async function buildAndWritePackage(
     images: imageMap,
   });
 
-  // Sweep orphans in the background — best-effort, never block the response.
-  pruneOrphanMedia(userId).catch((err) =>
-    console.error('[package-builder] pruneOrphanMedia failed:', (err as Error).message),
+  // Sweep shared orphans in the background — best-effort, never block the response.
+  pruneSharedOrphanMedia().catch((err) =>
+    console.error('[package-builder] pruneSharedOrphanMedia failed:', (err as Error).message),
   );
 
   return result;

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import * as fs from 'fs/promises';
-import { mediaPath } from '@/src/lib/storage/paths';
+import { sharedMediaPath, mediaPath } from '@/src/lib/storage/paths';
 import { getUserId } from '@/src/lib/auth/user';
 
 interface Params { filename: string }
@@ -22,20 +22,24 @@ export async function GET(request: Request, ctx: { params: Promise<Params> }) {
     return NextResponse.json({ error: 'Invalid filename' }, { status: 400 });
   }
 
+  const ext = filename.split('.').pop()!;
+  const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream';
+  const headers = {
+    'Content-Type': contentType,
+    'Cache-Control': 'public, max-age=31536000, immutable',
+  };
+
+  // 1. Try shared pool (TTS audio, generated images)
+  try {
+    const bytes = new Uint8Array(await fs.readFile(sharedMediaPath(filename)));
+    return new Response(bytes, { status: 200, headers });
+  } catch { /* not in shared pool */ }
+
+  // 2. Fall back to per-user pool (voice recordings .webm, legacy files)
   try {
     const userId = await getUserId(request);
-    const filePath = mediaPath(userId, filename);
-    const bytes = new Uint8Array(await fs.readFile(filePath));
-    const ext = filename.split('.').pop()!;
-    const contentType = CONTENT_TYPES[ext] ?? 'application/octet-stream';
-
-    return new Response(bytes, {
-      status: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=31536000, immutable',
-      },
-    });
+    const bytes = new Uint8Array(await fs.readFile(mediaPath(userId, filename)));
+    return new Response(bytes, { status: 200, headers });
   } catch (err) {
     console.error('[media] Failed to read file:', filename, err);
     return NextResponse.json({ error: 'Media not found' }, { status: 404 });

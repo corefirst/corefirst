@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import * as fs from 'fs/promises';
 import { VisualFactory } from '@/src/core/visuals/factory';
 import { contentHash } from '@/src/lib/storage/hash';
-import { mediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
-import { getUserId } from '@/src/lib/auth/user';
+import { sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
 
 const MAX_PROMPT_LEN = 1024;
 
@@ -21,19 +20,18 @@ export async function POST(request: Request) {
       );
     }
 
-    const userId = await getUserId(request);
     const hash = contentHash(prompt);
     const filename = `${hash}.webp`;
-    const poolFile = mediaPath(userId, filename);
+    const poolFile = sharedMediaPath(filename);
     const publicUrl = `/api/media/${filename}`;
 
     try {
-      // 1. Try pool first
+      // 1. Try shared pool first
       await fs.access(poolFile);
       return NextResponse.json({ url: publicUrl, cached: true });
     } catch {
       // 2. Generate
-      await ensureDataDirs(userId);
+      await ensureDataDirs();
       const provider = VisualFactory.getProvider();
       const dataUrl = await provider.generateImage(prompt);
 

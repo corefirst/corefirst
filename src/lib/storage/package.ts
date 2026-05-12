@@ -9,6 +9,8 @@ import {
   packagesDir,
   mediaPath,
   mediaDir,
+  sharedMediaPath,
+  sharedMediaDir,
   DEFAULT_USER_ID,
 } from './paths';
 
@@ -150,19 +152,22 @@ export async function readPackageAudio(
 
   if (s?.audioFile) {
     const filename = s.audioFile;
-    // 1. Try this user's media pool
+    // 1. Try shared media pool (TTS audio lives here)
+    try {
+      return new Uint8Array(await fs.readFile(sharedMediaPath(filename)));
+    } catch { /* not in shared pool */ }
+    // 2. Fall back to per-user pool (backward compat for older files)
     try {
       return new Uint8Array(await fs.readFile(mediaPath(userId, filename)));
+    } catch { /* not in per-user pool */ }
+    // 3. Fall back to the package's embedded media (only if a full ZIP exists)
+    try {
+      const buf = await readFileOrThrow(packagePath(userId, slug), slug);
+      const entries = await unzipBuffer(buf);
+      const data = entries[`media/${filename}`];
+      if (data) return data;
     } catch {
-      // 2. Fall back to the package's embedded media (only if a full ZIP exists)
-      try {
-        const buf = await readFileOrThrow(packagePath(userId, slug), slug);
-        const entries = await unzipBuffer(buf);
-        const data = entries[`media/${filename}`];
-        if (data) return data;
-      } catch {
-        /* ZIP doesn't exist — Lite-only package */
-      }
+      /* ZIP doesn't exist — Lite-only package */
     }
   }
 
@@ -186,17 +191,22 @@ export async function readPackageImage(
 
   if (l?.imageFile) {
     const filename = l.imageFile;
+    // 1. Try shared pool (generated images live here)
+    try {
+      return new Uint8Array(await fs.readFile(sharedMediaPath(filename)));
+    } catch { /* not in shared pool */ }
+    // 2. Fall back to per-user pool (backward compat)
     try {
       return new Uint8Array(await fs.readFile(mediaPath(userId, filename)));
+    } catch { /* not in per-user pool */ }
+    // 3. Fall back to ZIP
+    try {
+      const buf = await readFileOrThrow(packagePath(userId, slug), slug);
+      const entries = await unzipBuffer(buf);
+      const data = entries[`media/${filename}`];
+      if (data) return data;
     } catch {
-      try {
-        const buf = await readFileOrThrow(packagePath(userId, slug), slug);
-        const entries = await unzipBuffer(buf);
-        const data = entries[`media/${filename}`];
-        if (data) return data;
-      } catch {
-        /* no ZIP */
-      }
+      /* no ZIP */
     }
   }
 
@@ -287,6 +297,55 @@ export async function pruneOrphanMedia(
       removed.push(name);
     } catch (err) {
       console.error(`[storage] Failed to remove orphan media ${name}:`, (err as Error).message);
+    }
+  }
+  return removed;
+}
+
+/**
+ * Sweep orphaned files from the shared media pool. A file is orphaned when no
+ * manifest across ALL users references it. Safe to call concurrently with reads.
+ */
+export async function pruneSharedOrphanMedia(): Promise<string[]> {
+  const referenced = new Set<string>();
+  // Collect references from every user's packages directory
+  const dataRoot = sharedMediaDir().replace(/\/shared\/media$/, '');
+  const usersDir = `${dataRoot}/users`;
+  let userIds: string[] = [];
+  try {
+    userIds = await fs.readdir(usersDir);
+  } catch {
+    return [];
+  }
+  for (const uid of userIds) {
+    const pkgs = await listPackages(uid).catch(() => []);
+    for (const { manifest } of pkgs) {
+      for (const lesson of manifest.lessons) {
+        if (lesson.imageFile) referenced.add(lesson.imageFile);
+        if (lesson.videoFile) referenced.add(lesson.videoFile);
+        for (const script of lesson.scripts) {
+          if (script.audioFile) referenced.add(script.audioFile);
+          if (script.videoFile) referenced.add(script.videoFile);
+        }
+      }
+    }
+  }
+
+  let onDisk: string[] = [];
+  try {
+    onDisk = await fs.readdir(sharedMediaDir());
+  } catch {
+    return [];
+  }
+
+  const removed: string[] = [];
+  for (const name of onDisk) {
+    if (referenced.has(name)) continue;
+    try {
+      await fs.unlink(sharedMediaPath(name));
+      removed.push(name);
+    } catch (err) {
+      console.error(`[storage] Failed to remove shared orphan ${name}:`, (err as Error).message);
     }
   }
   return removed;

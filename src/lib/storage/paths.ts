@@ -109,8 +109,24 @@ function shortHash(s: string): string {
   return (h >>> 0).toString(36);
 }
 
+/** Shared (cross-user) media pool for deterministic content: TTS audio and generated images. */
+export function sharedMediaDir(): string {
+  return path.join(getDataRoot(), 'shared', 'media');
+}
+
+/** Full path to a file in the shared media pool. */
+export function sharedMediaPath(filename: string): string {
+  return path.join(sharedMediaDir(), filename);
+}
+
+/** Returns true for personal voice recordings that must stay per-user. */
+export function isPersonalRecording(filename: string): boolean {
+  return filename.endsWith('.webm');
+}
+
 export async function ensureDataDirs(userId: string = DEFAULT_USER_ID): Promise<void> {
   await fs.mkdir(packagesDir(userId), { recursive: true });
   await fs.mkdir(recordsDir(userId), { recursive: true });
   await fs.mkdir(mediaDir(userId), { recursive: true });
+  await fs.mkdir(sharedMediaDir(), { recursive: true });
 }

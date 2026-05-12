@@ -4,7 +4,7 @@ import { generateObject } from 'ai';
 import { roleplayModel } from '@/src/lib/ai';
 import { upsertRoleplaySession } from '@/src/lib/storage';
 import * as fs from 'fs/promises';
-import { mediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
+import { mediaPath, sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
 import { contentHash } from '@/src/lib/storage/hash';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { getUserId } from '@/src/lib/auth/user';
@@ -74,12 +74,13 @@ export async function POST(request: Request) {
     const fullResult = 'user_analysis' in result ? (result as FullResult) : null;
 
     // 2. Generate Standard Audio for the corrected sentence (if mode is ON)
+    // Corrected audio is TTS (deterministic, no personal data) → shared pool
     let correctedAudioFile: string | undefined;
     if (fullResult?.user_analysis?.corrected) {
       const text = fullResult.user_analysis.corrected;
       const hash = contentHash(text);
       const filename = `${hash}.mp3`;
-      const poolFile = mediaPath(userId, filename);
+      const poolFile = sharedMediaPath(filename);
       try {
         await fs.access(poolFile);
         correctedAudioFile = filename;

@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import * as fs from 'fs/promises';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { contentHash } from '@/src/lib/storage/hash';
-import { mediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
-import { getUserId } from '@/src/lib/auth/user';
+import { sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
 
 const MAX_TTS_LEN = 4096;
 
@@ -21,13 +20,12 @@ export async function POST(request: Request) {
       );
     }
 
-    const userId = await getUserId(request);
     const hash = contentHash(text);
     const filename = `${hash}.mp3`;
-    const poolFile = mediaPath(userId, filename);
+    const poolFile = sharedMediaPath(filename);
 
     try {
-      // 1. Try to serve from global media pool
+      // 1. Try to serve from shared media pool
       const cached = new Uint8Array(await fs.readFile(poolFile));
       return new Response(cached, {
         headers: {
@@ -38,7 +36,7 @@ export async function POST(request: Request) {
       });
     } catch {
       // 2. Generate if not in pool
-      await ensureDataDirs(userId);
+      await ensureDataDirs();
       const provider = TTSFactory.getProvider();
       const audio = await provider.generateAudio(text);
 
