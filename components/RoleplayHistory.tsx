@@ -15,6 +15,7 @@ import {
   Pencil,
   Check,
   X,
+  RefreshCw,
 } from 'lucide-react';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 
@@ -118,6 +119,7 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
   const [audioLoading, setAudioLoading] = useState<string | null>(null);
   const [deletingSession, setDeletingSession] = useState<string | null>(null);
   const [deletingMessage, setDeletingMessage] = useState<string | null>(null);
+  const [retranscribing, setRetranscribing] = useState<string | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
 
@@ -162,6 +164,39 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
       console.error('[RoleplayHistory] delete message error:', err);
     } finally {
       setDeletingMessage(null);
+    }
+  };
+
+  const retranscribe = async (sessionId: string, msg: RoleplayMessage, sourceLang: string) => {
+    if (!msg.audioFile || !msg.eventId) return;
+    setRetranscribing(msg.eventId);
+    try {
+      const audioRes = await fetch(`/api/media/${msg.audioFile}`);
+      if (!audioRes.ok) throw new Error('audio fetch failed');
+      const blob = await audioRes.blob();
+      const formData = new FormData();
+      formData.append('audio', blob);
+      formData.append('language', sourceLang);
+      const transcribeRes = await fetch('/api/transcribe', { method: 'POST', body: formData });
+      if (!transcribeRes.ok) throw new Error('transcribe failed');
+      const { text } = await transcribeRes.json();
+      if (!text) return;
+      await fetch(`/api/history/roleplay/messages/${encodeURIComponent(msg.eventId)}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: text }),
+      });
+      setSessions((prev) =>
+        (prev ?? []).map((s) =>
+          s.sessionId === sessionId
+            ? { ...s, messages: s.messages.map((m) => m.eventId === msg.eventId ? { ...m, content: text } : m) }
+            : s,
+        ),
+      );
+    } catch (err) {
+      console.error('[RoleplayHistory] retranscribe error:', err);
+    } finally {
+      setRetranscribing(null);
     }
   };
 
@@ -333,6 +368,17 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
                               <div className="text-[10px] font-black uppercase tracking-widest opacity-60">{m.role}</div>
                               <div className="flex items-center gap-1">
                                 <button onClick={() => playAudio(m.userAnalysis?.corrected || m.content, audioId, m.audioFile)} disabled={isPlaying} className={`transition-colors ${m.role === 'user' ? 'text-blue-400 hover:text-blue-600' : 'text-slate-400 hover:text-blue-500'}`}>{isPlaying ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}</button>
+                                {m.role === 'user' && m.audioFile && m.eventId && (
+                                  <button
+                                    onClick={() => retranscribe(session.sessionId, m, session.sourceLang)}
+                                    disabled={retranscribing === m.eventId}
+                                    aria-label="重新识别"
+                                    title="重新识别录音文字"
+                                    className="text-slate-300 hover:text-blue-500 transition-colors disabled:opacity-50"
+                                  >
+                                    {retranscribing === m.eventId ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                  </button>
+                                )}
                                 {m.eventId && (
                                   <button
                                     onClick={() => deleteMessage(session.sessionId, m.eventId)}

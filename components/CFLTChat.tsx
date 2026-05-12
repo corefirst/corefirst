@@ -105,7 +105,7 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
       setTranscribing(true);
       const formData = new FormData();
       formData.append('audio', audioBlob);
-      formData.append('language', targetLang); 
+      formData.append('language', sourceLang);
       try {
         const response = await fetch('/api/transcribe', { method: 'POST', body: formData });
         const data = await response.json();
@@ -117,7 +117,7 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
       } catch (err) { console.error(err); } finally { setTranscribing(false); }
     };
     transcribeAudio();
-  }, [audioBlob, targetLang]);
+  }, [audioBlob, sourceLang]);
 
   useEffect(() => { if (lastTranscribedText !== null && input !== lastTranscribedText) { setLastAudioBlob(null); setLastTranscribedText(null); } }, [input, lastTranscribedText]);
 
