@@ -35,18 +35,24 @@ export interface GenerationRequest {
   targetLang?: string;
 }
 
+// Shared progress event emitter — both orchestrator and package-builder use this type.
+export type ProgressEmitter = (event: { type: string; message: string; [k: string]: unknown }) => void;
+
 export class CoursewareOrchestrator {
   private transformer: CFLTTransformer;
   private model: LanguageModel;
+  private emit: ProgressEmitter;
 
-  constructor(modelOverride?: LanguageModel) {
+  constructor(modelOverride?: LanguageModel, onProgress?: ProgressEmitter) {
     this.model = modelOverride ?? courseGenModel;
     this.transformer = new CFLTTransformer(modelOverride);
+    this.emit = onProgress ?? (() => {});
   }
 
   async generate(
     request: GenerationRequest,
   ): Promise<CoursewareManifest | { error: string; raw: string }> {
+    this.emit({ type: 'step', message: 'Designing lessons…' });
     const sourceLang = request.sourceLang || 'Chinese';
     const targetLang = request.targetLang || 'English';
     const dynamicPrompt = SYSTEM_PROMPT
@@ -102,6 +108,7 @@ export class CoursewareOrchestrator {
       }
     }
 
+    this.emit({ type: 'step', message: 'Auditing scripts…' });
     // Parallel self-audit: re-run every script through CFLTTransformer concurrently
     const auditTasks = manifest.lessons.flatMap((lesson) =>
       lesson.cflt_scripts.map(async (script) => {
@@ -127,6 +134,7 @@ export class CoursewareOrchestrator {
     );
 
     await Promise.all(auditTasks);
+    this.emit({ type: 'step', message: 'Generating audio…' });
 
     return manifest;
   }

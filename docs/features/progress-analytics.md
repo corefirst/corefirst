@@ -67,14 +67,43 @@ Unlike traditional apps that track vocabulary, Progress Analytics tracks "Logic 
 Vocabulary is not added manually. When a learner passes a Voice Challenge for a script containing `vocabulary_focus` tokens, those tokens are automatically upserted into the SRS deck with a `firstSeenIn` back-link.
 
 ### Partitioned Calculation
-Aggregations are calculated per-user. The default `local` user sees their own stats; SaaS users (via `X-User-Id`) see their private learning map.
+Aggregations are calculated per-user. Each UUID identity (assigned by `middleware.ts`) sees only their own stats; the system is multi-user-safe.
+
+### Vocabulary Review (SRS Flashcard Drill)
+When the Memory section shows `due > 0`, a **"Review X due →"** button and a clickable due-count card open the `VocabReview` modal. The modal fetches due words from `GET /api/vocabulary/due?lang=<targetLang>`, shuffles them, and presents one flashcard at a time:
+
+1. **Front:** meaning (L1 definition)
+2. **Flip (tap or button):** target-language token revealed
+3. **Answer:** "Knew it!" (`POST /api/vocabulary/review { knew: true }`) or "Didn't know" (`knew: false`)
+4. **SM-2 update:** `updateVocabularyMastery()` adjusts interval/easeFactor/reviewCount per result
+5. **Done screen:** session summary + "Review again" option
+
+### Learning Curve Threshold
+The learning curve line chart (Logic / Pronunciation / Overall over time) is hidden when fewer than 3 data points exist, showing a contextual message instead: *"Complete N more voice challenges to see your progress curve."* This prevents a misleading one-point or two-point chart.
+
+### Cross-Tab Vocabulary Analytics
+A **"Vocabulary in Practice"** section (teal, below Memory) shows which SRS words the learner has used organically in Roleplay sessions. Data sourced from `GET /api/progress/vocab-usage` (cached 60 s).
+
+- Summary bar: *"12 of 45 vocabulary words used in Roleplay — 27%"*
+- Left column: used words with session-count badges (`deploy 4×`)
+- Right column: "Try using these" — words never used in conversation
+- Expandable full list toggle
+
+The endpoint scans all `roleplay-msg` events for the user, counts distinct sessions per token using word-boundary matching (CJK tokens: substring match; Latin tokens: non-alpha boundary required).
+
+### Empty State — Actionable CTAs
+When no data exists at all, the dashboard shows two action buttons instead of just a message:
+- **"Try Transform"** — switches to the Transform tab
+- **"Generate a Course"** — switches to the Course tab
 
 ## Constraints
 
-- **Latency:** Dashboard load time should be < 1s for up to 1,000 events.
-- **Accuracy:** Mastery level 100% must correlate to consistent logic-stress scores above 90.
+- **Latency:** Dashboard load time < 1 s for up to 1,000 events.
+- **Accuracy:** Mastery 100% correlates to consistent logic-stress scores above 90.
+- **Vocab-usage scan:** O(events × tokens). Acceptable at typical scale (<200 messages, <100 tokens). Result cached `Cache-Control: private, max-age=60`.
 
 ## Error Handling
 
-- **Empty State:** If no events exist, the dashboard shows a "Start your first lesson" call-to-action instead of empty charts.
-- **Database Timeout:** Failures in PouchDB scans return a 500 with a "Stats temporarily unavailable" message.
+- **Empty State:** No events → "Start your first lesson" CTA with direct tab navigation buttons.
+- **Database Timeout:** Failures in PouchDB scans return 500; dashboard shows "Stats temporarily unavailable".
+- **Vocab-usage failure:** `CrossTabSection` silently hides itself (non-critical analytics section); error logged to console.

@@ -124,6 +124,9 @@ Course Mode audio is pre-rendered at package generation time and stored as `audi
 ### Mic Release on Unmount
 The `useRecorder` cleanup effect (`useEffect` returning a destructor) calls `MediaRecorder.stop()` and iterates `MediaStream.getTracks().forEach(t => t.stop())`. This ensures the browser's "microphone in use" indicator is cleared when the learner navigates away or the component is removed from the DOM.
 
+### BYOK Headers
+`VoiceChallenge` calls `useSettings().getHeaders()` and includes the resulting `x-cf-*` headers on every `POST /api/speech-eval` request. If the user has configured a text-AI provider in Settings, speech evaluation uses it automatically. The `handleEvaluate` function is wrapped in `useCallback` with the headers dependency for stable referential identity.
+
 ## Constraints
 
 - **Audio File Size:** Maximum 10 MB per recording (`MAX_AUDIO_BYTES` in `/api/speech-eval/route.ts`). Recordings that exceed this limit receive a `400` response.
@@ -133,6 +136,7 @@ The `useRecorder` cleanup effect (`useEffect` returning a destructor) calls `Med
 
 ## Error Handling
 
+- **Missing / Invalid API Key:** `/api/speech-eval` returns `HTTP 401`. The component detects the status, sets `keyError`, and displays an amber inline message: *"No API key configured for speech evaluation. Open Settings to add one."*
 - **Microphone Permission Denied:** `getUserMedia` rejection is caught in `startRecording`; the error message is surfaced via `recorderError` and displayed inline with an `AlertCircle` icon.
 - **Unsupported Format:** `/api/speech-eval` returns `400 Unsupported audio format` if the `audioFile.type` is not in `ALLOWED_AUDIO_TYPES`.
 - **File Size Exceeded:** `/api/speech-eval` returns `400 Audio file exceeds 10 MB limit` before any transcription is attempted.

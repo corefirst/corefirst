@@ -164,15 +164,18 @@ export const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
 
 ## Routes Wired for Per-Request Overrides
 
-| Route | Text AI | TTS | STT | Image |
-|-------|---------|-----|-----|-------|
-| `/api/transform` | ✅ | — | — | — |
-| `/api/roleplay` | ✅ | — | — | — |
-| `/api/generate-course` | ✅ | — | — | — |
-| `/api/speech-eval` | ✅ | — | ✅ | — |
-| `/api/tts` | — | ✅ | — | — |
-| `/api/transcribe` | — | — | ✅ | — |
-| `/api/generate-image` | — | — | — | ✅ |
+All AI-facing routes include BYOK headers. The client components call `useSettings().getHeaders()` and spread the result into every `fetch` options object.
+
+| Route | Called from | Text AI | TTS | STT | Image |
+|-------|------------|---------|-----|-----|-------|
+| `/api/transform` | `app/page.tsx` | ✅ | — | — | — |
+| `/api/transform/refine` | `app/page.tsx` | ✅ | — | — | — |
+| `/api/roleplay` | `CFLTChat.tsx` | ✅ | — | — | — |
+| `/api/transcribe` | `CFLTChat.tsx` | — | — | ✅ | — |
+| `/api/tts` | `CFLTChat.tsx` + `app/page.tsx` | — | ✅ | — | — |
+| `/api/generate-course` | `app/page.tsx` | ✅ | — | — | — |
+| `/api/speech-eval` | `VoiceChallenge.tsx` | ✅ | — | ✅ | — |
+| `/api/generate-image` | `app/page.tsx` | — | — | — | ✅ |
 
 ---
 

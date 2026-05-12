@@ -67,11 +67,30 @@ For a "Hospital" scenario:
 ### Logical Emphasis (Audio)
 The generator provides SSML (Speech Synthesis Markup Language) metadata instructing the TTS engine to adjust pitch, rate, and volume for the `[Core Action]` block. This ensures that the audio delivery reinforces the cognitive structure of CFLT by placing natural emphasis on core results.
 
+### Real-Time Progress Streaming (SSE)
+`POST /api/generate-course` returns a `text/event-stream` response instead of a buffered JSON body. The client reads the stream via `src/lib/sse-reader.ts` and updates the UI step label in real time:
+
+| Event | When emitted |
+|-------|-------------|
+| `{ type: 'step', message: 'Designing lessons…' }` | LLM call starts |
+| `{ type: 'step', message: 'Auditing scripts…' }` | Parallel CFLT audit starts |
+| `{ type: 'step', message: 'Generating audio… (N/M)' }` | After each script's TTS file |
+| `{ type: 'step', message: 'Generating images… (N/M)' }` | After each lesson's image |
+| `{ type: 'step', message: 'Packaging…' }` | Before `writePackage()` |
+| `{ type: 'complete', result: { …manifest, packageId, packageSlug } }` | Final, closes stream |
+| `{ type: 'error', message: '…' }` | On any exception |
+
+`CoursewareOrchestrator` and `buildAndWritePackage` accept an optional `onProgress: ProgressEmitter` callback. Existing callers (CLI, tests) pass no callback and are unaffected.
+
+### Industry Combobox
+The industry field in the UI is a free-text `<input>` with a `<datalist>` of 10 common presets (General / Life, IT / Software Engineering, Medical / Healthcare, Business / Finance, Legal / Law, Education / Teaching, Design / Creative, Sales / Marketing, Travel / Hospitality, Logistics / Operations). Users can type any industry freely; the presets are suggestions only.
+
 ## Constraints
 
 - **Consistency:** 100% of generated tutorial text must pass the CFLT validator (four-element Core-First sequence required).
-- **Scalability:** Capable of generating a 5-lesson module in under 30 seconds.
+- **Scalability:** Capable of generating a 5-lesson module in under 30 seconds. Typical observed time: 20–30 seconds (LLM + TTS per-script + optional image per-lesson). SSE streaming makes the wait perceptible and informative rather than opaque.
 
 ## Error Handling
 
 - **Topic Out of Bounds:** If a requested topic is inappropriate or impossible to map to CFLT, the generator suggests a related but viable alternative.
+- **Missing / Invalid API Key:** Returns `HTTP 401`; the client detects this on the SSE preflight check (`response.status === 401`) before reading the stream and shows the "Open Settings →" key-error banner.

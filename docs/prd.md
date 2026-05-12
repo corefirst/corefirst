@@ -1,6 +1,6 @@
 # Product Requirements Document — CoreFirst
 
-> Software version: 0.3.0 | Status: Active | Last Updated: 2026-05-12
+> Software version: 0.4.0 | Status: Active | Last Updated: 2026-05-12
 
 ---
 
@@ -149,7 +149,9 @@ Multi-turn dialogue practice where the AI maintains a CFLT-enforced conversation
 For Chinese speakers: maps familiar Pinyin sounds to English IPA phonemes, reducing articulatory friction.
 
 **Logic:** Overlapping sets (direct migration), modification guidance (relative adjustments), zero-to-one phonemes (analogical generation)  
-**Integration:** Embedded in `/api/speech-eval` prompt
+**Integration:** (1) Embedded in `/api/speech-eval` LLM prompt as Pinyin-anchored error feedback. (2) `components/PhoneticBridge.tsx` — interactive collapsible reference panel rendered below VoiceChallenge in Transform Mode. Groups sounds by category (stops, retroflexes, palatals, vowels, common mistake pairs); searchable by Pinyin, IPA, or English keyword; only visible when `sourceLang === 'Chinese'`.  
+**Data:** `src/lib/phonetics/pinyin-ipa.ts` — static mapping of 40+ Pinyin entries to IPA with English approximations and difficulty flags.  
+**Status:** Shipped as structured interactive component.
 
 #### F-08: TTS Audio Output
 Text-to-Speech synthesis with SSML prosody tagging that emphasizes the `[Core Action]` block.
@@ -230,11 +232,52 @@ Allows users to configure all AI providers directly from the browser UI without 
 
 #### F-16: AI Provider BYOK Error Handling
 
-When an API key is absent or invalid, routes return `{ error: 'API_KEY_REQUIRED' | 'INVALID_API_KEY' }` with HTTP 401. The frontend (`app/page.tsx`) detects the code and shows an inline contextual prompt — "No API key configured. Open Settings →" — that opens the Settings panel directly.
+When an API key is absent or invalid, routes return `{ error: 'API_KEY_REQUIRED' | 'INVALID_API_KEY' }` with HTTP 401. The frontend detects the code and shows an inline contextual prompt — "No API key configured. Open Settings →" — that opens the Settings panel directly. All AI-facing routes carry BYOK headers: transform, roleplay, generate-course, TTS, STT, speech-eval, and transform/refine.
 
 Local providers (Ollama, CLI) report connection/auth errors differently (not 401) so they do not trigger the BYOK prompt.
 
-**Status:** Shipped. `src/lib/ai/errors.ts` classifies; `app/page.tsx` surfaces.
+**Status:** Shipped. `src/lib/ai/errors.ts` classifies; all routes use `getHeaders()` from `useSettings`.
+
+#### F-17: CFLT Build Mode (Roleplay Pre-Production Scaffold)
+
+Addresses the core learning gap where users default to their native sentence structure before speaking. In Roleplay, a "Build" toggle switches the input to four labelled slots — Core / Reason / Space / Time — mirroring the CFLT sequence. The user fills whichever slots apply, then sends; the client assembles them into a comma-joined message and submits to `/api/roleplay` as normal.
+
+**Goal:** Train the habit of structuring thought *before* output, not just correcting after.  
+**UI:** `components/CFLTChat.tsx` — header toggle button (green when active); 2×2 slot grid with color-coded inputs and quick-send on Enter.  
+**Status:** Shipped.
+
+#### F-18: Transform Cover & Recall
+
+After a Transform result is displayed, a "Test Yourself" button hides the standard-L2 answer and presents a free-text field. The user attempts to reproduce the target-language sentence from the CFLT structure alone. Clicking "Reveal Answer" shows their attempt alongside the correct sentence for self-assessment.
+
+**Goal:** Force active production from structure rather than passive reading.  
+**UI:** `app/page.tsx` — three-state view (normal → recall input → comparison). Resets automatically on every new transform.  
+**Status:** Shipped.
+
+#### F-19: Vocabulary Review (SRS Flashcard Drill)
+
+Direct entry point from the Stats dashboard Memory section. When words are due for SRS review, a "Review X due →" button opens a full-screen flashcard modal.
+
+**Flow:** meaning shown → tap to flip → L2 word revealed → "Knew it!" / "Didn't know" → SM-2 state updated via `POST /api/vocabulary/review`.  
+**Endpoints:** `GET /api/vocabulary/due?lang=` returns today's due items; `POST /api/vocabulary/review` records result and updates interval/easeFactor/reviewCount.  
+**UI:** `components/VocabReview.tsx` — progress bar, two-column done/summary screen, "Review again" shuffle.  
+**Status:** Shipped.
+
+#### F-20: Cross-Tab Vocabulary Analytics
+
+Shows which vocabulary words from the SRS deck have been used organically in Roleplay conversations, closing the feedback loop between structured learning (Course/Transform) and free practice (Roleplay).
+
+**Endpoint:** `GET /api/progress/vocab-usage` — scans all roleplay-msg events for the user, counts distinct sessions where each vocab token appears (word-boundary check for Latin; substring for CJK). Response cached 60 seconds.  
+**UI:** `CrossTabSection` in `ProgressDashboard` — progress bar ("12 of 45 words used in Roleplay"), two columns (used words with session count × / unused words to try), expandable full list.  
+**Status:** Shipped.
+
+#### F-21: Course Generation Real-Time Progress (SSE)
+
+Course generation (20–30 seconds) now streams Server-Sent Events so users see live step updates instead of a spinner.
+
+**Event stream:** `Designing lessons… → Auditing scripts… → Generating audio (3/8)… → Generating images (2/4)… → Packaging…`  
+**Implementation:** `app/api/generate-course/route.ts` returns `text/event-stream`; `CoursewareOrchestrator` and `buildAndWritePackage` accept an `onProgress: ProgressEmitter` callback. Frontend reads the stream via `src/lib/sse-reader.ts` utility.  
+**Status:** Shipped.
 
 ---
 

@@ -5,6 +5,7 @@ import { CFLTBlock } from './CFLTBlock';
 import { PlayCircle, Loader2, User, Bot, Send, Info, Mic, Square, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRecorder } from '@/hooks/useRecorder';
+import { useSettings } from '@/hooks/useSettings';
 import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
 interface Slot { content: string; is_inferred: boolean; }
@@ -12,6 +13,17 @@ interface Crst { core: Slot; reason: Slot; space: Slot; time: Slot; }
 interface ErrorItem { type: 'spelling' | 'grammar' | 'word_choice' | 'word_order'; original: string; correction: string; note: string; }
 interface UserAnalysis { corrected: string; errors: ErrorItem[]; crst: Crst; standard_l1: string; }
 interface CoachAnalysis { crst: Crst; standard_l1: string; }
+
+interface RoleplayApiResponse {
+  reply: string;
+  ssml?: string;
+  user_analysis?: UserAnalysis;
+  coach_analysis?: CoachAnalysis;
+  feedback?: string | null;
+  audioFile?: string;
+  correctedAudioFile?: string;
+  session_title?: string;
+}
 
 interface Message {
   role: 'user' | 'assistant';
@@ -23,13 +35,6 @@ interface Message {
   coachAnalysis?: CoachAnalysis;
   feedback?: string | null;
 }
-
-const SLOT_COLORS = {
-  core:   { bg: 'bg-cflt-core',   labelKey: 'labelCore' },
-  reason: { bg: 'bg-cflt-reason', labelKey: 'labelReason' },
-  space:  { bg: 'bg-cflt-space',  labelKey: 'labelSpace' },
-  time:   { bg: 'bg-cflt-time',   labelKey: 'labelTime' },
-} as const;
 
 // Error labels resolved at render time from uiLang (previously hardcoded Chinese)
 const errorLabel = (type: ErrorItem['type'], uiLang: string): string =>
@@ -63,9 +68,10 @@ const CrstStrip: React.FC<{ crst: Crst, uiLang: string }> = ({ crst, uiLang }) =
   </div>
 );
 
-// Max serialized history bytes before warning the user that older context will be dropped
-const HISTORY_WARN_BYTES = 3500;
-const HISTORY_MAX_BYTES = 4096;
+// The server sends only the last 10 messages to the LLM.
+// Warn the user when the visible conversation grows long so they know context is rolling.
+const HISTORY_WARN_MSGS = 12;
+const HISTORY_MAX_MSGS = 20;
 
 export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSlug, packageId, context, onOpenSettings }: {
   sourceLang: string;
@@ -89,14 +95,15 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [analysisEnabled, setAnalysisEnabled] = useState(false);
   const [keyError, setKeyError] = useState(false);
+  const { getHeaders } = useSettings();
   // T1: CFLT Build Mode — guide user to structure before speaking
   const [buildMode, setBuildMode] = useState(false);
   const [cfltSlots, setCfltSlots] = useState({ core: '', reason: '', space: '', time: '' });
   const scrollRef = useRef<HTMLDivElement>(null);
   const { isRecording, audioBlob, recorderError, startRecording, stopRecording, cancelRecording } = useRecorder();
 
-  const historyBytes = JSON.stringify(messages.map(m => ({ role: m.role, content: m.content }))).length;
-  const historyNearLimit = historyBytes > HISTORY_WARN_BYTES;
+  const historyNearLimit = messages.length >= HISTORY_WARN_MSGS;
+  const historyAtLimit = messages.length >= HISTORY_MAX_MSGS;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && isRecording) cancelRecording(); };
@@ -125,6 +132,36 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     if (typeof crypto !== 'undefined') setSessionId(crypto.randomUUID());
   };
 
+  // Shared helper: annotates the last user message matching `sentContent` with
+  // analysis data from the API response, then appends the assistant reply.
+  // Extracted from handleSend/handleBuildSend to eliminate the duplicated loop.
+  const applyRoleplayResponse = useCallback((
+    sentContent: string,
+    data: RoleplayApiResponse,
+  ) => {
+    setMessages(prev => {
+      const next = [...prev];
+      for (let i = next.length - 1; i >= 0; i--) {
+        if (next[i].role === 'user' && next[i].content === sentContent) {
+          next[i] = {
+            ...next[i],
+            userAnalysis: data.user_analysis,
+            audioFile: data.audioFile,
+            correctedAudioFile: data.correctedAudioFile,
+          };
+          break;
+        }
+      }
+      next.push({
+        role: 'assistant',
+        content: data.reply ?? '(No response)',
+        coachAnalysis: data.coach_analysis,
+        feedback: data.feedback ?? null,
+      });
+      return next;
+    });
+  }, []);
+
   // T1: Assemble CFLT slots into a message and send
   const handleBuildSend = async () => {
     const parts = [cfltSlots.core, cfltSlots.reason, cfltSlots.space, cfltSlots.time].filter(Boolean);
@@ -136,23 +173,13 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     setLoading(true);
     try {
       const response = await fetch('/api/roleplay', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context, ...(sessionId ? { sessionId } : {}) }),
       });
       if (response.status === 401) throw new Error('API_KEY');
       if (!response.ok) throw new Error('Coach unavailable');
-      const data: any = await response.json();
-      setMessages(prev => {
-        const next = [...prev];
-        for (let idx = next.length - 1; idx >= 0; idx--) {
-          if (next[idx].role === 'user' && next[idx].content === assembled) {
-            next[idx] = { ...next[idx], userAnalysis: data.user_analysis, audioFile: data.audioFile, correctedAudioFile: data.correctedAudioFile };
-            break;
-          }
-        }
-        next.push({ role: 'assistant', content: data.reply ?? '(No response)', coachAnalysis: data.coach_analysis, feedback: data.feedback ?? null });
-        return next;
-      });
+      const data: RoleplayApiResponse = await response.json();
+      applyRoleplayResponse(assembled, data);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('API_KEY')) setKeyError(true);
@@ -170,7 +197,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       formData.append('audio', audioBlob);
       formData.append('language', sourceLang);
       try {
-        const response = await fetch('/api/transcribe', { method: 'POST', body: formData });
+        const response = await fetch('/api/transcribe', { method: 'POST', headers: getHeaders(), body: formData });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
         const text = data.text ?? '';
@@ -190,7 +217,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     try {
       if (audioFile) url = `/api/media/${audioFile}`;
       else {
-        const response = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+        const response = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify({ text }) });
         if (!response.ok) throw new Error('TTS failed');
         const blob = await response.blob();
         url = URL.createObjectURL(blob);
@@ -227,23 +254,13 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
 
     try {
       const response = await fetch('/api/roleplay', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context, audio: audioBase64 ? { data: audioBase64, type: audioType } : undefined, ...(sessionId ? { sessionId } : {}), }),
       });
       if (response.status === 401) throw new Error('API_KEY');
       if (!response.ok) throw new Error('Coach unavailable');
-      const data: any = await response.json();
-      setMessages(prev => {
-        const next = [...prev];
-        for (let idx = next.length - 1; idx >= 0; idx--) {
-          if (next[idx].role === 'user' && next[idx].content === originalInput) {
-            next[idx] = { ...next[idx], userAnalysis: data.user_analysis, audioFile: data.audioFile, correctedAudioFile: data.correctedAudioFile };
-            break;
-          }
-        }
-        next.push({ role: 'assistant', content: data.reply ?? '(No response)', coachAnalysis: data.coach_analysis, feedback: data.feedback ?? null });
-        return next;
-      });
+      const data: RoleplayApiResponse = await response.json();
+      applyRoleplayResponse(originalInput, data);
     } catch (err) {
       console.error(err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -286,9 +303,9 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       {historyNearLimit && (
         <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center justify-between gap-2">
           <p className="text-[11px] text-amber-700 font-medium">
-            {historyBytes >= HISTORY_MAX_BYTES
-              ? 'Conversation is long — older messages may be dropped from context.'
-              : 'Conversation is getting long. Consider starting a new session.'}
+            {historyAtLimit
+              ? 'Long conversation — the AI only sees the last 10 messages as context.'
+              : 'Tip: the AI uses only the last 10 messages — start a new session for a fresh topic.'}
           </p>
           <button onClick={resetSession} className="text-[11px] text-amber-700 font-bold hover:underline shrink-0">
             {tr(uiLang, 'roleplayNewSession')}

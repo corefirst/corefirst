@@ -107,7 +107,13 @@ Every AI reply surfaces its own CFLT block decomposition as small chips below th
 The transcription result pre-fills the text input but does not auto-send. The user retains full editorial control — they can edit, discard, or confirm the transcript before submitting. This prevents transcription errors from entering the conversation history.
 
 ### Conversation Length Guard
-Before dispatching to the LLM, the serialized message history is checked against `MAX_MESSAGES_JSON_LEN` (4096 bytes). If the limit is exceeded, the API returns `HTTP 400` and the UI renders an inline error message prompting the user to start a new session.
+The server passes only the last 10 messages as LLM context (`messages.slice(-10)`). The client warns when the visible conversation grows beyond 12 messages — *"Tip: the AI uses only the last 10 messages"* — with a "New Conversation" shortcut. At 20+ messages the warning escalates. The `MAX_MESSAGES_JSON_LEN = 8192` constant is defined but not enforced at the HTTP layer (historical; the slice guard is sufficient).
+
+### CFLT Build Mode (Pre-Production Scaffold)
+A "Build" toggle in the header switches the input area from a free-text field to a four-slot structured form: **Core / Reason / Space / Time**, each colour-coded to match the CFLT block palette. The user fills whichever slots apply and clicks Send; the client assembles them with comma separators and submits to `/api/roleplay` as normal text. The AI coach receives and evaluates the CFLT-ordered message exactly as it would a free-text message — enabling structure-before-output training without any server change.
+
+### BYOK Headers on All AI Routes
+All fetch calls within `CFLTChat` — `/api/roleplay`, `/api/transcribe`, and `/api/tts` — include the `x-cf-*` headers from `useSettings().getHeaders()`. If the user has configured a provider in Settings, Roleplay uses it automatically.
 
 ### Context Sanitization
 The optional `context` string is stripped of all ASCII control characters (`\x00–\x1F`, `\x7F`) and truncated to 500 characters before interpolation into the system prompt, preventing prompt injection via the scenario field.
@@ -132,18 +138,19 @@ Each `upsertRoleplaySession` call writes/updates the session metadata doc (keyed
 
 ## Error Handling
 
-- **LLM / Coach Unavailable:** If `/api/roleplay` returns a non-`200` status or throws, the UI appends an inline assistant message: *"Sorry, I couldn't reach the coach right now. Please try again."* — no modal or page-level error is shown.
+- **Missing / Invalid API Key:** `/api/roleplay` returns `HTTP 401` with `{ error: 'API_KEY_REQUIRED' | 'INVALID_API_KEY' }`. `CFLTChat` detects the status, sets `keyError`, and renders an amber banner with an "Open Settings →" link. Resolved as soon as the user configures a valid key in Settings.
+- **LLM / Coach Unavailable:** If `/api/roleplay` returns any other non-`200` status, the UI appends an inline assistant message: *"Coach unavailable. Please try again."* — no modal or page-level error is shown.
 - **Microphone Permission Denied:** `useRecorder` catches `getUserMedia` failures and sets `recorderError`; the error string is rendered in red above the input area. The text input and send button remain functional.
 - **Transcription Failure:** If `/api/transcribe` returns an error, the failure is logged to the console and the text input is left empty; the user can type their message manually.
 - **TTS Failure:** If `/api/tts` returns an error, playback silently fails; the error is logged to the console and the `audioLoading` spinner is cleared. No disruptive UI feedback is shown, as audio is an enhancement rather than a required interaction path.
 - **Unsupported Language:** `/api/roleplay` returns `HTTP 400` with `{ error: 'Unsupported language' }` if either language is outside `ALLOWED_LANGUAGES`.
-- **Oversized Conversation:** `/api/roleplay` returns `HTTP 400` with `{ error: 'Conversation history too long' }` when the serialized history exceeds `MAX_MESSAGES_JSON_LEN`.
+- **Long Conversation:** The server silently applies `messages.slice(-10)` — no HTTP error. The client informs the user via the length-guard banner so they can start a new session if they need full continuity.
 
 ## Phased Rollout
 
 | Phase | Capability |
 |-------|-----------|
-| **Current** | Multi-turn dialogue with full CRST analysis (user + coach), per-event PouchDB persistence, session list + rename + cascade delete + per-message delete, voice input + corrected-voice TTS, multi-user partitioning |
+| **Current** | Multi-turn dialogue with full CRST analysis (user + coach), CFLT Build Mode pre-production scaffold, BYOK headers on all sub-calls, per-event PouchDB persistence, session list + rename + cascade delete + per-message delete, voice input + corrected-voice TTS, multi-user partitioning |
 | **Phase 2** | VoiceChallenge on AI replies — pronunciation evaluation of coach-generated text |
 | **Phase 3** | Post-conversation weak-pattern detection → targeted Course suggestions; AI vocabulary → SRS deck capture |
 | **Phase 4** | Live multi-device sync via SaaS registry (PouchDB infrastructure ready; replication endpoint outstanding) |

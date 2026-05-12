@@ -9,7 +9,9 @@ import {
   TrendingUp, Award, Clock, BookOpen, Loader2, AlertCircle,
   Flame, CalendarDays, CalendarCheck, Sparkles, MessageSquare,
   Brain, Layers, Target, Globe2, Languages, ArrowRight,
+  Link2, CheckCircle2, Circle,
 } from 'lucide-react';
+import type { VocabUsageItem, VocabUsageResponse } from '../app/api/progress/vocab-usage/route';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 
 interface DailyActivity {
@@ -76,9 +78,10 @@ interface ProgressResponse {
 interface ProgressDashboardProps {
   uiLang: SupportedLang;
   onNavigate?: (tab: 'transform' | 'course' | 'roleplay') => void;
+  onReview?: () => void;
 }
 
-export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ uiLang, onNavigate }) => {
+export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ uiLang, onNavigate, onReview }) => {
   const [data, setData] = useState<ProgressResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -155,7 +158,8 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ uiLang, on
     <div className="space-y-10 animate-in fade-in duration-700">
       <StreakSection data={data!} uiLang={uiLang} />
       <AbilitySection data={data!} uiLang={uiLang} />
-      <MemorySection data={data!} uiLang={uiLang} />
+      <MemorySection data={data!} uiLang={uiLang} onReview={onReview} />
+      <CrossTabSection uiLang={uiLang} />
     </div>
   );
 };
@@ -423,18 +427,29 @@ const AbilitySection: React.FC<{ data: ProgressResponse; uiLang: SupportedLang }
 
 // ---------------- Section: Memory / Vocabulary SRS ----------------
 
-const MemorySection: React.FC<{ data: ProgressResponse; uiLang: SupportedLang }> = ({ data, uiLang }) => {
+const MemorySection: React.FC<{ data: ProgressResponse; uiLang: SupportedLang; onReview?: () => void }> = ({ data, uiLang, onReview }) => {
   const { vocabulary } = data;
   const totalKnown = vocabulary.newWords + vocabulary.learning + vocabulary.mature;
   const pct = (n: number) => (totalKnown === 0 ? 0 : Math.round((n / totalKnown) * 100));
 
   return (
     <section className="space-y-4">
-      <SectionHeader
-        icon={<Brain className="w-4 h-4" />}
-        title={tr(uiLang, 'statsSectionMemory')}
-        accent="text-violet-600"
-      />
+      <div className="flex items-center justify-between">
+        <SectionHeader
+          icon={<Brain className="w-4 h-4" />}
+          title={tr(uiLang, 'statsSectionMemory')}
+          accent="text-violet-600"
+        />
+        {vocabulary.due > 0 && onReview && (
+          <button
+            onClick={onReview}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 text-violet-700 rounded-lg text-xs font-bold hover:bg-violet-200 transition-colors"
+          >
+            <Brain className="w-3 h-3" />
+            Review {vocabulary.due} due →
+          </button>
+        )}
+      </div>
 
       {vocabulary.total === 0 ? (
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-center">
@@ -444,7 +459,9 @@ const MemorySection: React.FC<{ data: ProgressResponse; uiLang: SupportedLang }>
         <div className="bg-white p-6 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-white space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <StatCard icon={<Layers className="w-5 h-5" />} tone="violet" label={tr(uiLang, 'statsVocabTotal')} value={vocabulary.total} />
-            <StatCard icon={<Target className="w-5 h-5" />} tone="rose" label={tr(uiLang, 'statsVocabDue')} value={vocabulary.due} />
+            <button onClick={vocabulary.due > 0 ? onReview : undefined} className={vocabulary.due > 0 ? 'cursor-pointer' : undefined}>
+              <StatCard icon={<Target className="w-5 h-5" />} tone="rose" label={tr(uiLang, 'statsVocabDue')} value={vocabulary.due} />
+            </button>
             <StatCard icon={<Sparkles className="w-5 h-5" />} tone="blue" label={tr(uiLang, 'statsVocabNew')} value={vocabulary.newWords} />
             <StatCard icon={<TrendingUp className="w-5 h-5" />} tone="amber" label={tr(uiLang, 'statsVocabLearning')} value={vocabulary.learning} />
             <StatCard icon={<Award className="w-5 h-5" />} tone="emerald" label={tr(uiLang, 'statsVocabMature')} value={vocabulary.mature} />
@@ -466,6 +483,134 @@ const MemorySection: React.FC<{ data: ProgressResponse; uiLang: SupportedLang }>
           )}
         </div>
       )}
+    </section>
+  );
+};
+
+// ---------------- Section: Cross-Tab Insights ----------------
+
+const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
+  const [data, setData] = useState<VocabUsageResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/progress/vocab-usage')
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(setData)
+      .catch(err => console.error('[CrossTabSection]', err))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading || !data || data.total === 0) return null;
+
+  const usedPct = data.total > 0 ? Math.round((data.usedCount / data.total) * 100) : 0;
+  const topUsed = data.items.filter(i => i.sessionsUsed > 0).slice(0, 6);
+  const neverUsed = data.items.filter(i => i.sessionsUsed === 0).slice(0, 6);
+
+  return (
+    <section className="space-y-4">
+      <SectionHeader
+        icon={<Link2 className="w-4 h-4" />}
+        title="Vocabulary in Practice"
+        accent="text-teal-600"
+      />
+
+      <div className="bg-white p-6 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-white space-y-5">
+
+        {/* Summary bar */}
+        <div className="flex items-center gap-4">
+          <div className="flex-1 space-y-1.5">
+            <div className="flex justify-between text-xs font-bold text-slate-500">
+              <span>{data.usedCount} of {data.total} vocabulary words used in Roleplay</span>
+              <span className="text-teal-600">{usedPct}%</span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+              <div
+                className="bg-teal-500 h-2.5 rounded-full transition-all duration-700"
+                style={{ width: `${usedPct}%` }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Two columns: used / not yet used */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          {/* Used in conversation */}
+          <div className="space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-teal-600 flex items-center gap-1.5">
+              <CheckCircle2 className="w-3 h-3" /> Used in conversation
+            </p>
+            {topUsed.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">None yet — start a Roleplay session!</p>
+            ) : (
+              <div className="space-y-1.5">
+                {topUsed.map(item => (
+                  <div key={item.token} className="flex items-center gap-2 bg-teal-50 rounded-xl px-3 py-2">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-bold text-slate-800 truncate block">{item.token}</span>
+                      <span className="text-[11px] text-slate-400 truncate block">{item.meaning}</span>
+                    </div>
+                    <span className="shrink-0 text-[11px] font-black text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full">
+                      {item.sessionsUsed}×
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Not yet used */}
+          <div className="space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
+              <Circle className="w-3 h-3" /> Try using these
+            </p>
+            {neverUsed.length === 0 ? (
+              <p className="text-xs text-slate-400 italic">You've used all your vocabulary words! 🎉</p>
+            ) : (
+              <div className="space-y-1.5">
+                {neverUsed.map(item => (
+                  <div key={item.token} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-dashed border-slate-200">
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-bold text-slate-600 truncate block">{item.token}</span>
+                      <span className="text-[11px] text-slate-400 truncate block">{item.meaning}</span>
+                    </div>
+                    <span className="shrink-0 text-[11px] text-slate-300 font-bold">unused</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Show all toggle */}
+        {(data.usedCount > 6 || data.unusedCount > 6) && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="w-full text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors py-1"
+          >
+            {expanded ? '▲ Show less' : `▼ Show all ${data.total} words`}
+          </button>
+        )}
+
+        {expanded && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-slate-100">
+            {data.items.map(item => (
+              <div key={item.token} className={`flex items-center gap-2 rounded-xl px-3 py-2 ${item.sessionsUsed > 0 ? 'bg-teal-50' : 'bg-slate-50'}`}>
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-bold text-slate-800 truncate block">{item.token}</span>
+                  <span className="text-[11px] text-slate-400 truncate block">{item.meaning}</span>
+                </div>
+                {item.sessionsUsed > 0
+                  ? <span className="shrink-0 text-[11px] font-black text-teal-700 bg-teal-100 px-2 py-0.5 rounded-full">{item.sessionsUsed}×</span>
+                  : <span className="shrink-0 text-[11px] text-slate-300">—</span>
+                }
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 };

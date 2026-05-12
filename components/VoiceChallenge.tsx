@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { useRecorder } from '@/hooks/useRecorder';
+import { useSettings } from '@/hooks/useSettings';
 import { Mic, Square, Loader2, Award, Info, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { CFLTResponse } from '@/src/types/cflt';
@@ -28,13 +29,16 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
   expectedText, sourceLang, targetLang, sessionId, packageSlug, lessonIndex, scriptIndex
 }) => {
   const { isRecording, audioBlob, recorderError, startRecording, stopRecording } = useRecorder();
+  const { getHeaders } = useSettings();
   const [evaluating, setEvaluating] = useState(false);
   const [evaluation, setEvaluation] = useState<EvaluationResult | null>(null);
   const [evalError, setEvalError] = useState<string | null>(null);
+  const [keyError, setKeyError] = useState(false);
 
-  const handleEvaluate = async (blob: Blob) => {
+  const handleEvaluate = useCallback(async (blob: Blob) => {
     setEvaluating(true);
     setEvalError(null);
+    setKeyError(false);
     const formData = new FormData();
     formData.append('audio', blob);
     formData.append('expectedText', expectedText);
@@ -48,8 +52,10 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
     try {
       const response = await fetch('/api/speech-eval', {
         method: 'POST',
+        headers: getHeaders(),
         body: formData,
       });
+      if (response.status === 401) { setKeyError(true); return; }
       if (!response.ok) throw new Error('Evaluation failed');
       const data: EvaluationResult = await response.json();
       setEvaluation(data);
@@ -59,7 +65,7 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
     } finally {
       setEvaluating(false);
     }
-  };
+  }, [expectedText, sourceLang, targetLang, sessionId, packageSlug, lessonIndex, scriptIndex, getHeaders]);
 
   // Auto-evaluate when recording stops and a new blob is ready
   React.useEffect(() => {
@@ -67,7 +73,7 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
       setEvaluation(null); // Clear prior result while new evaluation runs
       handleEvaluate(audioBlob);
     }
-  }, [audioBlob]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [audioBlob, handleEvaluate]);
 
   return (
     <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
@@ -114,6 +120,12 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
         )}
       </div>
 
+      {keyError && (
+        <div className="flex items-center gap-2 text-amber-600 text-xs font-bold">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          No API key configured for speech evaluation. Open Settings to add one.
+        </div>
+      )}
       {(recorderError || evalError) && (
         <div className="flex items-center gap-2 text-red-600 text-xs font-bold">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />

@@ -17,6 +17,10 @@ import {
 import { contentHash } from '@/src/lib/storage/hash';
 import type { CoursewareManifest } from '@/src/types/courseware';
 
+import type { ProgressEmitter } from './orchestrator';
+// Re-export under the local name for callers who import from package-builder.
+export type PackageProgressEmitter = ProgressEmitter;
+
 export interface BuildPackageInput {
   manifest: CoursewareManifest;
   sourceLang: string;
@@ -25,6 +29,7 @@ export interface BuildPackageInput {
   generateImages?: boolean;
   /** Owner of this course package. Defaults to 'local' for single-user mode. */
   userId?: string;
+  onProgress?: PackageProgressEmitter;
 }
 
 /**
@@ -42,8 +47,11 @@ export async function buildAndWritePackage(
 
   const packageManifest = await mapToPackageManifest(input, userId);
 
+  const emit = input.onProgress ?? (() => {});
   const tts = TTSFactory.getProvider();
   const audioMap = new Map<string, Uint8Array>();
+  const totalScripts = packageManifest.lessons.reduce((n, l) => n + l.scripts.length, 0);
+  let audiosDone = 0;
 
   for (const lesson of packageManifest.lessons) {
     for (const script of lesson.scripts) {
@@ -67,12 +75,17 @@ export async function buildAndWritePackage(
         }
       }
       if (audio) audioMap.set(`media/${filename}`, audio);
+      audiosDone++;
+      emit({ type: 'step', message: `Generating audio… (${audiosDone}/${totalScripts})` });
     }
   }
 
   const imageMap = new Map<string, Uint8Array>();
   if (input.generateImages !== false) {
+    emit({ type: 'step', message: 'Generating images…' });
     const visuals = VisualFactory.getProvider();
+    let imagesDone = 0;
+    const totalImages = packageManifest.lessons.filter(l => l.visual_generation_prompts[0]).length;
     for (const lesson of packageManifest.lessons) {
       const prompt = lesson.visual_generation_prompts[0];
       if (!prompt) continue;
@@ -101,9 +114,12 @@ export async function buildAndWritePackage(
         }
       }
       if (image) imageMap.set(`media/${filename}`, image);
+      imagesDone++;
+      emit({ type: 'step', message: `Generating images… (${imagesDone}/${totalImages})` });
     }
   }
 
+  emit({ type: 'step', message: 'Packaging…' });
   const result = await writePackage(userId, {
     manifest: packageManifest,
     audio: audioMap,

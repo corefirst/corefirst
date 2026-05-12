@@ -129,12 +129,23 @@ Each transform is its own document with a stable ID. Two devices submitting tran
 ### Language Pair Parameterization
 Both `sourceLang` and `targetLang` are passed through to the transformer and to the `VoiceChallenge` component. `sourceLang` is particularly significant: when set to `Chinese`, the `speech-eval` evaluator generates Pinyin-anchored phonetic migration feedback, leveraging the learner's existing phonological knowledge to bridge to English pronunciation.
 
+### Cover & Recall (Self-Test Mode)
+After the standard-L2 result is displayed, a **"Test Yourself"** button hides the answer and presents a free-text field. The learner attempts to reproduce the target-language sentence from the CFLT structure blocks above. Clicking **"Reveal Answer"** shows their attempt alongside the correct sentence side-by-side. This shifts engagement from passive reading to active production. Resets automatically when a new transform is performed.
+
+### Phonetic Bridge
+For `sourceLang === 'Chinese'`, a collapsible **Pinyin → IPA Reference** panel renders below VoiceChallenge (`components/PhoneticBridge.tsx`). Groups sounds by category (stops, retroflexes zh/ch/sh/r, palatals j/q/x, vowels, common mistake pairs); searchable by Pinyin, IPA, or English keyword. Visually marks tricky sounds that have no close English equivalent. Invisible for all other source languages.
+
+### Post-Result CTAs
+Two navigation shortcuts appear below the transform result:
+- **"Build a course on this →"** — pre-fills the Course tab topic with the current input sentence and switches to Course mode.
+- **"Practice in Roleplay →"** — switches to the Roleplay tab so the learner can immediately use the sentence in open-ended conversation.
+
 ## Constraints
 
 - **Input Length:** 8,192 characters maximum, validated by `TransformRequestSchema` at the API layer. Inputs exceeding this limit receive a `400` response before any LLM call is made.
 - **TTS Length:** 4,096 characters maximum per `/api/tts` request (`MAX_TTS_LEN` in `/api/tts/route.ts`). `standard_l2` output is well within this limit for typical sentences.
 - **Language Pair Validation:** Chinese↔English is the production-validated pair with test vectors in `tests/core/test_vectors.md`. Other language pairs are supported by the prompt template but are not declared production-ready until their own test vectors are added.
-- **No Cross-Mode State in Phase 1:** Transform Mode does not write to vocabulary mastery in `.cfrecord`, does not suggest Courses, and does not share data with Roleplay Mode until Phase 3 integration is complete.
+- **Cross-Mode CTAs Shipped:** "Build a course on this →" and "Practice in Roleplay →" shortcuts are available; full vocabulary cross-linking is Phase 3.
 
 ## Error Handling
 
@@ -149,7 +160,7 @@ Both `sourceLang` and `targetLang` are passed through to the transformer and to 
 
 | Phase | Transform Mode additions |
 |-------|--------------------------|
-| **Phase 1 — Foundation (current)** | Full CRST display, TTS playback w/ CAS cache, VoiceChallenge, per-event PouchDB history persistence + per-entry delete, multi-user partitioning, History tab |
+| **Phase 1 — Foundation (current)** | Full CRST display, TTS playback w/ CAS cache, VoiceChallenge, per-event PouchDB history, Cover & Recall self-test, Phonetic Bridge (Chinese), post-result CTAs (→ Course, → Roleplay), multi-user partitioning, History tab |
 | **Phase 2 — Progress Tracking** | `VoiceChallenge` renders four per-block CRST sub-scores (`scoreCoreAction`, `scoreCondition`, `scoreSpaceContext`, `scoreTime`) once the Phase 2 evaluator prompt is deployed |
 | **Phase 3 — Cross-mode Integration** | Vocabulary mastery annotations on `cflt_l2` blocks from SRS deck; "Generate a Course on this topic" prompt surfaced after transform result; `standardL2` tokens upserted to SRS with Transform-mode mastery weight |
 | **Phase 4 — CRST Profiling and Sync** | Per-user CRST weakness radar incorporates Transform Mode voice attempt sub-scores; SM-2 review schedule surfaces weak vocabulary as Transform input suggestions; live multi-device sync via SaaS registry |

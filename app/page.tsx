@@ -13,6 +13,8 @@ import { RoleplayHistory } from '../components/RoleplayHistory';
 import { CourseHistory } from '../components/CourseHistory';
 import { ProfileSwitcher } from '../components/ProfileSwitcher';
 import { Settings } from '../components/Settings';
+import { VocabReview } from '../components/VocabReview';
+import { PhoneticBridge } from '../components/PhoneticBridge';
 import { useSettings } from '../hooks/useSettings';
 import {
   Loader2, Send, Languages, Info, BookOpen, User, Globe,
@@ -23,6 +25,7 @@ import type { CFLTResponse, CfltSlot } from '../src/types/cflt';
 import type { CoursewareManifest, Lesson, LessonScript } from '../src/types/courseware';
 import { t as tr, SUPPORTED_LANGS, detectUiLang, defaultLangPair, type SupportedLang } from '../src/lib/ui-i18n';
 import { buildPlayableCflt, type SlotFillMap } from '../src/lib/cflt-playback';
+import { consumeSSE } from '../src/lib/sse-reader';
 
 const LANGUAGES = SUPPORTED_LANGS;
 const UI_LANG_STORAGE_KEY = 'corefirst.uiLang';
@@ -34,6 +37,7 @@ const LANG_KEY: Record<SupportedLang, 'langEnglish' | 'langChinese' | 'langJapan
 
 export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
+  const [showVocabReview, setShowVocabReview] = useState(false);
   const [keyError, setKeyError] = useState<'API_KEY_REQUIRED' | 'INVALID_API_KEY' | null>(null);
   const { getHeaders } = useSettings();
 
@@ -83,7 +87,7 @@ export default function Home() {
   // below re-syncs to the persisted/detected value on the client.
   const [uiLang, setUiLang] = useState<SupportedLang>('English');
 
-  const [ageGroup, setAgeGroup] = useState('Child (Age 8)');
+  const [ageGroup, setAgeGroup] = useState('Adult / Professional');
   const [industry, setIndustry] = useState('General / Life');
   const [sourceLang, setSourceLang] = useState<SupportedLang>('English');
   const [targetLang, setTargetLang] = useState<SupportedLang>('Chinese');
@@ -159,7 +163,7 @@ export default function Home() {
       try {
         const res = await fetch('/api/transform/refine', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getHeaders() },
           body: JSON.stringify({ sourceLang, targetLang, uiLang, slots: settled }),
           signal: controller.signal,
         });
@@ -217,7 +221,7 @@ export default function Home() {
     try {
       const response = await fetch('/api/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ text }),
       });
       if (!response.ok) throw new Error('TTS failed');
@@ -294,34 +298,37 @@ export default function Home() {
     if (!input.trim()) return;
     setLoading(true);
     setFetchError(null);
-    const steps = ['Designing lessons…', 'Writing scripts…', 'Generating audio…', 'Finishing up…'];
-    let stepIdx = 0;
-    setCourseGenStep(steps[0]);
-    const stepTimer = setInterval(() => {
-      stepIdx = Math.min(stepIdx + 1, steps.length - 1);
-      setCourseGenStep(steps[stepIdx]);
-    }, 6000);
+    setKeyError(null);
+    setCourseGenStep('Designing lessons…');
     try {
       const response = await fetch('/api/generate-course', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({
-          topic: input,
-          age_group: ageGroup,
-          industry_context: industry,
-          sourceLang,
-          targetLang
-        }),
+        body: JSON.stringify({ topic: input, age_group: ageGroup, industry_context: industry, sourceLang, targetLang }),
       });
-      if (!response.ok) throw new Error('Course generation failed');
-      const data = await response.json();
-      setCourseResult(data);
-      setCourseHistoryKey((k) => k + 1);
+      if (response.status === 401) {
+        const data = await response.json().catch(() => ({}));
+        setKeyError(data.error ?? 'API_KEY_REQUIRED');
+        return;
+      }
+      if (!response.ok || !response.body) throw new Error('Course generation failed');
+
+      // Consume SSE stream and update step label in real time
+      await consumeSSE(response.body.getReader(), (event) => {
+        if (event.type === 'step') {
+          setCourseGenStep(event.message as string);
+        } else if (event.type === 'complete') {
+          setCourseResult(event.result as typeof courseResult);
+          setCourseHistoryKey((k) => k + 1);
+          return true; // stop reading
+        } else if (event.type === 'error') {
+          throw new Error((event.message as string) ?? 'Course generation failed');
+        }
+      });
     } catch (error) {
       console.error(error);
       setFetchError(tr(uiLang, 'errorCourse'));
     } finally {
-      clearInterval(stepTimer);
       setCourseGenStep(null);
       setLoading(false);
     }
@@ -389,6 +396,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      {showVocabReview && <VocabReview targetLang={targetLang} uiLang={uiLang} onClose={() => setShowVocabReview(false)} />}
 
       <div className="p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-8">
@@ -510,7 +518,7 @@ export default function Home() {
                     onChange={(e) => setAgeGroup(e.target.value)}
                     className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                   >
-                    <option>Child (Age 8)</option>
+                    <option>Young Learner (Age 12+)</option>
                     <option>Teenager</option>
                     <option>Adult / Professional</option>
                   </select>
@@ -602,9 +610,33 @@ export default function Home() {
           </div>
         )}
 
+        {/* L3: Learning funnel guide — shown to new users before first result */}
+        {mode === 'transform' && !transformResult && !loading && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[
+              { step: '1', tab: 'transform' as const, icon: Sparkles, title: 'Transform', desc: 'Paste any sentence. Watch it restructure into the CFLT [Core → Reason → Space → Time] pattern.' },
+              { step: '2', tab: 'course' as const, icon: BookOpen, title: 'Course', desc: 'Generate a full lesson pack on any topic. Learn, reconstruct, and practice with voice.' },
+              { step: '3', tab: 'roleplay' as const, icon: MessageSquare, title: 'Roleplay', desc: 'Chat with an AI coach. Get real-time CFLT analysis on everything you say.' },
+            ].map(({ step, tab, icon: Icon, title, desc }) => (
+              <button
+                key={step}
+                onClick={() => setMode(tab)}
+                className={`text-left p-5 rounded-2xl border transition-all hover:shadow-md ${mode === tab ? 'border-blue-300 bg-blue-50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 text-xs font-black flex items-center justify-center">{step}</span>
+                  <Icon className="w-4 h-4 text-blue-500" />
+                  <span className="font-black text-sm text-slate-800">{title}</span>
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Results */}
         <div className="space-y-8">
-          {mode === 'stats' && <ProgressDashboard uiLang={uiLang} onNavigate={(tab) => setMode(tab)} />}
+          {mode === 'stats' && <ProgressDashboard uiLang={uiLang} onNavigate={(tab) => setMode(tab)} onReview={() => setShowVocabReview(true)} />}
           {mode === 'roleplay' && (
             <>
               <CFLTChat
@@ -749,18 +781,27 @@ export default function Home() {
                 sourceLang={sourceLang}
                 targetLang={targetLang}
               />
+              {/* T8: Phonetic Bridge — shown for Chinese → English learners */}
+              <PhoneticBridge sourceLang={sourceLang} />
             </div>
           )}
 
-          {/* CTA: Practice this in Roleplay after Transform result */}
+          {/* CTAs after Transform result: Roleplay + Course */}
           {mode === 'transform' && transformResult && (
-            <div className="flex items-center justify-end">
+            <div className="flex items-center justify-end gap-4">
+              <button
+                onClick={() => { setCourseInput(transformInput); setMode('course'); }}
+                className="flex items-center gap-2 text-sm text-slate-500 font-bold hover:text-slate-700 transition-colors"
+              >
+                <BookOpen className="w-4 h-4" />
+                Build a course on this →
+              </button>
               <button
                 onClick={() => setMode('roleplay')}
                 className="flex items-center gap-2 text-sm text-blue-600 font-bold hover:text-blue-800 transition-colors"
               >
                 <MessageSquare className="w-4 h-4" />
-                Practice this in Roleplay →
+                Practice in Roleplay →
               </button>
             </div>
           )}

@@ -8,15 +8,15 @@
 | Feature | Description | Dependencies | Status |
 |---------|-------------|--------------|--------|
 | [User Identity](./user-identity.md) | UUID-based user identity, middleware auto-assignment, household profile switcher | none | shipped |
-| [Settings & AI Config](./settings-ai-config.md) | In-app provider/key/URL configuration, BYOK, per-request model overrides | user-identity | shipped |
+| [Settings & AI Config](./settings-ai-config.md) | In-app provider/key/URL configuration, BYOK, per-request model overrides for all AI routes | user-identity | shipped |
 | [Logic Transformer](./logic-transformer.md) | Core AI engine for CFLT restructuring | none | shipped |
 | [History & Storage](./history-storage.md) | Per-user PouchDB partitioning & sync-safe event storage | user-identity | shipped |
-| [Voice Challenge](./voice-challenge.md) | Audio recording & CFLT-aware speech evaluation component | none | shipped |
-| [Transform Mode](./transform-mode.md) | Ad-hoc sentence restructuring & practice flow | logic-transformer, voice-challenge | shipped |
-| [Courseware Generator](./courseware-generator.md) | AI engine for scenario-based lesson generation | logic-transformer | shipped |
-| [Course Mode](./course-mode.md) | Structured lesson flow with Learn/Practice modes | courseware-generator, voice-challenge | shipped |
-| [Roleplay Coach](./roleplay-coach.md) | Multi-turn conversational AI with real-time coaching | voice-challenge | shipped |
-| [Progress Analytics](./progress-analytics.md) | Visual dashboard & SRS vocabulary management | history-storage | shipped |
+| [Voice Challenge](./voice-challenge.md) | Audio recording & CFLT-aware speech evaluation; BYOK headers; 401 key-error surface | none | shipped |
+| [Transform Mode](./transform-mode.md) | Ad-hoc restructuring + Cover & Recall self-test + Phonetic Bridge + post-result CTAs | logic-transformer, voice-challenge | shipped |
+| [Courseware Generator](./courseware-generator.md) | AI lesson generation with SSE real-time progress streaming | logic-transformer | shipped |
+| [Course Mode](./course-mode.md) | Learn/Practice/Voice flow with server-persisted puzzle completion state | courseware-generator, voice-challenge | shipped |
+| [Roleplay Coach](./roleplay-coach.md) | Multi-turn AI coach with CFLT Build Mode pre-production scaffold | voice-challenge | shipped |
+| [Progress Analytics](./progress-analytics.md) | Dashboard + SRS Vocabulary Review modal + Cross-Tab usage analytics | history-storage | shipped |
 
 ## Execution Order
 
