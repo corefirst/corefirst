@@ -1,27 +1,23 @@
 import { NextResponse } from 'next/server';
-import * as fs from 'fs';
 import * as fsPromises from 'fs/promises';
-import * as path from 'path';
 import { generateObject } from 'ai';
 import { transformModel } from '@/src/lib/ai';
 import { CFLTResponseSchema } from '@/src/types/cflt';
+import { loadPrompt } from '@/src/lib/prompts/loader';
 import { providerFor } from '@/src/lib/storage/pouch-provider';
 import { listTransformEvents, listRoleplaySessions } from '@/src/lib/storage/record';
 import { listPackages } from '@/src/lib/storage/package';
 import { manifestPath } from '@/src/lib/storage/paths';
 import { getUserId } from '@/src/lib/auth/user';
 
-// Read system_prompt.md fresh so this repair route always uses the latest
-// version (the module-level cache in transformer.ts may hold the old prompt).
+// Use `fresh: true` so this repair route always picks up the latest
+// system_prompt.md — bypasses the module-level cache used at request time.
 function buildSystemPrompt(sourceLang: string, targetLang: string): string {
-  const raw = fs.readFileSync(
-    path.join(process.cwd(), 'src/core/system_prompt.md'),
-    'utf-8',
+  return loadPrompt(
+    'src/core/system_prompt.md',
+    { SOURCE_LANG: sourceLang, TARGET_LANG: targetLang, UI_LANG: sourceLang },
+    { fresh: true },
   );
-  return raw
-    .replace(/{{SOURCE_LANG}}/g, sourceLang)
-    .replace(/{{TARGET_LANG}}/g, targetLang)
-    .replace(/{{UI_LANG}}/g, sourceLang);
 }
 
 async function retransform(input: string, sourceLang: string, targetLang: string) {

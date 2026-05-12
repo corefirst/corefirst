@@ -10,6 +10,7 @@ import { TTSFactory } from '@/src/core/tts/factory';
 import { getUserId } from '@/src/lib/auth/user';
 import { extractSettings, resolveFeatureFromSettings } from '@/src/lib/ai/settings-config';
 import { classifyAIError } from '@/src/lib/ai/errors';
+import { loadPrompt } from '@/src/lib/prompts/loader';
 
 const ALLOWED_LANGUAGES = new Set([
   'Chinese', 'English', 'Japanese', 'Korean', 'Vietnamese', 'Spanish', 'French', 'German',
@@ -60,13 +61,12 @@ export async function POST(request: Request) {
 
     const safeContext = (context ?? 'General daily life').replace(/[\x00-\x1F\x7F]/g, '').slice(0, MAX_CONTEXT_LEN);
 
-    const baseSystemInstructions = `Friendly coach. L1: ${sourceLang}, L2: ${targetLang}. Context: ${safeContext}. RULES: Summarize "session_title" (5-10 words in ${sourceLang}). 
-    CRST RULES: ATOMIC slots, NO "and", NO Meta-description. Only analyze FIRST sentence.`;
-
-    const fullSystemPrompt = `${baseSystemInstructions}
-    Full mode: Decompose both user input and your reply. 
-    1) user_analysis: corrected version + error list + CRST.
-    2) coach_analysis: CRST of your reply.`;
+    const baseSystemInstructions = loadPrompt('src/prompts/roleplay_base.md', {
+      SOURCE_LANG: sourceLang,
+      TARGET_LANG: targetLang,
+      CONTEXT: safeContext,
+    });
+    const fullSystemPrompt = baseSystemInstructions + loadPrompt('src/prompts/roleplay_analysis.md');
 
     const promptText = JSON.stringify(messages.slice(-10));
 

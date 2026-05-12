@@ -1,18 +1,11 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { generateObject, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import { courseGenModel } from '@/src/lib/ai';
+import { loadPrompt } from '@/src/lib/prompts/loader';
 import { CFLTTransformer } from '../core/transformer';
 import {
   CoursewareManifest,
   CoursewareManifestSchema,
 } from '../types/courseware';
-
-// Read prompt once at module load to avoid synchronous disk I/O per request
-const SYSTEM_PROMPT = fs.readFileSync(
-  path.join(process.cwd(), 'src/generator/courseware_prompt.md'),
-  'utf-8'
-);
 
 const REPAIR_INSTRUCTION = `
 
@@ -55,9 +48,10 @@ export class CoursewareOrchestrator {
     this.emit({ type: 'step', message: 'Designing lessons…' });
     const sourceLang = request.sourceLang || 'Chinese';
     const targetLang = request.targetLang || 'English';
-    const dynamicPrompt = SYSTEM_PROMPT
-      .replace(/{{SOURCE_LANG}}/g, sourceLang)
-      .replace(/{{TARGET_LANG}}/g, targetLang);
+    const dynamicPrompt = loadPrompt('src/generator/courseware_prompt.md', {
+      SOURCE_LANG: sourceLang,
+      TARGET_LANG: targetLang,
+    });
     const userPrompt = JSON.stringify(request);
 
     let manifest: CoursewareManifest;

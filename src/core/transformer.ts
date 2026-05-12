@@ -1,14 +1,7 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import { generateObject, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import { transformModel } from '@/src/lib/ai';
+import { loadPrompt } from '@/src/lib/prompts/loader';
 import { CFLTResponse, CFLTResponseSchema } from '../types/cflt';
-
-// Read prompt once at module load to avoid synchronous disk I/O per request
-const SYSTEM_PROMPT = fs.readFileSync(
-  path.join(process.cwd(), 'src/core/system_prompt.md'),
-  'utf-8'
-);
 
 export class CFLTTransformer {
   private model: LanguageModel;
@@ -24,10 +17,11 @@ export class CFLTTransformer {
     uiLang: string = sourceLang,
   ): Promise<CFLTResponse | { error: string; raw: string }> {
     try {
-      const dynamicPrompt = SYSTEM_PROMPT
-        .replace(/{{SOURCE_LANG}}/g, sourceLang)
-        .replace(/{{TARGET_LANG}}/g, targetLang)
-        .replace(/{{UI_LANG}}/g, uiLang);
+      const dynamicPrompt = loadPrompt('src/core/system_prompt.md', {
+        SOURCE_LANG: sourceLang,
+        TARGET_LANG: targetLang,
+        UI_LANG: uiLang,
+      });
 
       const { object } = await generateObject({
         model: this.model,
