@@ -1,6 +1,6 @@
 # Provider & Storage Architecture
 
-> Software version: 0.1.0 | Status: Implemented | Last Updated: 2026-05-09
+> Software version: 0.3.0 | Status: Implemented | Last Updated: 2026-05-12
 > Companion documents: `docs/prd.md`, `docs/tech-design.md`, `docs/storage-design.md`, `docs/package-format.md`, `docs/learning-architecture.md`
 
 ---
@@ -31,7 +31,7 @@ The CLI provider work (Claude / Gemini subscription CLIs) sits inside the AI lay
 ### 1.2 Non-Goals
 
 - Phase 2/3/4 features (per-element CFLT sub-scores, cross-mode vocabulary, SM-2). Hooks left in but not implemented.
-- Authentication, multi-user, multi-tenant.
+- ~~Authentication, multi-user, multi-tenant.~~ **Update:** Multi-user partitioning and the household profile switcher shipped in v0.3.0 (see `docs/features/user-identity.md`). Multi-tenant SaaS auth remains out of scope.
 - Replacing the Vercel AI SDK as the type/abstraction layer. We extend it with custom providers; we do not abandon it.
 - Migrating existing `dev.db` data. Local DBs are dropped; `data/` is the new world.
 
@@ -192,15 +192,16 @@ The CLI providers transparently fulfill the same `LanguageModelV3` interface —
 
 Each feature resolves provider + model via this precedence:
 
-1. **`<FEATURE>_PROVIDER`** / **`<FEATURE>_MODEL`** — most specific; one knob per feature.
-2. **`<CAPABILITY>_PROVIDER`** — capability-level default (e.g. `TEXT_PROVIDER`). Sets all features of that capability unless they have their own override.
+0. **`x-cf-*` request headers** (highest priority) — sent by the browser when the user has configured a provider in the Settings panel. Extracted by `extractSettings()` in `src/lib/ai/settings-config.ts` and applied per-request only. Does not modify env vars or module-level state. See `docs/features/settings-ai-config.md`.
+1. **`<FEATURE>_PROVIDER`** / **`<FEATURE>_MODEL`** — most specific env-var; one knob per feature.
+2. **`<CAPABILITY>_PROVIDER`** — capability-level env-var default (e.g. `TEXT_PROVIDER`). Sets all features of that capability unless they have their own override.
 3. **Baked-in default** from `FEATURES` in `capabilities.ts`.
 
 #### 3.3.1 Provider catalog (per capability)
 
 | Capability | Providers |
 |---|---|
-| `text` | `google`, `openai`, `anthropic`, `ollama`, `openrouter`, **`cli/claude`**, **`cli/gemini`** |
+| `text` | `google`, `openai`, `anthropic`, `ollama`, `openrouter`, `groq` (OpenAI-compatible, UI only), **`cli/claude`**, **`cli/gemini`** |
 | `text-to-image` | `google` (Imagen), `openai` (`gpt-image-1`) |
 | `text-to-speech` | `openai` (`gpt-4o-mini-tts`) — also covers OpenAI-compatible local servers via `TTS_BASE_URL` |
 | `speech-to-text` | `openai` (`gpt-4o-mini-transcribe`) |
@@ -240,8 +241,11 @@ TRANSFORM_MODEL=gemini-3.1-pro-preview-002
 | `anthropic` | ✅ | — | — | — |
 | `ollama` | ✅ | — | — | — |
 | `openrouter` | ✅ | — | — | — |
+| `groq`¹ | ✅ | — | — | — |
 | `cli/claude` | ✅ | — | — | — |
 | `cli/gemini` | ✅ | — | — | — |
+
+¹ `groq` is supported via the Settings UI only (uses OpenAI-compatible endpoint `https://api.groq.com/openai/v1`). It is not registered in `PROVIDERS_BY_CAPABILITY` and cannot be selected via env vars — attempting to do so will fail at route resolution time.
 
 Selecting `cli/claude` for `IMAGE_GEN_PROVIDER` is rejected at module load with `InvalidProviderError` — a fail-fast guard, not a runtime surprise.
 
@@ -507,7 +511,8 @@ These are deliberately **not** part of this refactor. They will be tracked as se
 - Codex CLI provider (reachforge has it; no demand in CoreFirst).
 - Phase 2 per-element CFLT sub-scores, Phase 3 cross-mode vocabulary, Phase 4 SM-2.
 - Replacing the Vercel AI SDK with a hand-rolled abstraction.
-- Authentication / multi-user.
+- ~~Authentication / multi-user~~ → **Shipped (v0.3.0):** UUID-based multi-user identity and household profile switcher. See `docs/features/user-identity.md`. Multi-tenant SaaS auth (login, passwords, hub.corefirst.world) remains deferred.
+- Per-request TTS/STT key overrides (base URL supported; per-request API key overrides for TTS/STT deferred).
 
 ---
 

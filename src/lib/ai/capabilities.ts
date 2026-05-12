@@ -8,7 +8,7 @@
  *    capability. Each feature gets its own configuration knob so different
  *    parts of the app can use different models without touching code.
  *
- * See docs/refactor-plan.md §3.
+ * See docs/ai-provider-architecture.md §3.
  */
 
 export const CAPABILITIES = [
@@ -25,7 +25,7 @@ export type Capability = (typeof CAPABILITIES)[number];
 
 /**
  * Providers per capability. Subscription CLIs (`cli/claude`, `cli/gemini`)
- * are text-only by design — see docs/refactor-plan.md §3.3.6.
+ * are text-only by design — see docs/ai-provider-architecture.md §3.3.6.
  */
 export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
   text: [
@@ -184,7 +184,7 @@ export class NotImplementedError extends Error {
   constructor(capability: Capability) {
     super(
       `Capability "${capability}" is declared but not implemented in this release. ` +
-        `See docs/refactor-plan.md §3.6.`,
+        `See docs/ai-provider-architecture.md §3.6.`,
     );
     this.name = 'NotImplementedError';
   }

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { CoursewareOrchestrator } from '@/src/generator/orchestrator';
 import { buildAndWritePackage } from '@/src/generator/package-builder';
 import { getUserId } from '@/src/lib/auth/user';
+import { extractSettings, resolveFeatureFromSettings } from '@/src/lib/ai/settings-config';
 
 const GenerateCourseRequestSchema = z.object({
   age_group: z.string().min(1),
@@ -27,7 +28,8 @@ export async function POST(request: Request) {
     const sourceLang = parsed.data.sourceLang || 'Chinese';
     const targetLang = parsed.data.targetLang || 'English';
 
-    const orchestrator = new CoursewareOrchestrator();
+    const modelOverride = resolveFeatureFromSettings('courseGen', extractSettings(request));
+    const orchestrator = new CoursewareOrchestrator(modelOverride);
     const result = await orchestrator.generate({
       age_group: parsed.data.age_group,
       industry_context: parsed.data.industry_context,

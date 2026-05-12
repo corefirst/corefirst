@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { generateObject, NoObjectGeneratedError } from 'ai';
+import { generateObject, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import { courseGenModel } from '@/src/lib/ai';
 import { CFLTTransformer } from '../core/transformer';
 import {
@@ -37,9 +37,11 @@ export interface GenerationRequest {
 
 export class CoursewareOrchestrator {
   private transformer: CFLTTransformer;
+  private model: LanguageModel;
 
-  constructor() {
-    this.transformer = new CFLTTransformer();
+  constructor(modelOverride?: LanguageModel) {
+    this.model = modelOverride ?? courseGenModel;
+    this.transformer = new CFLTTransformer(modelOverride);
   }
 
   async generate(
@@ -131,7 +133,7 @@ export class CoursewareOrchestrator {
 
   private async callOnce(system: string, prompt: string): Promise<CoursewareManifest> {
     const { object } = await generateObject({
-      model: courseGenModel,
+      model: this.model,
       schema: CoursewareManifestSchema,
       system,
       prompt,

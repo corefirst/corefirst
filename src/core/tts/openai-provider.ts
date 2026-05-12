@@ -1,4 +1,4 @@
-import { experimental_generateSpeech as generateSpeech } from 'ai';
+import { experimental_generateSpeech as generateSpeech, type SpeechModel } from 'ai';
 import { ttsModel } from '@/src/lib/ai';
 import { TTSProvider } from './interface';
 
@@ -17,6 +17,9 @@ const DEFAULT_VOICE = 'alloy';
  *     Piper:    en_US-amy-low, en_GB-alan-low, …
  */
 export class OpenAITTSProvider implements TTSProvider {
+  private model: SpeechModel;
+  constructor(model?: SpeechModel) { this.model = model ?? ttsModel; }
+
   async generateAudio(text: string): Promise<Uint8Array> {
     // Most TTS endpoints don't accept SSML — strip tags and decode entities.
     const cleanText = text
@@ -30,7 +33,7 @@ export class OpenAITTSProvider implements TTSProvider {
     const voice = process.env.TTS_VOICE ?? DEFAULT_VOICE;
 
     const { audio } = await generateSpeech({
-      model: ttsModel,
+      model: this.model,
       text: cleanText,
       voice,
     });

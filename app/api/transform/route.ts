@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { CFLTTransformer } from '@/src/core/transformer';
 import { appendTransform } from '@/src/lib/storage';
 import { getUserId } from '@/src/lib/auth/user';
+import { extractSettings, resolveFeatureFromSettings } from '@/src/lib/ai/settings-config';
+import { classifyAIError } from '@/src/lib/ai/errors';
 
 const MAX_INPUT_LEN = 8192;
 
@@ -31,7 +33,9 @@ export async function POST(request: Request) {
     }
     const { text, sourceLang, targetLang, uiLang, packageSlug } = parsed.data;
 
-    const transformer = new CFLTTransformer();
+    const settings = extractSettings(request);
+    const model = resolveFeatureFromSettings('transform', settings);
+    const transformer = new CFLTTransformer(model);
     const result = await transformer.transform(text, sourceLang, targetLang, uiLang);
 
     if ('error' in result) {
@@ -59,6 +63,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[transform] Error:', msg);
+    const code = classifyAIError(error);
+    if (code === 'API_KEY_REQUIRED' || code === 'INVALID_API_KEY') {
+      return NextResponse.json({ error: code }, { status: 401 });
+    }
     return NextResponse.json({ error: 'Transformation failed' }, { status: 500 });
   }
 }

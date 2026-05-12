@@ -250,7 +250,7 @@ export type RoleplayMessageEvent = z.infer<typeof RoleplayMessageEventSchema>;
 export const CFRecordSchema = z.object({
   // packageId is null for the synthetic _global.cfrecord that holds Transform
   // and Roleplay history outside any specific course context. Per-package
-  // records always have a UUID. See docs/refactor-plan.md §4.2.
+  // records always have a UUID. See docs/ai-provider-architecture.md §4.2.
   packageId: z.string().uuid().nullable(),
   packageSlug: z.string(),
   lastStudiedAt: z.string(),

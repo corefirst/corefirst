@@ -1,4 +1,4 @@
-import { generateImage } from 'ai';
+import { generateImage, type ImageModel } from 'ai';
 import { imageGenModel } from '@/src/lib/ai';
 import { VisualProvider } from './interface';
 
@@ -10,11 +10,14 @@ import { VisualProvider } from './interface';
  * persistent URLs the way DALL-E does — it returns binary data.)
  */
 export class ImagenProvider implements VisualProvider {
+  private model: ImageModel;
+  constructor(model?: ImageModel) { this.model = model ?? imageGenModel; }
+
   async generateImage(prompt: string): Promise<string> {
     const styledPrompt = `A clean, educational illustration for a bilingual learning app. Style: Modern, flat vector, soft colors. Concept: ${prompt}`;
 
     const { image } = await generateImage({
-      model: imageGenModel,
+      model: this.model,
       prompt: styledPrompt,
       aspectRatio: '1:1',
     });

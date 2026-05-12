@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { generateObject, NoObjectGeneratedError } from 'ai';
+import { generateObject, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import { transformModel } from '@/src/lib/ai';
 import { CFLTResponse, CFLTResponseSchema } from '../types/cflt';
 
@@ -11,6 +11,12 @@ const SYSTEM_PROMPT = fs.readFileSync(
 );
 
 export class CFLTTransformer {
+  private model: LanguageModel;
+
+  constructor(modelOverride?: LanguageModel) {
+    this.model = modelOverride ?? transformModel;
+  }
+
   async transform(
     userInput: string,
     sourceLang: string = 'Chinese',
@@ -24,7 +30,7 @@ export class CFLTTransformer {
         .replace(/{{UI_LANG}}/g, uiLang);
 
       const { object } = await generateObject({
-        model: transformModel,
+        model: this.model,
         schema: CFLTResponseSchema,
         system: dynamicPrompt,
         prompt: userInput,

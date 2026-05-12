@@ -1,6 +1,6 @@
 # Product Requirements Document — CoreFirst
 
-> Software version: 0.2.0 | Status: Active | Last Updated: 2026-05-11
+> Software version: 0.3.0 | Status: Active | Last Updated: 2026-05-12
 
 ---
 
@@ -55,7 +55,7 @@ If a learner can habitually structure *any* thought — in any language — as `
 - **Who:** Software developers, language educators, ed-tech builders who want to extend or embed CoreFirst
 - **Goal:** Deploy CoreFirst as infrastructure for their own learning product or research
 - **Behavior:** Forks the repo, customizes prompts, adds language pairs or domain modules
-- **Value prop:** Clean TypeScript codebase, modular API routes, Prisma-backed persistence, LLM-agnostic architecture
+- **Value prop:** Clean TypeScript codebase, modular API routes, PouchDB-backed file storage, LLM-agnostic architecture with UI-configurable providers
 
 ### 3.3 Out-of-Scope Users (v1)
 
@@ -180,11 +180,17 @@ Pre-built token vocabularies for IT, Medical, Finance, Hospitality sectors.
 #### F-12: Multi-User Storage Partitioning
 Per-user data isolation enabling multiple learners on a shared device (and serving as the foundation for the SaaS sync layer).
 
-**Inputs:** `userId` resolved from `X-User-Id` header → `cf_user_id` cookie → `COREFIRST_DEFAULT_USER` env → `'local'`. Normalized through a `/[a-z0-9_-]/` whitelist at the auth boundary.
+**User identity resolution** (precedence order):
+1. `X-User-Id` request header — platform/reverse-proxy injection
+2. `cf_user_id` cookie — auto-assigned UUID on first visit by Next.js middleware (`middleware.ts`)
+
+On every first visit, `middleware.ts` transparently assigns a `crypto.randomUUID()` as the `cf_user_id` cookie (1-year expiry). This UUID serves as both the local storage partition key and the future hub.corefirst.world member ID. All values normalized via `/[a-z0-9_-]/` whitelist (UUID hex chars and hyphens pass naturally).
+
+**Multi-profile support (household use):** A `ProfileSwitcher` component manages a `cf_profiles` JSON array in `localStorage`. Switching profiles writes the chosen UUID into the `cf_user_id` cookie and reloads the page — the server instantly scopes all storage to the new UUID. Profile display names are stored in `localStorage` only; renaming never moves any server directory.
 
 **Outputs:** All packages, media, and PouchDB records partitioned under `data/users/<userId>/`. Cross-user reads/writes are mechanically impossible — every storage function takes `userId` as its first argument.
 
-**Status:** Shipped. `src/lib/auth/user.ts` resolves; `src/lib/storage/paths.ts` partitions; every API route extracts and forwards. Default `'local'` user means single-user installs behave unchanged.
+**Status:** Shipped. `middleware.ts` assigns UUIDs; `src/lib/auth/user.ts` resolves; `src/lib/storage/paths.ts` partitions; `components/ProfileSwitcher.tsx` provides the household UI.
 
 #### F-13: History Management (Edit + Delete)
 User control over their own history: delete unwanted records, rename session/course titles, with multi-device sync friendliness.
@@ -205,6 +211,30 @@ Every learner event (transform / voice attempt / roleplay message) is a distinct
 **Why it matters:** The previous "single doc with arrays of events" pattern produced `_conflicts` on concurrent multi-device writes; per-event docs eliminate that conflict class entirely. Distinct IDs cannot collide.
 
 **Status:** Shipped storage-side. Live replication to a SaaS CouchDB endpoint is a separate planned phase.
+
+#### F-15: UI-Configurable AI Provider (Settings Panel)
+
+Allows users to configure all AI providers directly from the browser UI without touching `.env` files — essential for non-technical users and cloud deployments where operator `.env` access is unavailable.
+
+**Settings panel** (`components/Settings.tsx`) provides two tabs:
+- **AI Providers:** Provider picker (OpenRouter · Groq · Google AI · OpenAI · Anthropic · Ollama · Claude CLI · Gemini CLI), API key input with live verification, optional model override, TTS/STT/Image collapsible sections for local server URLs
+- **Profile:** Display name editor, User ID display
+
+**Storage:** Settings persisted to `localStorage` under `cf_settings_{uuid}` (per-profile isolation). API keys never written to server disk.
+
+**Delivery mechanism:** Settings injected as `x-cf-*` request headers on every AI call. Server reads headers via `extractSettings()` (`src/lib/ai/settings-config.ts`) and overrides env-var resolution for that request only. All existing env-var configurations continue to work unchanged.
+
+**Key verification:** `POST /api/verify-key` fires a minimal test call to the provider. Returns `{ ok, error? }` with plain-English error messages.
+
+**Status:** Shipped. See `docs/features/settings-ai-config.md`.
+
+#### F-16: AI Provider BYOK Error Handling
+
+When an API key is absent or invalid, routes return `{ error: 'API_KEY_REQUIRED' | 'INVALID_API_KEY' }` with HTTP 401. The frontend (`app/page.tsx`) detects the code and shows an inline contextual prompt — "No API key configured. Open Settings →" — that opens the Settings panel directly.
+
+Local providers (Ollama, CLI) report connection/auth errors differently (not 401) so they do not trigger the BYOK prompt.
+
+**Status:** Shipped. `src/lib/ai/errors.ts` classifies; `app/page.tsx` surfaces.
 
 ---
 
@@ -234,19 +264,19 @@ Every major module must be independently swappable without modifying core logic:
 
 | Extension Point | Interface | How to Swap |
 |----------------|-----------|-------------|
-| Text Provider | `src/lib/ai/text/factory.ts` (`buildTextModelFor(featureKey)` — dispatches on `TEXT_PROVIDER` and per-feature overrides) | Add a branch under `text/sdk/` for SaaS providers, or `text/cli/` for new subscription-CLI providers |
-| Image Provider | `src/lib/ai/text-to-image/factory.ts` (`buildImageModel` — dispatches on `TEXT_TO_IMAGE_PROVIDER` / `IMAGE_GEN_PROVIDER`) | Add a branch under `text-to-image/sdk/`. CLI providers are not supported here — text-only |
-| TTS Provider | `src/lib/ai/text-to-speech/factory.ts` (`buildSpeechModel` — dispatches on `TEXT_TO_SPEECH_PROVIDER` / `TTS_PROVIDER`) | Add a branch under `text-to-speech/sdk/` |
-| STT Provider | `src/lib/ai/speech-to-text/factory.ts` (`buildTranscriptionModel` — dispatches on `SPEECH_TO_TEXT_PROVIDER` / `STT_PROVIDER`) | Add a branch under `speech-to-text/sdk/` |
-| Storage | `src/lib/storage/` — `.corefirst` packages + `.cfrecord` records | File-based; no DB. Swap the persistence layer by replacing `package.ts` / `record.ts` |
+| Text Provider (env) | `src/lib/ai/text/factory.ts` (`buildTextModelFor(featureKey)` — dispatches on `TEXT_PROVIDER` and per-feature overrides) | Add a branch under `text/sdk/` for SaaS providers, or `text/cli/` for new subscription-CLI providers |
+| Text Provider (UI/per-request) | `src/lib/ai/settings-config.ts` (`resolveFeatureFromSettings`) — reads `x-cf-provider` / `x-cf-api-key` headers | Client sends provider+key as request headers; server builds a fresh model instance for that request only |
+| Image Provider | `src/lib/ai/text-to-image/factory.ts` (`buildImageModel`, `buildImageModelWith`) | Add a branch under `text-to-image/sdk/`. CLI providers not supported — text-only |
+| TTS Provider | `src/lib/ai/text-to-speech/factory.ts` (`buildSpeechModel`, `buildSpeechModelWith`) | Add a branch under `text-to-speech/sdk/`; or configure local server via `x-cf-tts-url` header |
+| STT Provider | `src/lib/ai/speech-to-text/factory.ts` (`buildTranscriptionModel`, `buildTranscriptionModelWith`) | Add a branch under `speech-to-text/sdk/`; or configure local server via `x-cf-stt-url` header |
+| Storage | `src/lib/storage/` — `.corefirst` packages + PouchDB records | File-based; no DB. Swap by replacing `package.ts` / `record.ts` |
 | Language Pair | `{{SOURCE_LANG}}` / `{{TARGET_LANG}}` placeholders in `src/core/system_prompt.md` and `src/generator/courseware_prompt.md` | Add UI selector option + canonical test vectors |
 | Industry Module | `industry_context` field on `GenerationRequest` | Free-text today; structured token-pack injection is a P2 follow-up |
 
 ### 7.3 Developer Experience Requirements
 
 - Single `pnpm install && pnpm dev` startup (no external services required for basic demo)
-- All API keys configurable via `.env` (documented in `.env.example`)
-- Prisma migrations auto-applied on first run
+- All AI providers configurable via `.env` (documented in `.env.example`) **or** via the in-app Settings panel without touching any config file
 - Vitest test suite runnable with `pnpm test`
 - Each feature module self-contained in its own API route + component pair
 
@@ -260,7 +290,7 @@ Every major module must be independently swappable without modifying core logic:
 | Storage | File-based — `.corefirst` packages and `.cfrecord` learning records under `data/`. No database. See `docs/storage-design.md` |
 | Node.js | ≥ 20 LTS required for Next.js 16 |
 | Browser | Modern browsers only (no IE11); uses MediaRecorder API for voice capture |
-| API keys | Google Gemini (text default + Imagen), OpenAI (TTS + STT). `OPENROUTER_API_KEY` only when a text feature uses provider `openrouter`. **No API key required when text features use `cli/claude` or `cli/gemini`** — the local CLI subscription is used directly |
+| API keys | Configurable via `.env` (server-side) or Settings panel (per-user, stored in `localStorage`). Supported text providers: Google AI, OpenAI, Anthropic, OpenRouter, Groq, Ollama, Claude CLI, Gemini CLI. TTS/STT: OpenAI-compatible (local or cloud). Image: Google Imagen or OpenAI DALL-E. No API key required for `cli/claude` / `cli/gemini` — uses local CLI subscription |
 
 ---
 
@@ -313,5 +343,6 @@ All four elements are mandatory. Partial sequences are non-conformant.
 - [CFLT vision document](https://github.com/corefirst/cflt/blob/main/vision.md) — Cross-project strategic vision: Human-AI synchronized logic
 - `docs/features/logic-transformer.md` — Logic Transformer feature spec
 - `docs/features/courseware-generator.md` — Courseware Generator feature spec
-- `plans/` — Implementation plans (completed and in-progress; consumed by code-forge)
+- `docs/features/user-identity.md` — UUID-based user identity, middleware, and profile switcher
+- `docs/features/settings-ai-config.md` — Settings panel, BYOK, and per-request provider overrides
 - `tests/core/test_vectors.md` — CFLT validation test vectors

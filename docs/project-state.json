@@ -1,44 +1,56 @@
 {
   "project": "CoreFirst",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "status": "active",
-  "lastUpdated": "2026-05-11",
+  "lastUpdated": "2026-05-12",
   "features": [
     {
       "id": "F-04",
       "name": "Progress Analytics & SRS",
       "status": "completed",
       "tasks": [
-        {
-          "id": "T1",
-          "name": "Implement SM-2 SRS algorithm utility",
-          "priority": "P0",
-          "status": "completed"
-        },
-        {
-          "id": "T2",
-          "name": "Create updateVocabularyMastery in record.ts",
-          "priority": "P0",
-          "status": "completed"
-        },
-        {
-          "id": "T3",
-          "name": "Integrate SRS update into speech-eval API",
-          "priority": "P0",
-          "status": "completed"
-        },
-        {
-          "id": "T4",
-          "name": "Enhance evaluator prompt for 4-element sub-scores",
-          "priority": "P1",
-          "status": "completed"
-        },
-        {
-          "id": "T5",
-          "name": "Persist sub-scores in appendAttempt",
-          "priority": "P1",
-          "status": "completed"
-        }
+        { "id": "T1", "name": "Implement SM-2 SRS algorithm utility", "priority": "P0", "status": "completed" },
+        { "id": "T2", "name": "Create updateVocabularyMastery in record.ts", "priority": "P0", "status": "completed" },
+        { "id": "T3", "name": "Integrate SRS update into speech-eval API", "priority": "P0", "status": "completed" },
+        { "id": "T4", "name": "Enhance evaluator prompt for 4-element sub-scores", "priority": "P1", "status": "completed" },
+        { "id": "T5", "name": "Persist sub-scores in appendAttempt", "priority": "P1", "status": "completed" }
+      ]
+    },
+    {
+      "id": "F-12",
+      "name": "Multi-User Storage Partitioning",
+      "status": "completed",
+      "tasks": [
+        { "id": "T1", "name": "UUID auto-assignment via middleware.ts", "priority": "P0", "status": "completed" },
+        { "id": "T2", "name": "Simplify user.ts — remove COREFIRST_DEFAULT_USER", "priority": "P0", "status": "completed" },
+        { "id": "T3", "name": "ProfileSwitcher component with localStorage profiles", "priority": "P0", "status": "completed" },
+        { "id": "T4", "name": "useProfile hook with functional-updater stale-closure fix", "priority": "P0", "status": "completed" }
+      ]
+    },
+    {
+      "id": "F-15",
+      "name": "UI-Configurable AI Provider (Settings Panel)",
+      "status": "completed",
+      "tasks": [
+        { "id": "T1", "name": "useSettings hook — localStorage per-profile settings", "priority": "P0", "status": "completed" },
+        { "id": "T2", "name": "Settings modal — 2 tabs (AI Providers + Profile)", "priority": "P0", "status": "completed" },
+        { "id": "T3", "name": "settings-config.ts — extractSettings + resolveFeatureFromSettings", "priority": "P0", "status": "completed" },
+        { "id": "T4", "name": "Wire x-cf-* headers into all 7 AI routes", "priority": "P0", "status": "completed" },
+        { "id": "T5", "name": "buildTextModelFromSpec — unified model factory for overrides", "priority": "P0", "status": "completed" },
+        { "id": "T6", "name": "buildSpeechModelWith / buildTranscriptionModelWith / buildImageModelWith", "priority": "P0", "status": "completed" },
+        { "id": "T7", "name": "verify-key API endpoint with provider-aware error messages", "priority": "P0", "status": "completed" },
+        { "id": "T8", "name": "Accessibility: dialog ARIA, listbox ARIA, tab ARIA, aria-labels", "priority": "P1", "status": "completed" },
+        { "id": "T9", "name": "Save error feedback in Settings footer", "priority": "P1", "status": "completed" }
+      ]
+    },
+    {
+      "id": "F-16",
+      "name": "BYOK Error Handling",
+      "status": "completed",
+      "tasks": [
+        { "id": "T1", "name": "classifyAIError pure function in src/lib/ai/errors.ts", "priority": "P0", "status": "completed" },
+        { "id": "T2", "name": "Return structured 401 from transform + roleplay routes", "priority": "P0", "status": "completed" },
+        { "id": "T3", "name": "Inline keyError banner in page.tsx with Open Settings CTA", "priority": "P0", "status": "completed" }
       ]
     }
   ],

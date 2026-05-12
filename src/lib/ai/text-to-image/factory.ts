@@ -3,6 +3,18 @@ import { resolveFeature } from '../config';
 import { googleImagenModel } from './sdk/google-imagen';
 import { openaiImageModel } from './sdk/openai-image';
 
+export function buildImageModelWith(overrides: { provider?: string; apiKey?: string }): ImageModel {
+  const r = resolveFeature('imageGen');
+  const provider = overrides.provider || r.provider;
+  const apiKey   = overrides.apiKey   || r.apiKey;
+  if (provider === 'none') return buildImageModel();
+  switch (provider) {
+    case 'google': return googleImagenModel(r.model, apiKey);
+    case 'openai': return openaiImageModel(r.model, r.baseUrl, apiKey);
+    default: throw new Error(`[ai/text-to-image] Unhandled provider "${provider}".`);
+  }
+}
+
 export function buildImageModel(): ImageModel {
   const r = resolveFeature('imageGen');
   if (r.provider === 'none') {

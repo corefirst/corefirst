@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { contentHash } from '@/src/lib/storage/hash';
 import { sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
+import { extractSettings, resolveTTSOverride } from '@/src/lib/ai/settings-config';
 
 const MAX_TTS_LEN = 4096;
 
@@ -37,7 +38,8 @@ export async function POST(request: Request) {
     } catch {
       // 2. Generate if not in pool
       await ensureDataDirs();
-      const provider = TTSFactory.getProvider();
+      const ttsOverride = resolveTTSOverride(extractSettings(request));
+      const provider = TTSFactory.getProvider(ttsOverride ?? undefined);
       const audio = await provider.generateAudio(text);
 
       const bytes = new Uint8Array(audio.byteLength);

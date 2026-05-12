@@ -23,7 +23,7 @@
  *
  *   const { object } = await generateObject({ model: transformModel, schema, prompt });
  *
- * See docs/refactor-plan.md §3.
+ * See docs/ai-provider-architecture.md §3.
  */
 
 import { buildTextModelFor } from './text/factory';

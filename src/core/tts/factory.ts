@@ -1,4 +1,6 @@
 import { resolveFeature } from '@/src/lib/ai';
+import { buildSpeechModelWith } from '@/src/lib/ai/text-to-speech/factory';
+import type { TTSOverride } from '@/src/lib/ai/settings-config';
 import { TTSProvider } from './interface';
 import { OpenAITTSProvider } from './openai-provider';
 
@@ -12,11 +14,13 @@ import { OpenAITTSProvider } from './openai-provider';
  * once `@ai-sdk/google` (or `@ai-sdk/google-vertex`) exposes a SpeechModelV3.
  */
 export class TTSFactory {
-  static getProvider(): TTSProvider {
-    const r = resolveFeature('tts');
-    if (r.provider === 'none') {
-      return new NullTTSProvider(r.envPrefix);
+  static getProvider(override?: TTSOverride): TTSProvider {
+    if (override) {
+      const model = buildSpeechModelWith({ baseUrl: override.baseUrl, model: override.model });
+      return new OpenAITTSProvider(model);
     }
+    const r = resolveFeature('tts');
+    if (r.provider === 'none') return new NullTTSProvider(r.envPrefix);
     return new OpenAITTSProvider();
   }
 }

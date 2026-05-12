@@ -11,9 +11,12 @@ import { CFLTChat } from '../components/CFLTChat';
 import { TransformHistory } from '../components/TransformHistory';
 import { RoleplayHistory } from '../components/RoleplayHistory';
 import { CourseHistory } from '../components/CourseHistory';
+import { ProfileSwitcher } from '../components/ProfileSwitcher';
+import { Settings } from '../components/Settings';
+import { useSettings } from '../hooks/useSettings';
 import {
   Loader2, Send, Languages, Info, BookOpen, User, Globe,
-  Briefcase, Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare
+  Briefcase, Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare, Settings as SettingsIcon,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { CFLTResponse, CfltSlot } from '../src/types/cflt';
@@ -30,6 +33,15 @@ const LANG_KEY: Record<SupportedLang, 'langEnglish' | 'langChinese' | 'langJapan
 };
 
 export default function Home() {
+  const [showSettings, setShowSettings] = useState(false);
+  const [keyError, setKeyError] = useState<'API_KEY_REQUIRED' | 'INVALID_API_KEY' | null>(null);
+  const { getHeaders } = useSettings();
+
+  // T2: Cover & Recall training state
+  const [recallMode, setRecallMode] = useState(false);
+  const [recallAttempt, setRecallAttempt] = useState('');
+  const [recallRevealed, setRecallRevealed] = useState(false);
+
   const [mode, setMode] = useState<'transform' | 'course' | 'stats' | 'roleplay'>('transform');
   // Per-mode inputs — transform takes a sentence, course takes a topic; sharing
   // a single state would carry sentence-shaped text into the topic field (or
@@ -98,11 +110,24 @@ export default function Home() {
   };
 
   const [audioLoading, setAudioLoading] = useState<string | null>(null);
+  const [courseGenStep, setCourseGenStep] = useState<string | null>(null); // progress hint during course generation
   const [completedPuzzles, setCompletedPuzzles] = useState<Set<string>>(new Set());
   // Per-lesson toggle between the learning demo and the rearrange-the-blocks
   // practice exercise. Keyed by lesson index so different lessons can be in
   // different modes independently.
   const [lessonMode, setLessonMode] = useState<Record<number, 'learn' | 'practice'>>({});
+
+  // T3: Restore puzzle completion state from server when a course is loaded
+  useEffect(() => {
+    const slug = courseResult?.slug ?? courseResult?.packageSlug;
+    if (!slug) { setCompletedPuzzles(new Set()); return; }
+    fetch(`/api/progress/puzzles?slug=${encodeURIComponent(slug)}`)
+      .then(r => r.json())
+      .then(({ completed }: { completed: string[] }) => {
+        if (completed.length > 0) setCompletedPuzzles(new Set(completed));
+      })
+      .catch(() => {});
+  }, [courseResult?.slug, courseResult?.packageSlug]);
 
   // When the user fills inferred CRST slots, ask the server to re-render the
   // standard sentence using all four confirmed slot contents. Debounced so
@@ -229,24 +254,33 @@ export default function Home() {
     if (!input.trim()) return;
     setLoading(true);
     setFetchError(null);
+    setKeyError(null);
     try {
       const response = await fetch('/api/transform', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          text: input, 
-          sourceLang, 
-          targetLang, 
+        headers: { 'Content-Type': 'application/json', ...getHeaders() },
+        body: JSON.stringify({
+          text: input,
+          sourceLang,
+          targetLang,
           uiLang,
           packageSlug: courseResult?.slug // Link to current course if active
         }),
       });
+      if (response.status === 401) {
+        const data = await response.json();
+        setKeyError(data.error);
+        return;
+      }
       if (!response.ok) throw new Error('Transformation failed');
       const data: CFLTResponse = await response.json();
       setTransformResult(data);
       setSlotFills({});
       setRefinedStandard(null);
       setRefinedSlots(null);
+      setRecallMode(false);
+      setRecallAttempt('');
+      setRecallRevealed(false);
       setTransformHistoryKey((k) => k + 1);
     } catch (error) {
       console.error(error);
@@ -260,10 +294,17 @@ export default function Home() {
     if (!input.trim()) return;
     setLoading(true);
     setFetchError(null);
+    const steps = ['Designing lessons…', 'Writing scripts…', 'Generating audio…', 'Finishing up…'];
+    let stepIdx = 0;
+    setCourseGenStep(steps[0]);
+    const stepTimer = setInterval(() => {
+      stepIdx = Math.min(stepIdx + 1, steps.length - 1);
+      setCourseGenStep(steps[stepIdx]);
+    }, 6000);
     try {
       const response = await fetch('/api/generate-course', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({
           topic: input,
           age_group: ageGroup,
@@ -280,6 +321,8 @@ export default function Home() {
       console.error(error);
       setFetchError(tr(uiLang, 'errorCourse'));
     } finally {
+      clearInterval(stepTimer);
+      setCourseGenStep(null);
       setLoading(false);
     }
   };
@@ -344,7 +387,10 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen bg-[#F8FAFC] p-4 md:p-8 font-sans text-slate-900">
+    <main className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
+      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+
+      <div className="p-4 md:p-8">
       <div className="max-w-5xl mx-auto space-y-8">
 
         {/* Header */}
@@ -399,6 +445,15 @@ export default function Home() {
                 ))}
               </select>
             </label>
+
+            <ProfileSwitcher />
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              title="Settings"
+            >
+              <SettingsIcon size={18} />
+            </button>
           </div>
         </div>
 
@@ -467,17 +522,27 @@ export default function Home() {
                   >
                     <Briefcase className="w-3 h-3" /> {tr(uiLang, 'industryLabel')}
                   </label>
-                  <select
+                  {/* Combobox: pick from common options or type your own */}
+                  <input
                     id="industry"
+                    list="industry-options"
                     value={industry}
                     onChange={(e) => setIndustry(e.target.value)}
+                    placeholder="e.g. General / Life, Law, Design…"
                     className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                  >
-                    <option>General / Life</option>
-                    <option>IT / Software Engineering</option>
-                    <option>Medical / Healthcare</option>
-                    <option>Business / Finance</option>
-                  </select>
+                  />
+                  <datalist id="industry-options">
+                    <option value="General / Life" />
+                    <option value="IT / Software Engineering" />
+                    <option value="Medical / Healthcare" />
+                    <option value="Business / Finance" />
+                    <option value="Legal / Law" />
+                    <option value="Education / Teaching" />
+                    <option value="Design / Creative" />
+                    <option value="Sales / Marketing" />
+                    <option value="Travel / Hospitality" />
+                    <option value="Logistics / Operations" />
+                  </datalist>
                 </div>
               </div>
             )}
@@ -504,31 +569,52 @@ export default function Home() {
                 title={tr(uiLang, 'submitHint')}
                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white px-10 py-4 rounded-2xl font-black transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-3 uppercase tracking-wider"
               >
-                {loading ? <Loader2 className="animate-spin" /> : (mode === 'transform' ? tr(uiLang, 'btnTransform') : tr(uiLang, 'btnGenerateCourse'))}
+                {loading
+                  ? <><Loader2 className="animate-spin" />{mode === 'course' && courseGenStep ? <span className="text-sm font-medium">{courseGenStep}</span> : null}</>
+                  : (mode === 'transform' ? tr(uiLang, 'btnTransform') : tr(uiLang, 'btnGenerateCourse'))
+                }
               </button>
             </div>
 
-            <p className="text-xs text-slate-400 -mt-2">{tr(uiLang, 'submitHint')}</p>
+            <p className="text-xs text-slate-400 -mt-2">{loading && mode === 'course' ? 'This usually takes 20–30 seconds.' : tr(uiLang, 'submitHint')}</p>
 
             {fetchError && (
               <p className="text-sm text-red-600 font-medium flex items-center gap-2">
                 <Info className="w-4 h-4" /> {fetchError}
               </p>
             )}
+
+            {keyError && (
+              <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
+                <span className="text-amber-800">
+                  {keyError === 'API_KEY_REQUIRED'
+                    ? 'No API key configured. Set up your own key to get started.'
+                    : 'API key invalid or expired. Please check your key and try again.'}
+                </span>
+                <button
+                  onClick={() => { setKeyError(null); setShowSettings(true); }}
+                  className="shrink-0 text-amber-700 font-medium hover:text-amber-900 underline underline-offset-2 transition-colors"
+                >
+                  {keyError === 'API_KEY_REQUIRED' ? 'Open Settings →' : 'Update in Settings →'}
+                </button>
+              </div>
+            )}
           </div>
         )}
 
         {/* Results */}
         <div className="space-y-8">
-          {mode === 'stats' && <ProgressDashboard uiLang={uiLang} />}
+          {mode === 'stats' && <ProgressDashboard uiLang={uiLang} onNavigate={(tab) => setMode(tab)} />}
           {mode === 'roleplay' && (
             <>
-              <CFLTChat 
-                sourceLang={sourceLang} 
-                targetLang={targetLang} 
+              <CFLTChat
+                sourceLang={sourceLang}
+                targetLang={targetLang}
+                uiLang={uiLang}
                 packageSlug={courseResult?.slug}
                 packageId={courseResult?.packageId}
                 context={courseResult?.topic || industry}
+                onOpenSettings={() => setShowSettings(true)}
               />
               <RoleplayHistory uiLang={uiLang} />
             </>
@@ -569,31 +655,113 @@ export default function Home() {
                     )}
                   </button>
                 </div>
-                <div className="bg-blue-600 p-8 rounded-3xl text-white shadow-2xl shadow-blue-200">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    <p className="text-xs font-bold opacity-60 uppercase tracking-widest text-center">{tr(uiLang, 'standardResultHeader', targetLang)}</p>
-                    {refining && <Loader2 className="w-3 h-3 animate-spin opacity-60" />}
+                {recallMode && !recallRevealed ? (
+                  /* T2: Cover & Recall — hide answer, user attempts from memory */
+                  <div className="bg-slate-800 p-8 rounded-3xl text-white space-y-4">
+                    <p className="text-xs font-bold opacity-60 uppercase tracking-widest text-center">
+                      How do you say this in {targetLang}?
+                    </p>
+                    <textarea
+                      value={recallAttempt}
+                      onChange={e => setRecallAttempt(e.target.value)}
+                      placeholder={`Type the ${targetLang} sentence from the structure above…`}
+                      className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-white placeholder-white/40 resize-none focus:outline-none focus:ring-2 focus:ring-white/40 text-lg font-medium"
+                      rows={3}
+                      autoFocus
+                    />
+                    <div className="flex gap-3 justify-center">
+                      <button
+                        onClick={() => setRecallRevealed(true)}
+                        className="px-6 py-2.5 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors"
+                      >
+                        Reveal Answer
+                      </button>
+                      <button
+                        onClick={() => { setRecallMode(false); setRecallAttempt(''); }}
+                        className="px-6 py-2.5 bg-white/10 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                  <p className="text-3xl font-black italic">"{refinedStandard?.standard_l2 ?? transformResult.standard_l2}"</p>
-                  <button
-                    onClick={() => playAudio(refinedStandard?.standard_l2 ?? transformResult.standard_l2, 'transform-result')}
-                    disabled={audioLoading === 'transform-result' || refining}
-                    aria-label="Play sentence"
-                    className="mt-4 text-white/60 hover:text-white transition-colors disabled:text-white/20 mx-auto block"
-                  >
-                    {audioLoading === 'transform-result' ? (
-                      <Loader2 className="w-8 h-8 animate-spin" />
-                    ) : (
-                      <PlayCircle className="w-8 h-8" />
+                ) : recallMode && recallRevealed ? (
+                  /* T2: Show comparison */
+                  <div className="space-y-3">
+                    {recallAttempt && (
+                      <div className="bg-slate-100 p-5 rounded-2xl">
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Your attempt</p>
+                        <p className="text-xl font-bold text-slate-700 italic">"{recallAttempt}"</p>
+                      </div>
                     )}
-                  </button>
-                </div>
+                    <div className="bg-blue-600 p-8 rounded-3xl text-white shadow-2xl shadow-blue-200">
+                      <div className="flex items-center justify-center gap-2 mb-2">
+                        <p className="text-xs font-bold opacity-60 uppercase tracking-widest text-center">
+                          {tr(uiLang, 'standardResultHeader', targetLang)} — Correct answer
+                        </p>
+                        {refining && <Loader2 className="w-3 h-3 animate-spin opacity-60" />}
+                      </div>
+                      <p className="text-3xl font-black italic">"{refinedStandard?.standard_l2 ?? transformResult.standard_l2}"</p>
+                      <button
+                        onClick={() => playAudio(refinedStandard?.standard_l2 ?? transformResult.standard_l2, 'transform-result')}
+                        disabled={audioLoading === 'transform-result' || refining}
+                        className="mt-4 text-white/60 hover:text-white transition-colors disabled:text-white/20 mx-auto block"
+                      >
+                        {audioLoading === 'transform-result' ? <Loader2 className="w-8 h-8 animate-spin" /> : <PlayCircle className="w-8 h-8" />}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => { setRecallMode(false); setRecallAttempt(''); setRecallRevealed(false); }}
+                      className="w-full py-2 text-sm text-slate-400 hover:text-slate-600 transition-colors font-medium"
+                    >
+                      Done
+                    </button>
+                  </div>
+                ) : (
+                  /* Normal result view */
+                  <div className="bg-blue-600 p-8 rounded-3xl text-white shadow-2xl shadow-blue-200">
+                    <div className="flex items-center justify-center gap-2 mb-2">
+                      <p className="text-xs font-bold opacity-60 uppercase tracking-widest text-center">{tr(uiLang, 'standardResultHeader', targetLang)}</p>
+                      {refining && <Loader2 className="w-3 h-3 animate-spin opacity-60" />}
+                    </div>
+                    <p className="text-3xl font-black italic">"{refinedStandard?.standard_l2 ?? transformResult.standard_l2}"</p>
+                    <div className="flex items-center justify-center gap-4 mt-4">
+                      <button
+                        onClick={() => playAudio(refinedStandard?.standard_l2 ?? transformResult.standard_l2, 'transform-result')}
+                        disabled={audioLoading === 'transform-result' || refining}
+                        aria-label="Play sentence"
+                        className="text-white/60 hover:text-white transition-colors disabled:text-white/20"
+                      >
+                        {audioLoading === 'transform-result' ? <Loader2 className="w-8 h-8 animate-spin" /> : <PlayCircle className="w-8 h-8" />}
+                      </button>
+                      <button
+                        onClick={() => { setRecallMode(true); setRecallAttempt(''); setRecallRevealed(false); }}
+                        className="text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white border border-white/30 hover:border-white/60 px-3 py-1.5 rounded-lg transition-colors"
+                        title="Hide the answer and test yourself"
+                      >
+                        Test Yourself
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
               <VoiceChallenge
                 expectedText={refinedStandard?.standard_l2 ?? transformResult.standard_l2}
                 sourceLang={sourceLang}
                 targetLang={targetLang}
               />
+            </div>
+          )}
+
+          {/* CTA: Practice this in Roleplay after Transform result */}
+          {mode === 'transform' && transformResult && (
+            <div className="flex items-center justify-end">
+              <button
+                onClick={() => setMode('roleplay')}
+                className="flex items-center gap-2 text-sm text-blue-600 font-bold hover:text-blue-800 transition-colors"
+              >
+                <MessageSquare className="w-4 h-4" />
+                Practice this in Roleplay →
+              </button>
             </div>
           )}
 
@@ -776,6 +944,7 @@ export default function Home() {
             />
           )}
         </div>
+      </div>
       </div>
     </main>
   );

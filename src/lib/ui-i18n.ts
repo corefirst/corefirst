@@ -75,6 +75,12 @@ type DictKey =
   | 'statsLanguagePairs' | 'statsLanguagePairsEmpty'
   | 'statsVocabulary' | 'statsVocabTotal' | 'statsVocabDue'
   | 'statsVocabNew' | 'statsVocabLearning' | 'statsVocabMature' | 'statsVocabEmpty'
+  // Roleplay coach panel labels
+  | 'roleplayCorrectionLabel' | 'roleplayAnalysisLabel' | 'roleplayCoachLabel'
+  | 'roleplayNewSession' | 'roleplayAnalysisToggle'
+  | 'errSpelling' | 'errGrammar' | 'errWordChoice' | 'errWordOrder'
+  // Stats empty state CTAs
+  | 'statsGoTransform' | 'statsGoCourse'
   // Language names (for the lang dropdowns)
   | 'langEnglish' | 'langChinese' | 'langJapanese' | 'langKorean' | 'langVietnamese' | 'langSpanish' | 'langFrench' | 'langGerman';
 
@@ -173,6 +179,13 @@ const en: Dict = {
   statsVocabLearning: 'Learning',
   statsVocabMature: 'Mature',
   statsVocabEmpty: 'No vocabulary captured yet — finish a course lesson to build your deck.',
+  roleplayCorrectionLabel: 'Correction',
+  roleplayAnalysisLabel: 'CRST Breakdown',
+  roleplayCoachLabel: 'Coach Comment',
+  roleplayNewSession: 'New Conversation',
+  roleplayAnalysisToggle: 'CRST Analysis',
+  errSpelling: 'Spelling', errGrammar: 'Grammar', errWordChoice: 'Word Choice', errWordOrder: 'Word Order',
+  statsGoTransform: 'Try Transform', statsGoCourse: 'Generate a Course',
   langEnglish: 'English', langChinese: 'Chinese', langJapanese: 'Japanese',
   langKorean: 'Korean', langVietnamese: 'Vietnamese',
   langSpanish: 'Spanish', langFrench: 'French', langGerman: 'German',
@@ -270,6 +283,13 @@ const zh: Dict = {
   statsVocabLearning: '学习中',
   statsVocabMature: '已掌握',
   statsVocabEmpty: '尚未收集词汇 —— 完成一节课程后即可建立你的词库。',
+  roleplayCorrectionLabel: '改正',
+  roleplayAnalysisLabel: 'CRST 分解',
+  roleplayCoachLabel: '教练点评',
+  roleplayNewSession: '新对话',
+  roleplayAnalysisToggle: 'CRST 分析',
+  errSpelling: '拼写', errGrammar: '语法', errWordChoice: '用词', errWordOrder: '语序',
+  statsGoTransform: '试试 Transform', statsGoCourse: '生成课程',
   langEnglish: '英语', langChinese: '中文', langJapanese: '日语',
   langKorean: '韩语', langVietnamese: '越南语',
   langSpanish: '西班牙语', langFrench: '法语', langGerman: '德语',
@@ -351,6 +371,13 @@ const ja: Dict = {
   statsVocabLearning: '学習中',
   statsVocabMature: '習得済み',
   statsVocabEmpty: 'まだ語彙が記録されていません — レッスンを完了するとデッキが作られます。',
+  roleplayCorrectionLabel: '修正',
+  roleplayAnalysisLabel: 'CRST 分解',
+  roleplayCoachLabel: 'コーチのコメント',
+  roleplayNewSession: '新しい会話',
+  roleplayAnalysisToggle: 'CRST 分析',
+  errSpelling: 'スペル', errGrammar: '文法', errWordChoice: '語彙', errWordOrder: '語順',
+  statsGoTransform: 'Transformを試す', statsGoCourse: 'コースを生成',
   labelCore: 'CORE', labelReason: 'REASON', labelSpace: 'SPACE', labelTime: 'TIME',
   statusInferred: '推測',
   demoHeader: 'CRSTがこの文をどう並べ替えるか',
@@ -448,6 +475,13 @@ const ko: Dict = {
   statsVocabLearning: '학습 중',
   statsVocabMature: '숙달',
   statsVocabEmpty: '아직 어휘가 기록되지 않았습니다 — 레슨을 완료하면 단어장이 만들어집니다.',
+  roleplayCorrectionLabel: '교정',
+  roleplayAnalysisLabel: 'CRST 분해',
+  roleplayCoachLabel: '코치 코멘트',
+  roleplayNewSession: '새 대화',
+  roleplayAnalysisToggle: 'CRST 분석',
+  errSpelling: '철자', errGrammar: '문법', errWordChoice: '어휘', errWordOrder: '어순',
+  statsGoTransform: 'Transform 해보기', statsGoCourse: '코스 생성',
   labelCore: 'CORE', labelReason: 'REASON', labelSpace: 'SPACE', labelTime: 'TIME',
   statusInferred: '추정',
   demoHeader: 'CRST가 이 문장을 어떻게 재배치하는지',
@@ -545,6 +579,13 @@ const vi: Dict = {
   statsVocabLearning: 'Đang học',
   statsVocabMature: 'Đã thuộc',
   statsVocabEmpty: 'Chưa có từ vựng nào — hoàn thành một bài học để xây dựng bộ từ.',
+  roleplayCorrectionLabel: 'Chỉnh sửa',
+  roleplayAnalysisLabel: 'Phân tích CRST',
+  roleplayCoachLabel: 'Nhận xét của HLV',
+  roleplayNewSession: 'Cuộc trò chuyện mới',
+  roleplayAnalysisToggle: 'Phân tích CRST',
+  errSpelling: 'Chính tả', errGrammar: 'Ngữ pháp', errWordChoice: 'Từ vựng', errWordOrder: 'Trật tự từ',
+  statsGoTransform: 'Thử Transform', statsGoCourse: 'Tạo khóa học',
   labelCore: 'CORE', labelReason: 'REASON', labelSpace: 'SPACE', labelTime: 'TIME',
   statusInferred: 'Suy luận',
   demoHeader: 'Cách CRST sắp xếp lại câu này',

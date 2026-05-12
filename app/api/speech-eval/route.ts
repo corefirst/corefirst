@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generateObject, experimental_transcribe as transcribe } from 'ai';
 import { speechEvalModel, sttModel } from '@/src/lib/ai';
+import { buildTranscriptionModelWith } from '@/src/lib/ai/speech-to-text/factory';
+import { extractSettings, resolveFeatureFromSettings, resolveSTTOverride } from '@/src/lib/ai/settings-config';
 import {
   appendAttempt,
   readPackageManifest,
@@ -59,9 +61,13 @@ export async function POST(request: Request) {
     const scriptIndexRaw = formData.get('scriptIndex');
 
     const audioBytes = new Uint8Array(await audioFile.arrayBuffer());
+    const settings = extractSettings(request);
+    const sttOverride = resolveSTTOverride(settings);
+    const activeSttModel = sttOverride ? buildTranscriptionModelWith({ baseUrl: sttOverride.baseUrl }) : sttModel;
+    const activeEvalModel = resolveFeatureFromSettings('speechEval', settings) ?? speechEvalModel;
 
     const { text: transcription } = await transcribe({
-      model: sttModel,
+      model: activeSttModel,
       audio: audioBytes,
     });
 
@@ -90,7 +96,7 @@ Return the transcription you were given as-is in the "transcription" field.
     const userPrompt = `Target Sentence: "${expectedText}"\nUser Spoke: "${transcription}"\n\nEvaluate this speech attempt.`;
 
     const { object: evaluation } = await generateObject({
-      model: speechEvalModel,
+      model: activeEvalModel,
       schema: SpeechEvalSchema,
       system: evalSystemPrompt,
       prompt: userPrompt,

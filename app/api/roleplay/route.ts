@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { generateObject } from 'ai';
+import { generateObject, type LanguageModel } from 'ai';
 import { roleplayModel } from '@/src/lib/ai';
 import { upsertRoleplaySession } from '@/src/lib/storage';
 import * as fs from 'fs/promises';
@@ -8,6 +8,8 @@ import { mediaPath, sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/pa
 import { contentHash } from '@/src/lib/storage/hash';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { getUserId } from '@/src/lib/auth/user';
+import { extractSettings, resolveFeatureFromSettings } from '@/src/lib/ai/settings-config';
+import { classifyAIError } from '@/src/lib/ai/errors';
 
 const ALLOWED_LANGUAGES = new Set([
   'Chinese', 'English', 'Japanese', 'Korean', 'Vietnamese', 'Spanish', 'French', 'German',
@@ -42,6 +44,9 @@ export async function POST(request: Request) {
     const userId = await getUserId(request);
     await ensureDataDirs(userId);
 
+    const settings = extractSettings(request);
+    const activeModel: LanguageModel = resolveFeatureFromSettings('roleplay', settings) ?? roleplayModel;
+
     // 1. Process and Save user audio if present (Commit-on-Submit)
     let savedAudioFile: string | undefined;
     if (audio) {
@@ -68,8 +73,8 @@ export async function POST(request: Request) {
     type FullResult = z.infer<typeof RoleplayResponseSchemaFull>;
     type LeanResult = z.infer<typeof RoleplayResponseSchemaLean>;
     const result: FullResult | LeanResult = analysisOn
-      ? (await generateObject({ model: roleplayModel, schema: RoleplayResponseSchemaFull, system: fullSystemPrompt, prompt: promptText })).object
-      : (await generateObject({ model: roleplayModel, schema: RoleplayResponseSchemaLean, system: baseSystemInstructions, prompt: promptText })).object;
+      ? (await generateObject({ model: activeModel, schema: RoleplayResponseSchemaFull, system: fullSystemPrompt, prompt: promptText })).object
+      : (await generateObject({ model: activeModel, schema: RoleplayResponseSchemaLean, system: baseSystemInstructions, prompt: promptText })).object;
 
     const fullResult = 'user_analysis' in result ? (result as FullResult) : null;
 
@@ -135,6 +140,10 @@ export async function POST(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[roleplay] Error:', msg);
+    const code = classifyAIError(error);
+    if (code === 'API_KEY_REQUIRED' || code === 'INVALID_API_KEY') {
+      return NextResponse.json({ error: code }, { status: 401 });
+    }
     return NextResponse.json({ error: 'Roleplay failed', detail: msg }, { status: 500 });
   }
 }

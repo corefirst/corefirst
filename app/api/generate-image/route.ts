@@ -3,6 +3,7 @@ import * as fs from 'fs/promises';
 import { VisualFactory } from '@/src/core/visuals/factory';
 import { contentHash } from '@/src/lib/storage/hash';
 import { sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
+import { extractSettings, resolveImageOverride } from '@/src/lib/ai/settings-config';
 
 const MAX_PROMPT_LEN = 1024;
 
@@ -32,7 +33,8 @@ export async function POST(request: Request) {
     } catch {
       // 2. Generate
       await ensureDataDirs();
-      const provider = VisualFactory.getProvider();
+      const imageOverride = resolveImageOverride(extractSettings(request));
+      const provider = VisualFactory.getProvider(imageOverride ?? undefined);
       const dataUrl = await provider.generateImage(prompt);
 
       // 3. Save to pool

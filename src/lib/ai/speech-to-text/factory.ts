@@ -23,3 +23,8 @@ export function buildTranscriptionModel(): TranscriptionModel {
       throw new Error(`[ai/speech-to-text] Unhandled provider "${r.provider}". This is a bug.`);
   }
 }
+
+export function buildTranscriptionModelWith(overrides: { baseUrl?: string }): TranscriptionModel {
+  const r = resolveFeature('stt');
+  return openaiSttModel(r.model, overrides.baseUrl || r.baseUrl, r.apiKey);
+}

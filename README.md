@@ -330,7 +330,7 @@ Test vectors for CFLT correctness are in `tests/core/test_vectors.md`. All five 
 | [`docs/learning-architecture.md`](docs/learning-architecture.md) | Three-mode learning system + cross-mode integration phases |
 | [`docs/storage-design.md`](docs/storage-design.md) | `.corefirst` and `.cfrecord` design rationale |
 | [`docs/package-format.md`](docs/package-format.md) | On-disk schemas for both file formats |
-| [`docs/refactor-plan.md`](docs/refactor-plan.md) | Capability/feature provider architecture (this design's reference) |
+| [`docs/ai-provider-architecture.md`](docs/ai-provider-architecture.md) | Capability/feature provider architecture (text / image / TTS / STT) |
 | [`docs/features/`](docs/features/) | Per-feature specs (transform / course / roleplay / voice / etc.) |
 | [`.env.example`](./.env.example) | Full env reference with worked examples |
 | [`.env.localstack.example`](./.env.localstack.example) | Drop-in `.env.local` for the all-OSS Mac/Linux stack (Ollama + Kokoro + faster-whisper) |

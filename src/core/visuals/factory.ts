@@ -1,15 +1,17 @@
 import { resolveFeature } from '@/src/lib/ai';
+import { buildImageModelWith } from '@/src/lib/ai/text-to-image/factory';
+import type { ImageOverride } from '@/src/lib/ai/settings-config';
 import { VisualProvider } from './interface';
 import { ImagenProvider } from './imagen-provider';
 
 export class VisualFactory {
-  static getProvider(): VisualProvider {
-    const r = resolveFeature('imageGen');
-    if (r.provider === 'none') {
-      return new NullVisualProvider(r.envPrefix);
+  static getProvider(override?: ImageOverride): VisualProvider {
+    if (override) {
+      const model = buildImageModelWith({ provider: override.provider, apiKey: override.apiKey });
+      return new ImagenProvider(model);
     }
-    // Currently only Google Imagen (imagen-4.0).
-    // To add another provider (e.g. an OpenAI-image fallback), branch here on env.
+    const r = resolveFeature('imageGen');
+    if (r.provider === 'none') return new NullVisualProvider(r.envPrefix);
     return new ImagenProvider();
   }
 }

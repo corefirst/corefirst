@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { experimental_transcribe as transcribe } from 'ai';
 import { sttModel } from '@/src/lib/ai';
+import { buildTranscriptionModelWith } from '@/src/lib/ai/speech-to-text/factory';
+import { extractSettings, resolveSTTOverride } from '@/src/lib/ai/settings-config';
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 
@@ -31,10 +33,13 @@ export async function POST(request: Request) {
     const audioBytes = new Uint8Array(await audioFile.arrayBuffer());
     const languageCode = targetLang ? LANG_MAP[targetLang] : undefined;
 
-    // Just transcribe, don't save. 
+    const sttOverride = resolveSTTOverride(extractSettings(request));
+    const activeModel = sttOverride ? buildTranscriptionModelWith({ baseUrl: sttOverride.baseUrl }) : sttModel;
+
+    // Just transcribe, don't save.
     // Saving happens in the roleplay API upon final submission.
     const { text } = await transcribe({
-      model: sttModel,
+      model: activeModel,
       audio: audioBytes,
       providerOptions: languageCode ? { openai: { language: languageCode } } : undefined,
       maxRetries: 1
@@ -43,12 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ text });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    const stack = error instanceof Error ? error.stack : undefined;
     console.error('[transcribe] Error:', msg);
-    return NextResponse.json({ 
-      error: 'Transcription failed', 
-      detail: msg,
-      stack 
-    }, { status: 500 });
+    return NextResponse.json({ error: 'Transcription failed', detail: msg }, { status: 500 });
   }
 }

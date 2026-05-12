@@ -6,7 +6,7 @@
  *   3. GLOBAL_PROVIDER (user-friendly global default)
  *   4. FeatureSpec.defaultProvider / defaultModel    (baked-in)
  *
- * See docs/refactor-plan.md §3.3.
+ * See docs/ai-provider-architecture.md §3.3.
  */
 
 import {

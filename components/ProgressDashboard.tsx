@@ -8,7 +8,7 @@ import {
 import {
   TrendingUp, Award, Clock, BookOpen, Loader2, AlertCircle,
   Flame, CalendarDays, CalendarCheck, Sparkles, MessageSquare,
-  Brain, Layers, Target, Globe2, Languages,
+  Brain, Layers, Target, Globe2, Languages, ArrowRight,
 } from 'lucide-react';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 
@@ -75,9 +75,10 @@ interface ProgressResponse {
 
 interface ProgressDashboardProps {
   uiLang: SupportedLang;
+  onNavigate?: (tab: 'transform' | 'course' | 'roleplay') => void;
 }
 
-export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ uiLang }) => {
+export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ uiLang, onNavigate }) => {
   const [data, setData] = useState<ProgressResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -123,12 +124,30 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({ uiLang }) 
       data.summary.totalVocabulary === 0);
 
   if (isEmpty) return (
-    <div className="bg-white p-12 rounded-[2.5rem] shadow-xl text-center space-y-4">
+    <div className="bg-white p-12 rounded-[2.5rem] shadow-xl text-center space-y-6">
       <div className="bg-slate-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto">
         <TrendingUp className="w-10 h-10 text-slate-300" />
       </div>
-      <h3 className="text-xl font-black text-slate-800">{tr(uiLang, 'statsEmptyTitle')}</h3>
-      <p className="text-slate-500 max-w-sm mx-auto">{tr(uiLang, 'statsEmptyBody')}</p>
+      <div className="space-y-2">
+        <h3 className="text-xl font-black text-slate-800">{tr(uiLang, 'statsEmptyTitle')}</h3>
+        <p className="text-slate-500 max-w-sm mx-auto">{tr(uiLang, 'statsEmptyBody')}</p>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <button
+          onClick={() => onNavigate?.('transform')}
+          className="px-6 py-3 bg-blue-600 text-white rounded-2xl font-bold text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <Languages className="w-4 h-4" />
+          {tr(uiLang, 'statsGoTransform')}
+        </button>
+        <button
+          onClick={() => onNavigate?.('course')}
+          className="px-6 py-3 bg-slate-100 text-slate-700 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-colors flex items-center justify-center gap-2"
+        >
+          <BookOpen className="w-4 h-4" />
+          {tr(uiLang, 'statsGoCourse')}
+        </button>
+      </div>
     </div>
   );
 
@@ -277,8 +296,12 @@ const AbilitySection: React.FC<{ data: ProgressResponse; uiLang: SupportedLang }
           </div>
         </div>
 
-        {formattedCurve.length === 0 ? (
-          <p className="text-sm text-slate-400 text-center py-12">{tr(uiLang, 'statsLearningCurveEmpty')}</p>
+        {formattedCurve.length < 3 ? (
+          <p className="text-sm text-slate-400 text-center py-12">
+            {formattedCurve.length === 0
+              ? tr(uiLang, 'statsLearningCurveEmpty')
+              : `Complete ${3 - formattedCurve.length} more voice challenge${3 - formattedCurve.length === 1 ? '' : 's'} to see your progress curve.`}
+          </p>
         ) : (
           <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">

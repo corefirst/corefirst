@@ -1,0 +1,12 @@
+repos:
+
+  # TypeScript type checking
+  - repo: local
+    hooks:
+      - id: typecheck
+        name: tsc --noEmit
+        entry: npx tsc --noEmit
+        language: system
+        pass_filenames: false
+        always_run: true
+        files: \.(ts|tsx)$

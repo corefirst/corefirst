@@ -1,6 +1,6 @@
 # Technical Design — CoreFirst
 
-> Software version: 0.2.0 | Status: Active | Last Updated: 2026-05-11  
+> Software version: 0.3.0 | Status: Active | Last Updated: 2026-05-12  
 > Companion document to: `docs/prd.md`
 
 ---
@@ -27,20 +27,35 @@ To support the vision of a 100% private, BYOK (Bring Your Own Key) ecosystem acr
 ```
 ┌─────────────────────────────────────────────────────┐
 │                   Browser (React 19)                 │
-│  CFLTBlock  CFLTBuilder  CFLTDemo  VoiceChallenge    │
+│  Settings  ProfileSwitcher  CFLTBlock  CFLTBuilder   │
+│  CFLTDemo  VoiceChallenge                            │
 │  TransformHistory  RoleplayHistory  CourseHistory    │
+│                                                     │
+│  useSettings → localStorage cf_settings_{uuid}      │
+│     ↓ getHeaders() on every fetch                   │
+│  x-cf-provider / x-cf-api-key / x-cf-model          │
+│  x-cf-tts-url / x-cf-stt-url / x-cf-ollama-url      │
 └───────────────────┬─────────────────────────────────┘
-                    │ HTTP (fetch)
+                    │ HTTP (fetch + x-cf-* headers)
                     │ + X-User-Id header / cf_user_id cookie
+┌───────────────────▼─────────────────────────────────┐
+│         middleware.ts (Next.js Proxy)                │
+│  Auto-assigns cf_user_id=<uuid> cookie on 1st visit  │
+└───────────────────┬─────────────────────────────────┘
+                    │
 ┌───────────────────▼─────────────────────────────────┐
 │             Next.js API Routes (Edge/Node)            │
 │  /transform  /generate-course  /speech-eval  /tts    │
 │  /roleplay   /generate-image   /progress  /transcribe│
+│  /verify-key                                         │
 │  /courses/[slug]  (GET, DELETE, PATCH)                │
 │  /history/transforms  (GET, DELETE)                   │
 │  /history/roleplay/sessions  (GET, DELETE, PATCH)     │
 │  /history/roleplay/messages  (DELETE)                 │
 │  /history/courses  (GET)  /media/[filename]  (GET)    │
+│                                                     │
+│  extractSettings(request) → resolveFeatureFromSettings│
+│    → per-request model override from x-cf-* headers  │
 └─────┬──────────────┬──────────────┬─────────────────┘
       │              │              │
  ┌────▼─────┐  ┌─────▼─────┐  ┌─────▼───────┐
@@ -60,7 +75,11 @@ To support the vision of a 100% private, BYOK (Bring Your Own Key) ecosystem acr
 │  generator/orchestrator.ts  generator/courseware_prompt.md │
 │  generator/package-builder.ts  (audio + image CAS)    │
 │  lib/ai/  (text/image/speech/transcription/video)     │
-│  lib/auth/user.ts  (userId resolution + normalize)    │
+│  lib/auth/user.ts  (userId: x-user-id header → cookie)│
+│  lib/constants.ts  (USER_ID_COOKIE, PROVIDER_DEFAULTS)│
+│  lib/ai/settings-config.ts  (extractSettings, resolve)│
+│  lib/ai/errors.ts  (classifyAIError)                  │
+│  lib/ai/request-config.ts  (buildBYOKModel for verify)│
 │  lib/storage/  (paths, PouchDB provider, package, record,│
 │                 schemas, migrations, hash)            │
 │  core/tts/   core/visuals/   (provider façades)       │

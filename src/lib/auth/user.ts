@@ -8,48 +8,38 @@ const COOKIE_NAME = 'cf_user_id';
  * Resolve the current learner's userId.
  *
  * Resolution order:
- *   1. `X-User-Id` header (highest precedence — used by SaaS edge integrations)
- *   2. `cf_user_id` cookie (local browser persistence)
- *   3. `COREFIRST_DEFAULT_USER` env (server-side override for single-user setups)
- *   4. `local` (default)
+ *   1. `X-User-Id` header (reverse proxy / platform injection)
+ *   2. `cf_user_id` cookie (always present — set by middleware on first visit)
  *
  * All return values are normalized to the filesystem/PouchDB-safe alphabet
- * (`[a-z0-9_-]`) — an attacker can't write under another user's path even by
- * supplying a header.
+ * (`[a-z0-9_-]`) preventing path-traversal attacks.
  *
  * Pure server-side helper; do NOT call from client components.
  */
 export async function getUserId(request?: Request): Promise<string> {
-  // 1. Explicit request header takes precedence
+  // 1. Platform-injected header (reverse proxy / SaaS edge)
   if (request) {
     const fromReq = request.headers.get(HEADER_NAME);
     if (fromReq) return normalizeUserId(fromReq);
   } else {
-    // When no Request is in scope (e.g. server actions), fall back to the
-    // global headers() helper which gives the same data on the request path.
     try {
       const h = await headers();
       const fromHeaders = h.get(HEADER_NAME);
       if (fromHeaders) return normalizeUserId(fromHeaders);
     } catch {
-      // headers() only available inside a request context — ignore otherwise
+      // headers() only available inside a request context
     }
   }
 
-  // 2. Cookie
+  // 2. Cookie (middleware guarantees this is always set for browser clients)
   try {
     const c = await cookies();
     const fromCookie = c.get(COOKIE_NAME)?.value;
     if (fromCookie) return normalizeUserId(fromCookie);
   } catch {
-    // cookies() only available inside a request context — ignore otherwise
+    // cookies() only available inside a request context
   }
 
-  // 3. Server-side single-user override
-  const fromEnv = process.env.COREFIRST_DEFAULT_USER;
-  if (fromEnv) return normalizeUserId(fromEnv);
-
-  // 4. Default
   return DEFAULT_USER_ID;
 }
 

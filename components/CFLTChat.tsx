@@ -31,9 +31,9 @@ const SLOT_COLORS = {
   time:   { bg: 'bg-cflt-time',   labelKey: 'labelTime' },
 } as const;
 
-const ERROR_LABEL: Record<ErrorItem['type'], string> = {
-  spelling: '拼写', grammar: '语法', word_choice: '用词', word_order: '语序',
-};
+// Error labels resolved at render time from uiLang (previously hardcoded Chinese)
+const errorLabel = (type: ErrorItem['type'], uiLang: string): string =>
+  tr(uiLang as SupportedLang, ({ spelling: 'errSpelling', grammar: 'errGrammar', word_choice: 'errWordChoice', word_order: 'errWordOrder' } as const)[type]);
 
 const SLOT_META = {
   core:   { bg: 'bg-cflt-core',   letter: 'C' },
@@ -63,7 +63,20 @@ const CrstStrip: React.FC<{ crst: Crst, uiLang: string }> = ({ crst, uiLang }) =
   </div>
 );
 
-export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, context }: { sourceLang: string, targetLang: string, packageSlug?: string, packageId?: string, context?: string }) => {
+// Max serialized history bytes before warning the user that older context will be dropped
+const HISTORY_WARN_BYTES = 3500;
+const HISTORY_MAX_BYTES = 4096;
+
+export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSlug, packageId, context, onOpenSettings }: {
+  sourceLang: string;
+  targetLang: string;
+  uiLang?: SupportedLang;
+  packageSlug?: string;
+  packageId?: string;
+  context?: string;
+  onOpenSettings?: () => void;
+}) => {
+  const uiLang: SupportedLang = uiLangProp ?? 'English';
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: `Hello! I am your Core First coach. Today we are practicing ${targetLang}${context ? ` for ${context}` : ''}.`, cflt: "Hello! I am your coach, for Core First practice, today." }
   ]);
@@ -75,8 +88,15 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
   const [lastTranscribedText, setLastTranscribedText] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [analysisEnabled, setAnalysisEnabled] = useState(false);
+  const [keyError, setKeyError] = useState(false);
+  // T1: CFLT Build Mode — guide user to structure before speaking
+  const [buildMode, setBuildMode] = useState(false);
+  const [cfltSlots, setCfltSlots] = useState({ core: '', reason: '', space: '', time: '' });
   const scrollRef = useRef<HTMLDivElement>(null);
   const { isRecording, audioBlob, recorderError, startRecording, stopRecording, cancelRecording } = useRecorder();
+
+  const historyBytes = JSON.stringify(messages.map(m => ({ role: m.role, content: m.content }))).length;
+  const historyNearLimit = historyBytes > HISTORY_WARN_BYTES;
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => { if (e.key === 'Escape' && isRecording) cancelRecording(); };
@@ -95,6 +115,49 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
   const toggleAnalysis = (next: boolean) => {
     setAnalysisEnabled(next);
     try { window.localStorage.setItem('corefirst.roleplay.analysisEnabled', next ? 'true' : 'false'); } catch {}
+  };
+
+  const resetSession = () => {
+    setMessages([{ role: 'assistant', content: `Hello! I am your Core First coach. Today we are practicing ${targetLang}${context ? ` for ${context}` : ''}.`, cflt: 'Hello! I am your coach, for Core First practice, today.' }]);
+    setInput('');
+    setKeyError(false);
+    setCfltSlots({ core: '', reason: '', space: '', time: '' });
+    if (typeof crypto !== 'undefined') setSessionId(crypto.randomUUID());
+  };
+
+  // T1: Assemble CFLT slots into a message and send
+  const handleBuildSend = async () => {
+    const parts = [cfltSlots.core, cfltSlots.reason, cfltSlots.space, cfltSlots.time].filter(Boolean);
+    if (parts.length === 0 || loading) return;
+    const assembled = parts.join(', ');
+    const userMsg: Message = { role: 'user', content: assembled };
+    setMessages(prev => [...prev, userMsg]);
+    setCfltSlots({ core: '', reason: '', space: '', time: '' });
+    setLoading(true);
+    try {
+      const response = await fetch('/api/roleplay', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context, ...(sessionId ? { sessionId } : {}) }),
+      });
+      if (response.status === 401) throw new Error('API_KEY');
+      if (!response.ok) throw new Error('Coach unavailable');
+      const data: any = await response.json();
+      setMessages(prev => {
+        const next = [...prev];
+        for (let idx = next.length - 1; idx >= 0; idx--) {
+          if (next[idx].role === 'user' && next[idx].content === assembled) {
+            next[idx] = { ...next[idx], userAnalysis: data.user_analysis, audioFile: data.audioFile, correctedAudioFile: data.correctedAudioFile };
+            break;
+          }
+        }
+        next.push({ role: 'assistant', content: data.reply ?? '(No response)', coachAnalysis: data.coach_analysis, feedback: data.feedback ?? null });
+        return next;
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('API_KEY')) setKeyError(true);
+      else setMessages(prev => [...prev, { role: 'assistant', content: 'Coach unavailable. Please try again.' }]);
+    } finally { setLoading(false); }
   };
 
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages, loading]);
@@ -167,6 +230,7 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context, audio: audioBase64 ? { data: audioBase64, type: audioType } : undefined, ...(sessionId ? { sessionId } : {}), }),
       });
+      if (response.status === 401) throw new Error('API_KEY');
       if (!response.ok) throw new Error('Coach unavailable');
       const data: any = await response.json();
       setMessages(prev => {
@@ -180,14 +244,20 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
         next.push({ role: 'assistant', content: data.reply ?? '(No response)', coachAnalysis: data.coach_analysis, feedback: data.feedback ?? null });
         return next;
       });
-    } catch (err) { console.error(err); setMessages(prev => [...prev, { role: 'assistant', content: "Coach error. Try again." }]); } finally { setLoading(false); }
+    } catch (err) {
+      console.error(err);
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('401') || msg.includes('API_KEY')) {
+        setKeyError(true);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', content: 'Coach unavailable. Please try again.' }]);
+      }
+    } finally { setLoading(false); }
   };
-
-  const uiLang = 'Chinese';
 
   return (
     <div className="flex flex-col h-[600px] bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-      <div className="p-6 bg-slate-900 text-white flex items-center justify-between gap-4">
+      <div className="p-4 bg-slate-900 text-white flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0"><Bot className="w-6 h-6" /></div>
           <div className="min-w-0">
@@ -195,9 +265,44 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
             <p className="text-[10px] text-blue-400 font-bold uppercase truncate">{analysisEnabled ? 'CRST Analysis Mode' : 'Casual Chat Mode'}</p>
           </div>
         </div>
-        <button onClick={() => toggleAnalysis(!analysisEnabled)} className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors flex-shrink-0 ${analysisEnabled ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-300'}`}><Sparkles className="w-3.5 h-3.5" /><span className="hidden sm:inline">CRST 分析</span></button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => toggleAnalysis(!analysisEnabled)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${analysisEnabled ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">{tr(uiLang, 'roleplayAnalysisToggle')}</span>
+          </button>
+          <button
+            onClick={() => setBuildMode(b => !b)}
+            title="CFLT Build Mode — structure your thought before speaking"
+            className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${buildMode ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
+          >
+            Build
+          </button>
+          <button onClick={resetSession} title={tr(uiLang, 'roleplayNewSession')} className="p-2 rounded-xl bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          </button>
+        </div>
       </div>
 
+      {historyNearLimit && (
+        <div className="px-4 py-2 bg-amber-50 border-b border-amber-100 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-amber-700 font-medium">
+            {historyBytes >= HISTORY_MAX_BYTES
+              ? 'Conversation is long — older messages may be dropped from context.'
+              : 'Conversation is getting long. Consider starting a new session.'}
+          </p>
+          <button onClick={resetSession} className="text-[11px] text-amber-700 font-bold hover:underline shrink-0">
+            {tr(uiLang, 'roleplayNewSession')}
+          </button>
+        </div>
+      )}
+      {keyError && (
+        <div className="px-4 py-2 bg-red-50 border-b border-red-100 flex items-center justify-between gap-2">
+          <p className="text-[11px] text-red-700 font-medium">No API key configured for roleplay.</p>
+          {onOpenSettings && (
+            <button onClick={onOpenSettings} className="text-[11px] text-red-700 font-bold hover:underline shrink-0">Open Settings →</button>
+          )}
+        </div>
+      )}
       <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/50">
         <AnimatePresence initial={false}>
           {messages.map((m, i) => (
@@ -213,7 +318,7 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
                     {m.userAnalysis.corrected && m.userAnalysis.corrected !== m.content && (
                       <div>
                         <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1 flex items-center justify-between">
-                          <span>改正</span>
+                          <span>{tr(uiLang, 'roleplayCorrectionLabel')}</span>
                           <button onClick={() => playAudio(m.userAnalysis!.corrected, `corrected-${i}`, m.correctedAudioFile)} disabled={audioLoading === `corrected-${i}`} title="播放标准纠正发音" className="text-blue-400 hover:text-blue-600 transition-colors">
                             {audioLoading === `corrected-${i}` ? <Loader2 className="w-3 h-3 animate-spin" /> : <PlayCircle className="w-3.5 h-3.5" />}
                           </button>
@@ -225,7 +330,7 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
                       <div className="space-y-1">
                         {m.userAnalysis.errors.map((err, k) => (
                           <div key={k} className="text-xs leading-snug text-slate-600">
-                            <span className="font-black text-red-500 uppercase mr-1.5">{ERROR_LABEL[err.type] ?? err.type}</span>
+                            <span className="font-black text-red-500 uppercase mr-1.5">{errorLabel(err.type, uiLang)}</span>
                             <span className="line-through text-slate-400">{err.original}</span>
                             <span className="mx-1">→</span>
                             <span className="font-bold text-emerald-600">{err.correction}</span>
@@ -233,19 +338,19 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
                         ))}
                       </div>
                     )}
-                    <div><div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">CRST 分解</div><CrstStrip crst={m.userAnalysis.crst} uiLang={uiLang} /></div>
+                    <div><div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">{tr(uiLang, 'roleplayAnalysisLabel')}</div><CrstStrip crst={m.userAnalysis.crst} uiLang={uiLang} /></div>
                   </div>
                 )}
                 {m.role === 'assistant' && m.coachAnalysis && (
                   <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-2 shadow-sm">
-                    <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">CRST 分解</div>
+                    <div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">{tr(uiLang, 'roleplayAnalysisLabel')}</div>
                     <CrstStrip crst={m.coachAnalysis.crst} uiLang={uiLang} />
                   </div>
                 )}
                 {m.feedback && (
                   <div className="bg-amber-50 p-3 rounded-xl border border-amber-100 flex items-start gap-2">
                     <Info className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-amber-700 font-bold leading-tight tracking-tight"><span className="uppercase tracking-widest mr-1.5">教练点评</span>{m.feedback}</p>
+                    <p className="text-[10px] text-amber-700 font-bold leading-tight tracking-tight"><span className="uppercase tracking-widest mr-1.5">{tr(uiLang, 'roleplayCoachLabel')}</span>{m.feedback}</p>
                   </div>
                 )}
               </div>
@@ -256,15 +361,60 @@ export const CFLTChat = ({ sourceLang, targetLang, packageSlug, packageId, conte
         {loading && <div className="flex justify-start items-center gap-2 text-slate-400 text-xs font-bold animate-pulse"><Loader2 className="w-4 h-4 animate-spin" /> Thinking...</div>}
       </div>
 
-      <div className="p-6 bg-white border-t border-slate-100 space-y-2">
-        {recorderError && <p className="text-xs text-red-500 font-medium">{recorderError}</p>}
-        <div className="flex gap-3">
-          {isRecording ? (<button onClick={stopRecording} className="bg-red-500 text-white p-4 rounded-2xl animate-pulse"><Square className="w-5 h-5" /></button>) : (
-            <button onClick={startRecording} disabled={transcribing || loading} className="bg-slate-100 text-slate-600 p-4 rounded-2xl hover:bg-slate-200 disabled:opacity-40 transition-all">{transcribing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mic className="w-5 h-5" />}</button>
-          )}
-          <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSend(); } }} placeholder={isRecording ? 'Recording...' : transcribing ? 'Transcribing...' : 'Type or speak your response... (⌘/Ctrl+Enter)'} className="flex-1 p-4 rounded-2xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
-          <button onClick={handleSend} disabled={loading || !input.trim()} className="bg-slate-900 text-white p-4 rounded-2xl hover:bg-black transition-all disabled:bg-slate-200"><Send className="w-6 h-6" /></button>
-        </div>
+      <div className="bg-white border-t border-slate-100">
+        {buildMode ? (
+          /* T1: CFLT Build Mode — 4 structured slots */
+          <div className="p-4 space-y-2">
+            <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
+              Structure your thought first · CFLT order
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { key: 'core',   label: 'C Core', bg: 'focus:ring-cflt-core',   ph: 'What happened / your action' },
+                { key: 'reason', label: 'R Reason', bg: 'focus:ring-cflt-reason', ph: 'Why / the condition' },
+                { key: 'space',  label: 'S Space', bg: 'focus:ring-cflt-space',  ph: 'Where / the context' },
+                { key: 'time',   label: 'T Time', bg: 'focus:ring-cflt-time',   ph: 'When' },
+              ] as const).map(({ key, label, bg, ph }) => (
+                <div key={key} className="relative">
+                  <label className="block text-[9px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</label>
+                  <input
+                    type="text"
+                    value={cfltSlots[key]}
+                    onChange={e => setCfltSlots(s => ({ ...s, [key]: e.target.value }))}
+                    onKeyDown={e => { if (e.key === 'Enter') handleBuildSend(); }}
+                    placeholder={ph}
+                    className={`w-full px-3 py-2 text-sm rounded-xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 ${bg} font-medium`}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleBuildSend}
+                disabled={loading || Object.values(cfltSlots).every(v => !v.trim())}
+                className="flex-1 bg-emerald-600 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-emerald-700 disabled:opacity-40 transition-colors flex items-center justify-center gap-2"
+              >
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                Send
+              </button>
+              <button onClick={() => setBuildMode(false)} className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 transition-colors">
+                Free text
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Normal free-text input */
+          <div className="p-6 space-y-2">
+            {recorderError && <p className="text-xs text-red-500 font-medium">{recorderError}</p>}
+            <div className="flex gap-3">
+              {isRecording ? (<button onClick={stopRecording} className="bg-red-500 text-white p-4 rounded-2xl animate-pulse"><Square className="w-5 h-5" /></button>) : (
+                <button onClick={startRecording} disabled={transcribing || loading} className="bg-slate-100 text-slate-600 p-4 rounded-2xl hover:bg-slate-200 disabled:opacity-40 transition-all">{transcribing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mic className="w-5 h-5" />}</button>
+              )}
+              <input type="text" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); handleSend(); } }} placeholder={isRecording ? 'Recording...' : transcribing ? 'Transcribing...' : 'Type or speak your response... (⌘/Ctrl+Enter)'} className="flex-1 p-4 rounded-2xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium" />
+              <button onClick={handleSend} disabled={loading || !input.trim()} className="bg-slate-900 text-white p-4 rounded-2xl hover:bg-black transition-all disabled:bg-slate-200"><Send className="w-6 h-6" /></button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

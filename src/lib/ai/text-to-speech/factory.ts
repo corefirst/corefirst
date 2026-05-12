@@ -23,3 +23,8 @@ export function buildSpeechModel(): SpeechModel {
       throw new Error(`[ai/text-to-speech] Unhandled provider "${r.provider}". This is a bug.`);
   }
 }
+
+export function buildSpeechModelWith(overrides: { baseUrl?: string; model?: string }): SpeechModel {
+  const r = resolveFeature('tts');
+  return openaiTtsModel(overrides.model || r.model, overrides.baseUrl || r.baseUrl, r.apiKey);
+}
