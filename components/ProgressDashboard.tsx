@@ -547,7 +547,7 @@ const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
             ) : (
               <div className="space-y-1.5">
                 {topUsed.map(item => (
-                  <div key={item.token} className="flex items-center gap-2 bg-teal-50 rounded-xl px-3 py-2">
+                  <div key={`${item.targetLang}-${item.token}`} className="flex items-center gap-2 bg-teal-50 rounded-xl px-3 py-2">
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-bold text-slate-800 truncate block">{item.token}</span>
                       <span className="text-[11px] text-slate-400 truncate block">{item.meaning}</span>
@@ -571,7 +571,7 @@ const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
             ) : (
               <div className="space-y-1.5">
                 {neverUsed.map(item => (
-                  <div key={item.token} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-dashed border-slate-200">
+                  <div key={`${item.targetLang}-${item.token}`} className="flex items-center gap-2 bg-slate-50 rounded-xl px-3 py-2 border border-dashed border-slate-200">
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-bold text-slate-600 truncate block">{item.token}</span>
                       <span className="text-[11px] text-slate-400 truncate block">{item.meaning}</span>
@@ -597,7 +597,7 @@ const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
         {expanded && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-slate-100">
             {data.items.map(item => (
-              <div key={item.token} className={`flex items-center gap-2 rounded-xl px-3 py-2 ${item.sessionsUsed > 0 ? 'bg-teal-50' : 'bg-slate-50'}`}>
+              <div key={`${item.targetLang}-${item.token}`} className={`flex items-center gap-2 rounded-xl px-3 py-2 ${item.sessionsUsed > 0 ? 'bg-teal-50' : 'bg-slate-50'}`}>
                 <div className="flex-1 min-w-0">
                   <span className="text-sm font-bold text-slate-800 truncate block">{item.token}</span>
                   <span className="text-[11px] text-slate-400 truncate block">{item.meaning}</span>

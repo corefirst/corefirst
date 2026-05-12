@@ -51,8 +51,18 @@ export async function GET(request: Request) {
         sessionId: (ev.sessionId ?? ev._id),
       }));
 
+    // Deduplicate by (targetLang, token) — the composite unique key per schema.
+    // Duplicate entries can accumulate from concurrent SRS mutations.
+    const seen = new Set<string>();
+    const uniqueVocab = srs.vocabulary.filter(v => {
+      const key = `${v.targetLang ?? ''}:${v.token}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+
     // 3. For each vocab token, count distinct roleplay sessions that used it
-    const items: VocabUsageItem[] = srs.vocabulary.map(v => {
+    const items: VocabUsageItem[] = uniqueVocab.map(v => {
       const needle = v.token.toLowerCase();
       // Use word-boundary-style check: require space or punctuation around token
       // to avoid "plan" matching "explanation". Simple approach: check word presence.
