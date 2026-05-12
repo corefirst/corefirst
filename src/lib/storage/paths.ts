@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs/promises';
+import { normalizeUsername } from '@/src/lib/user-id';
 
 // All data is partitioned by userId so that multiple learners sharing a
 // machine (or sharing a server) don't merge their records, SRS state, or
@@ -7,14 +8,11 @@ import * as fs from 'fs/promises';
 // when no auth context is wired up — local dev keeps just working.
 export const DEFAULT_USER_ID = 'local';
 
-// userId must be filesystem- and PouchDB-safe. Anything outside ascii letters,
-// digits, hyphen, underscore gets normalized; empty after normalization falls
-// back to DEFAULT_USER_ID. Enforced here so callers can't accidentally write
-// records under a path-traversal id like '../other-user'.
+// userId must be filesystem- and PouchDB-safe. Delegates to normalizeUsername
+// (shared with client side) so the rule is defined exactly once.
 export function normalizeUserId(userId: string | null | undefined): string {
   if (!userId) return DEFAULT_USER_ID;
-  const cleaned = userId.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-  return cleaned || DEFAULT_USER_ID;
+  return normalizeUsername(userId) || DEFAULT_USER_ID;
 }
 
 function getDataRoot(): string {

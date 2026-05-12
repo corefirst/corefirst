@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 import { USER_ID_COOKIE } from '@/src/lib/constants';
+import { normalizeUsername } from '@/src/lib/user-id';
 
 const PROFILES_KEY = 'cf_profiles';
 const COOKIE_NAME = USER_ID_COOKIE;
@@ -56,8 +57,7 @@ export function useProfile() {
   }, []);
 
   const addProfile = useCallback((name: string): string => {
-    const id = crypto.randomUUID();
-    // Functional updater avoids stale closure over profiles
+    const id = normalizeUsername(name || 'New User');
     saveProfiles(prev => [...prev, { id, name }]);
     return id;
   }, [saveProfiles]);

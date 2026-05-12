@@ -27,6 +27,7 @@ The system is decoupled into three specialized stores, each owned by a single `u
 4. **Content-addressable media.** Audio/image filenames are SHA-256 hashes (truncated to 16 chars) of the source content. Same SSML across two courses ⇒ one MP3 on disk. A `pruneOrphanMedia(userId)` sweep reclaims hashes that no manifest references — invoked after every package rewrite and on demand.
 5. **Hard delete via PouchDB tombstones.** `remove()` creates `_deleted: true` tombstone docs; the canonical sync-safe delete. Other replicas apply the removal during replication. No soft-delete `deletedAt` filter complexity.
 6. **Environment agnostic.** A `DataStore` interface abstracts the underlying engine (PouchDB via `pouchdb-node` on the server, plain `pouchdb` in the browser, future HTTP adapter for SaaS).
+7. **userId is a filesystem namespace only — never embedded in data files.** Document IDs, package slugs, media filenames, and all other stored values must not reference the owning `userId`. The directory path `data/users/<userId>/` is the sole binding. This guarantees that any user's entire dataset can be migrated by a plain directory copy (`fs.cp`) or rename — no content patching required. This applies equally to local profiles and future SaaS accounts: local-to-SaaS migration is `cp data/users/<localId>/ data/users/<saasId>/`.
 
 ---
 
