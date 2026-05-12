@@ -34,6 +34,8 @@ export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
     'anthropic',
     'ollama',
     'openrouter',
+    'qwen',
+    'deepseek',
     'cli/claude',
     'cli/gemini',
     'none',
@@ -63,6 +65,12 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
   },
   anthropic: {
     text: 'claude-sonnet-4-6',
+  },
+  qwen: {
+    text: 'qwen-plus',
+  },
+  deepseek: {
+    text: 'deepseek-chat',
   },
 };
 

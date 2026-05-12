@@ -6,6 +6,8 @@ import { openaiTextModel } from './sdk/openai';
 import { anthropicTextModel } from './sdk/anthropic';
 import { ollamaTextModel } from './sdk/ollama';
 import { openrouterTextModel } from './sdk/openrouter';
+import { qwenTextModel } from './sdk/qwen';
+import { deepseekTextModel } from './sdk/deepseek';
 import { cliTextModel } from './cli/provider';
 
 export interface TextModelSpec {
@@ -29,6 +31,10 @@ export function buildTextModelFromSpec(spec: TextModelSpec): LanguageModel {
       return openrouterTextModel(spec.model, spec.apiKey);
     case 'groq':
       return openaiTextModel(spec.model, 'https://api.groq.com/openai/v1', spec.apiKey);
+    case 'qwen':
+      return qwenTextModel(spec.model, spec.apiKey);
+    case 'deepseek':
+      return deepseekTextModel(spec.model, spec.apiKey);
     case 'cli/claude':
       return cliTextModel('claude', spec.model);
     case 'cli/gemini':

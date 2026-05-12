@@ -26,14 +26,16 @@ interface ProviderDef {
 }
 
 const PROVIDERS: ProviderDef[] = [
-  { id: 'openrouter', label: 'OpenRouter',  tagline: '200+ models, free credits',    authType: 'key',  keyPlaceholder: 'sk-or-…',  signupUrl: 'https://openrouter.ai/keys',              group: 'cloud' },
-  { id: 'groq',       label: 'Groq',        tagline: 'Ultra-fast, free tier',        authType: 'key',  keyPlaceholder: 'gsk_…',    signupUrl: 'https://console.groq.com/keys',           group: 'cloud' },
-  { id: 'google',     label: 'Google AI',   tagline: 'Gemini models',               authType: 'key',  keyPlaceholder: 'AIza…',    signupUrl: 'https://aistudio.google.com/apikey',      group: 'cloud' },
-  { id: 'openai',     label: 'OpenAI',      tagline: 'GPT-4o and family',           authType: 'key',  keyPlaceholder: 'sk-…',     signupUrl: 'https://platform.openai.com/api-keys',    group: 'cloud' },
-  { id: 'anthropic',  label: 'Anthropic',   tagline: 'Claude models',               authType: 'key',  keyPlaceholder: 'sk-ant-…', signupUrl: 'https://console.anthropic.com/keys',      group: 'cloud' },
-  { id: 'ollama',     label: 'Ollama',      tagline: 'Local models, no API key',    authType: 'url',  urlDefault: 'http://localhost:11434',                                            group: 'local' },
-  { id: 'cli/claude', label: 'Claude CLI',  tagline: 'Local claude command, no key',authType: 'none',                                                                                group: 'local' },
-  { id: 'cli/gemini', label: 'Gemini CLI',  tagline: 'Local gemini command, no key',authType: 'none',                                                                                group: 'local' },
+  { id: 'openrouter', label: 'OpenRouter', tagline: '200+ models, free credits', authType: 'key', keyPlaceholder: 'sk-or-…', signupUrl: 'https://openrouter.ai/keys', group: 'cloud' },
+  { id: 'groq', label: 'Groq', tagline: 'Ultra-fast, free tier', authType: 'key', keyPlaceholder: 'gsk_…', signupUrl: 'https://console.groq.com/keys', group: 'cloud' },
+  { id: 'google', label: 'Google AI', tagline: 'Gemini models', authType: 'key', keyPlaceholder: 'AIza…', signupUrl: 'https://aistudio.google.com/apikey', group: 'cloud' },
+  { id: 'openai', label: 'OpenAI', tagline: 'GPT-4o and family', authType: 'key', keyPlaceholder: 'sk-…', signupUrl: 'https://platform.openai.com/api-keys', group: 'cloud' },
+  { id: 'anthropic', label: 'Anthropic', tagline: 'Claude models', authType: 'key', keyPlaceholder: 'sk-ant-…', signupUrl: 'https://console.anthropic.com/keys', group: 'cloud' },
+  { id: 'qwen', label: 'Qwen', tagline: 'Qwen and family', authType: 'key', keyPlaceholder: 'sk-…', signupUrl: 'https://dashscope.console.aliyun.com/', group: 'cloud' },
+  { id: 'deepseek', label: 'DeepSeek', tagline: 'DeepSeek-V4', authType: 'key', keyPlaceholder: 'sk-…', signupUrl: 'https://platform.deepseek.com/', group: 'cloud' },
+  { id: 'ollama', label: 'Ollama', tagline: 'Local models, no API key', authType: 'url', urlDefault: 'http://localhost:11434', group: 'local' },
+  { id: 'cli/claude', label: 'Claude CLI', tagline: 'Local claude command, no key', authType: 'none', group: 'local' },
+  { id: 'cli/gemini', label: 'Gemini CLI', tagline: 'Local gemini command, no key', authType: 'none', group: 'local' },
 ];
 
 const OLLAMA_QUICK_MODELS = ['llama3.2', 'qwen2.5', 'mistral', 'deepseek-r1', 'gemma3'];
@@ -104,7 +106,7 @@ export function Settings({ onClose }: Props) {
     setVerifyError('');
 
     const provider = draft.global.provider;
-    const apiKey   = draft.global.apiKey;
+    const apiKey = draft.global.apiKey;
 
     if (selectedProvider.authType === 'none') {
       // CLI: send a verify request — server will try to spawn the CLI
@@ -117,7 +119,7 @@ export function Settings({ onClose }: Props) {
     if (selectedProvider.authType === 'url') {
       // Ollama: verify with baseUrl + selected model
       const baseUrl = draft.advanced.ollama?.baseUrl || selectedProvider.urlDefault || '';
-      const model   = draft.global.model || 'llama3.2';
+      const model = draft.global.model || 'llama3.2';
       try {
         const res = await fetch('/api/verify-key', {
           method: 'POST',
@@ -179,9 +181,8 @@ export function Settings({ onClose }: Props) {
               role="tab"
               aria-selected={tab === id}
               onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 px-1 py-3 mr-6 text-sm font-medium border-b-2 transition-colors ${
-                tab === id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`flex items-center gap-1.5 px-1 py-3 mr-6 text-sm font-medium border-b-2 transition-colors ${tab === id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
               <Icon size={14} /> {label}
             </button>
@@ -274,11 +275,10 @@ export function Settings({ onClose }: Props) {
                               <button
                                 key={m}
                                 onClick={() => { patchGlobal({ model: m }); setVerifyState('idle'); }}
-                                className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${
-                                  draft.global.model === m
-                                    ? 'bg-blue-100 border-blue-400 text-blue-700'
-                                    : 'border-gray-300 text-gray-500 hover:border-gray-400'
-                                }`}
+                                className={`text-xs px-2 py-0.5 rounded-full border transition-colors ${draft.global.model === m
+                                  ? 'bg-blue-100 border-blue-400 text-blue-700'
+                                  : 'border-gray-300 text-gray-500 hover:border-gray-400'
+                                  }`}
                               >
                                 {m}
                               </button>
@@ -438,11 +438,10 @@ export function Settings({ onClose }: Props) {
                         <button
                           key={p.id}
                           onClick={() => patchAdv('imageGen', { provider: p.id })}
-                          className={`py-2 text-sm rounded-lg border transition-all ${
-                            (draft.advanced.imageGen?.provider ?? '') === p.id
-                              ? 'border-blue-400 bg-blue-50 text-blue-700 font-medium'
-                              : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                          }`}
+                          className={`py-2 text-sm rounded-lg border transition-all ${(draft.advanced.imageGen?.provider ?? '') === p.id
+                            ? 'border-blue-400 bg-blue-50 text-blue-700 font-medium'
+                            : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                            }`}
                         >
                           {p.label}
                         </button>
@@ -517,11 +516,10 @@ function ProviderCard({ p, selected, onSelect }: { p: ProviderDef; selected: boo
   return (
     <button
       onClick={() => onSelect(p.id)}
-      className={`text-left px-3 py-2 rounded-xl border transition-all ${
-        selected
-          ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-300'
-          : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
-      }`}
+      className={`text-left px-3 py-2 rounded-xl border transition-all ${selected
+        ? 'border-blue-400 bg-blue-50 ring-1 ring-blue-300'
+        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+        }`}
     >
       <div className="font-medium text-sm text-gray-900 leading-tight">{p.label}</div>
       <div className="text-[11px] text-gray-400 mt-0.5 leading-tight">{p.tagline}</div>
@@ -545,7 +543,7 @@ function VerifyButton({ state, disabled, onClick, label = 'Verify' }: {
 }
 
 function VerifyFeedback({ state, error }: { state: VerifyState; error: string }) {
-  if (state === 'ok')    return <p className="flex items-center gap-1.5 text-sm text-green-700"><CheckCircle size={14} /> Connected successfully</p>;
+  if (state === 'ok') return <p className="flex items-center gap-1.5 text-sm text-green-700"><CheckCircle size={14} /> Connected successfully</p>;
   if (state === 'error') return <p className="flex items-center gap-1.5 text-sm text-red-600"><AlertCircle size={14} /> {error}</p>;
   return null;
 }

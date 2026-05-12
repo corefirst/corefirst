@@ -7,6 +7,8 @@ export const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
   openai:       'gpt-4o',
   anthropic:    'claude-sonnet-4-6',
   ollama:       'llama3.2',
+  qwen:         'qwen-plus',
+  deepseek:     'deepseek-chat',
   'cli/claude': 'claude',
   'cli/gemini': 'gemini',
 };
