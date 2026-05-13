@@ -33,6 +33,7 @@ export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
     'openai',
     'anthropic',
     'ollama',
+    'groq',
     'openrouter',
     'qwen',
     'deepseek',
@@ -40,9 +41,9 @@ export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
     'cli/gemini',
     'none',
   ],
-  'text-to-image': ['google', 'openai', 'none'],
-  'text-to-speech': ['openai', 'none'],
-  'speech-to-text': ['openai', 'none'],
+  'text-to-image': ['google', 'openai', 'qwen', 'openrouter', 'none'],
+  'text-to-speech': ['openai', 'google', 'qwen', 'openrouter', 'none'],
+  'speech-to-text': ['openai', 'google', 'qwen', 'openrouter', 'none'],
   'text-to-video': [],
   'image-to-video': [],
   'multimodal-to-video': [],
@@ -56,6 +57,8 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
   google: {
     text: 'gemini-2.5-pro-preview',
     'text-to-image': 'imagen-3.0-generate-001',
+    'text-to-speech': 'gemini-2.5-flash-preview-tts',
+    'speech-to-text': 'gemini-2.5-flash',
   },
   openai: {
     text: 'gpt-4o',
@@ -63,16 +66,45 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
     'text-to-speech': 'tts-1',
     'speech-to-text': 'whisper-1',
   },
-  anthropic: {
-    text: 'claude-sonnet-4-6',
-  },
+  anthropic: { text: 'claude-sonnet-4-6' },
+  ollama:    { text: 'llama3.2' },
+  groq:      { text: 'llama-3.3-70b-versatile' },
+  deepseek:  { text: 'deepseek-chat' },
   qwen: {
     text: 'qwen-plus',
+    'text-to-image': 'wanx2.1-t2i-turbo',
+    'text-to-speech': 'cosyvoice-v1',
+    'speech-to-text': 'paraformer-realtime-v2',
   },
-  deepseek: {
-    text: 'deepseek-chat',
+  openrouter: {
+    text: 'google/gemini-flash-1.5',
+    'text-to-image': 'black-forest-labs/flux-schnell',
+    'text-to-speech': 'openai/tts-1',
+    'speech-to-text': 'openai/whisper-1',
   },
+  // CLI providers — model is a command name / path, not a model identifier.
+  'cli/claude': { text: 'claude' },
+  'cli/gemini': { text: 'gemini' },
 };
+
+/**
+ * Capabilities required for a provider to qualify for "Standard mode" — i.e.
+ * the user can paste a single key and get text, image, TTS, and STT working.
+ * If a provider has a default model registered in PROVIDER_DEFAULTS for every
+ * capability in this list, it shows up in the Standard provider picker.
+ */
+export const STANDARD_MODE_CAPABILITIES: readonly Capability[] = [
+  'text',
+  'text-to-image',
+  'text-to-speech',
+  'speech-to-text',
+];
+
+export function isFullStackProvider(provider: string): boolean {
+  const defaults = PROVIDER_DEFAULTS[provider];
+  if (!defaults) return false;
+  return STANDARD_MODE_CAPABILITIES.every((cap) => Boolean(defaults[cap]));
+}
 
 /**
  * Features that consume an AI capability. Each is a separate use site whose
@@ -175,6 +207,15 @@ export function capabilityDefaultModelEnv(cap: Capability): string {
 
 function capabilityEnvPrefix(cap: Capability): string {
   return cap.replace(/-/g, '_').toUpperCase();
+}
+
+/**
+ * Return the default text model for a provider.
+ * Single source of truth — replaces the deprecated PROVIDER_DEFAULT_MODELS
+ * constant that previously lived in src/lib/constants.ts.
+ */
+export function getDefaultTextModel(provider: string): string {
+  return PROVIDER_DEFAULTS[provider]?.text ?? '';
 }
 
 export class InvalidProviderError extends Error {

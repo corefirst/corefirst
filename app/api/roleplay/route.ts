@@ -8,9 +8,9 @@ import { mediaPath, sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/pa
 import { contentHash } from '@/src/lib/storage/hash';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { getUserId } from '@/src/lib/auth/user';
-import { extractSettings, resolveFeatureFromSettings } from '@/src/lib/ai/settings-config';
+import { resolveTextContext } from '@/src/lib/ai/request-context';
 import { classifyAIError } from '@/src/lib/ai/errors';
-import { loadPrompt } from '@/src/lib/prompts/loader';
+import { loadSkill } from '@/src/lib/skills';
 
 const ALLOWED_LANGUAGES = new Set([
   'Chinese', 'English', 'Japanese', 'Korean', 'Vietnamese', 'Spanish', 'French', 'German',
@@ -42,11 +42,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unsupported language' }, { status: 400 });
     }
 
-    const userId = await getUserId(request);
+    const { model: modelOverride, userId } = await resolveTextContext('roleplay', request);
     await ensureDataDirs(userId);
 
-    const settings = extractSettings(request);
-    const activeModel: LanguageModel = resolveFeatureFromSettings('roleplay', settings) ?? roleplayModel;
+    const activeModel: LanguageModel = modelOverride ?? roleplayModel;
 
     // 1. Process and Save user audio if present (Commit-on-Submit)
     let savedAudioFile: string | undefined;
@@ -61,12 +60,14 @@ export async function POST(request: Request) {
 
     const safeContext = (context ?? 'General daily life').replace(/[\x00-\x1F\x7F]/g, '').slice(0, MAX_CONTEXT_LEN);
 
-    const baseSystemInstructions = loadPrompt('src/prompts/roleplay_base.md', {
+    const baseSystemInstructions = await loadSkill('roleplay-coach', {
       SOURCE_LANG: sourceLang,
       TARGET_LANG: targetLang,
       CONTEXT: safeContext,
-    });
-    const fullSystemPrompt = baseSystemInstructions + loadPrompt('src/prompts/roleplay_analysis.md');
+    }, userId);
+    const fullSystemPrompt = baseSystemInstructions + await loadSkill('roleplay-analysis', {
+      SOURCE_LANG: sourceLang,
+    }, userId);
 
     const promptText = JSON.stringify(messages.slice(-10));
 

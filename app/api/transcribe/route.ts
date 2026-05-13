@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import { experimental_transcribe as transcribe } from 'ai';
-import { sttModel } from '@/src/lib/ai';
-import { buildTranscriptionModelWith } from '@/src/lib/ai/speech-to-text/factory';
+import { STTFactory } from '@/src/core/stt/factory';
 import { extractSettings, resolveSTTOverride } from '@/src/lib/ai/settings-config';
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
@@ -34,16 +32,11 @@ export async function POST(request: Request) {
     const languageCode = targetLang ? LANG_MAP[targetLang] : undefined;
 
     const sttOverride = resolveSTTOverride(extractSettings(request));
-    const activeModel = sttOverride ? buildTranscriptionModelWith({ baseUrl: sttOverride.baseUrl }) : sttModel;
+    const provider = STTFactory.getProvider(sttOverride ?? undefined);
 
     // Just transcribe, don't save.
     // Saving happens in the roleplay API upon final submission.
-    const { text } = await transcribe({
-      model: activeModel,
-      audio: audioBytes,
-      providerOptions: languageCode ? { openai: { language: languageCode } } : undefined,
-      maxRetries: 1
-    });
+    const { text } = await provider.transcribe(audioBytes, { language: languageCode });
 
     return NextResponse.json({ text });
   } catch (error) {

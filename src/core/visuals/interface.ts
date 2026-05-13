@@ -6,4 +6,4 @@ export interface VisualProvider {
   generateImage(prompt: string): Promise<string>;
 }
 
-export type VisualProviderType = 'imagen';
+export type VisualProviderType = 'google' | 'openai' | 'qwen' | 'openrouter';

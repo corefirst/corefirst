@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
-import { Loader2, AlertCircle, BookOpen, Clock, FolderOpen, Trash2, Pencil, Check, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Loader2, AlertCircle, BookOpen, Clock, FolderOpen, Trash2, Pencil, Check, X, Download, Upload } from 'lucide-react';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 import type { CoursewareManifest } from '../src/types/courseware';
 
@@ -41,16 +41,21 @@ interface Props {
   /** Called when the user picks a past course to render. The parent should
    *  set this as the live courseResult so the existing course UI takes over. */
   onLoad: (course: CoursewareManifest & { packageId?: string; packageSlug?: string }) => void;
+  /** Called after a successful import so the parent can refresh the list. */
+  onImport?: () => void;
 }
 
-export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
+export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad, onImport }: Props) => {
   const [items, setItems] = useState<CourseSummary[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [loadingSlug, setLoadingSlug] = useState<string | null>(null);
   const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
+  const [exportingSlug, setExportingSlug] = useState<string | null>(null);
   const [renamingSlug, setRenamingSlug] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleDelete = async (slug: string) => {
     if (!window.confirm(tr(uiLang, 'confirmDeleteCourse'))) return;
@@ -91,6 +96,46 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
       console.error('[CourseHistory] rename error:', err);
     } finally {
       cancelRename();
+    }
+  };
+
+  const handleExport = async (slug: string) => {
+    setExportingSlug(slug);
+    try {
+      const res = await fetch(`/api/courses/${encodeURIComponent(slug)}/export`);
+      if (!res.ok) throw new Error('export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${slug}.corefirst`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[CourseHistory] export error:', err);
+    } finally {
+      setExportingSlug(null);
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch('/api/courses/import', { method: 'POST', body: fd });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error ?? 'import failed');
+      }
+      onImport?.();
+    } catch (err) {
+      console.error('[CourseHistory] import error:', err);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -157,6 +202,24 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
         </div>
         <h2 className="text-xl font-black text-slate-800">{tr(uiLang, 'historyCoursesHeader')}</h2>
         <span className="text-xs font-bold text-slate-400">({list.length})</span>
+        <div className="ml-auto">
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".corefirst"
+            className="hidden"
+            onChange={handleImport}
+          />
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            disabled={importing}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider text-slate-500 hover:text-amber-600 hover:bg-amber-50 disabled:opacity-50 transition-colors"
+          >
+            {importing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+            Import
+          </button>
+        </div>
       </div>
 
       <ul className="space-y-3">
@@ -217,6 +280,18 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
                     className="p-2 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
                   >
                     <Pencil className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleExport(course.slug)}
+                    disabled={exportingSlug === course.slug}
+                    aria-label="Export course"
+                    title="Export .corefirst"
+                    className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                  >
+                    {exportingSlug === course.slug
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Download className="w-4 h-4" />}
                   </button>
                   <button
                     type="button"

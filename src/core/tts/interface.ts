@@ -6,4 +6,4 @@ export interface TTSProvider {
   generateAudio(text: string): Promise<Uint8Array>;
 }
 
-export type TTSProviderType = 'openai';
+export type TTSProviderType = 'openai' | 'google' | 'qwen' | 'openrouter';

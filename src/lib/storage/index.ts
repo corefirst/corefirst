@@ -51,6 +51,8 @@ export {
   pruneSharedOrphanMedia,
   deletePackage,
   renamePackageTopic,
+  exportPackage,
+  importPackage,
   PackageNotFoundError,
   PackageCorruptError,
   type WritePackageInput,

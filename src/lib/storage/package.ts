@@ -480,6 +480,122 @@ async function collectReferencedMedia(userId: string): Promise<Set<string>> {
   return refs;
 }
 
+/**
+ * Bundle a course package (manifest + all referenced media) into a portable
+ * .corefirst ZIP buffer suitable for download or sharing.
+ *
+ * Media resolution order for each referenced file:
+ *   1. Shared pool (TTS audio, generated images)
+ *   2. Per-user pool (personal recordings)
+ *   3. Embedded inside an existing .corefirst ZIP (legacy / re-export)
+ *
+ * Files that cannot be found are silently skipped — the manifest still ships,
+ * and the recipient's device re-generates missing media on first play.
+ */
+export async function exportPackage(
+  userId: string,
+  slug: string,
+): Promise<Uint8Array> {
+  const manifest = await readPackageManifest(userId, slug);
+
+  const mediaFiles = new Set<string>();
+  for (const lesson of manifest.lessons) {
+    if (lesson.imageFile) mediaFiles.add(lesson.imageFile);
+    if (lesson.videoFile) mediaFiles.add(lesson.videoFile);
+    for (const script of lesson.scripts) {
+      if (script.audioFile) mediaFiles.add(script.audioFile);
+      if (script.videoFile) mediaFiles.add(script.videoFile);
+    }
+  }
+
+  const entries: Record<string, Uint8Array> = {
+    'manifest.json': strToU8(JSON.stringify(manifest, null, 2)),
+  };
+
+  // Cache the existing ZIP so we only open it once if multiple files miss the pools.
+  let existingZipEntries: Record<string, Uint8Array> | null = null;
+  const getZipEntries = async (): Promise<Record<string, Uint8Array>> => {
+    if (existingZipEntries) return existingZipEntries;
+    try {
+      const buf = new Uint8Array(await fs.readFile(packagePath(userId, slug)));
+      existingZipEntries = await unzipBuffer(buf);
+    } catch {
+      existingZipEntries = {};
+    }
+    return existingZipEntries;
+  };
+
+  for (const filename of mediaFiles) {
+    let data: Uint8Array | null = null;
+    try { data = new Uint8Array(await fs.readFile(sharedMediaPath(filename))); } catch { /* shared pool miss */ }
+    if (!data) {
+      try { data = new Uint8Array(await fs.readFile(mediaPath(userId, filename))); } catch { /* per-user miss */ }
+    }
+    if (!data) {
+      const zip = await getZipEntries();
+      data = zip[`media/${filename}`] ?? null;
+    }
+    if (data) entries[`media/${filename}`] = data;
+  }
+
+  return zipBuffer(entries);
+}
+
+/**
+ * Import a .corefirst ZIP into the user's library.
+ *
+ * - Validates the embedded manifest against the current schema.
+ * - Keeps the original `packageId` so that re-importing the same course
+ *   (same packageId, same slug) is an idempotent overwrite rather than a
+ *   duplicate. A different packageId with a colliding slug gets a `-2` suffix.
+ * - Writes media to the shared pool (TTS / images) or the per-user pool
+ *   (personal `.webm` recordings).
+ *
+ * Throws `PackageCorruptError` if the ZIP is missing a valid manifest.
+ */
+export async function importPackage(
+  userId: string,
+  fileBuffer: Uint8Array,
+): Promise<{ slug: string; packageId: string }> {
+  const entries = await unzipBuffer(fileBuffer);
+
+  const rawManifest = entries['manifest.json'];
+  if (!rawManifest) throw new PackageCorruptError('manifest.json missing from import file');
+
+  let manifest: PackageManifest;
+  try {
+    manifest = PackageManifestSchema.parse(JSON.parse(strFromU8(rawManifest)));
+  } catch (e) {
+    throw new PackageCorruptError(`manifest.json invalid: ${(e as Error).message}`);
+  }
+
+  // Resolve slug collision: same packageId → overwrite, different → suffix.
+  const resolvedSlug = await resolveUniqueSlug(userId, manifest.slug, manifest.packageId);
+  const finalManifest: PackageManifest = { ...manifest, slug: resolvedSlug };
+
+  await ensureDataDirs(userId);
+
+  // Write media files to the appropriate pool.
+  for (const [key, data] of Object.entries(entries)) {
+    if (!key.startsWith('media/')) continue;
+    const filename = key.slice('media/'.length);
+    if (!filename) continue;
+    const targetPath = isPersonalRecording(filename)
+      ? mediaPath(userId, filename)
+      : sharedMediaPath(filename);
+    try {
+      await fs.writeFile(targetPath, data);
+    } catch (err) {
+      console.error(`[importPackage] Failed to write media ${filename}:`, (err as Error).message);
+    }
+  }
+
+  // Write the Lite manifest (media is now in the pools).
+  await fs.writeFile(manifestPath(userId, resolvedSlug), JSON.stringify(finalManifest, null, 2));
+
+  return { slug: resolvedSlug, packageId: finalManifest.packageId };
+}
+
 async function readFileOrThrow(file: string, slug: string): Promise<Uint8Array> {
   try {
     return new Uint8Array(await fs.readFile(file));

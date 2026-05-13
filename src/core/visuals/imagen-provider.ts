@@ -3,18 +3,19 @@ import { imageGenModel } from '@/src/lib/ai';
 import { VisualProvider } from './interface';
 
 /**
- * Generates educational illustrations via Google Imagen (default: imagen-4.0).
+ * AI-SDK ImageModel wrapper — works with any provider that the AI-SDK
+ * ImageModel interface supports: Google Imagen, OpenAI DALL-E, Qwen Wanx,
+ * OpenRouter image proxies, etc.
  *
- * Returns the image as a data: URL so the frontend can render it directly,
- * without needing to host the bytes elsewhere first. (Imagen does not return
- * persistent URLs the way DALL-E does — it returns binary data.)
+ * Returns the image as a data: URL. Note that DALL-E returns a remote URL
+ * which the AI-SDK normalises to base64 for us via `image.base64`.
  */
-export class ImagenProvider implements VisualProvider {
+export class AISDKImageProvider implements VisualProvider {
   private model: ImageModel;
   constructor(model?: ImageModel) { this.model = model ?? imageGenModel; }
 
   async generateImage(prompt: string): Promise<string> {
-    const styledPrompt = `A clean, educational illustration for a bilingual learning app. Style: Modern, flat vector, soft colors. Concept: ${prompt}`;
+    const styledPrompt = `A clean, educational illustration for a language learning app. Style: modern, flat vector, soft colors. Subject: ${prompt}`;
 
     const { image } = await generateImage({
       model: this.model,

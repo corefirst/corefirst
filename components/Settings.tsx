@@ -4,8 +4,9 @@ import {
   X, CheckCircle, AlertCircle, Loader2, ChevronDown, ChevronRight,
   Settings as SettingsIcon, User, Cpu,
 } from 'lucide-react';
-import { useSettings, type UserSettings } from '@/hooks/useSettings';
+import { useSettings, type UserSettings, type SettingsMode } from '@/hooks/useSettings';
 import { useProfile } from '@/hooks/useProfile';
+import { isFullStackProvider } from '@/src/lib/ai/capabilities';
 
 interface Props { onClose: () => void }
 
@@ -18,6 +19,8 @@ interface ProviderDef {
   id: string;
   label: string;
   tagline: string;
+  /** Tagline shown in Standard mode (emphasizes full-stack coverage). */
+  fullStackTagline?: string;
   authType: 'key' | 'url' | 'none';
   keyPlaceholder?: string;
   urlDefault?: string;
@@ -26,17 +29,19 @@ interface ProviderDef {
 }
 
 const PROVIDERS: ProviderDef[] = [
-  { id: 'openrouter', label: 'OpenRouter', tagline: '200+ models, free credits', authType: 'key', keyPlaceholder: 'sk-or-…', signupUrl: 'https://openrouter.ai/keys', group: 'cloud' },
+  { id: 'openrouter', label: 'OpenRouter', tagline: '200+ models, free credits', fullStackTagline: 'OpenRouter · text, image, voice', authType: 'key', keyPlaceholder: 'sk-or-…', signupUrl: 'https://openrouter.ai/keys', group: 'cloud' },
   { id: 'groq', label: 'Groq', tagline: 'Ultra-fast, free tier', authType: 'key', keyPlaceholder: 'gsk_…', signupUrl: 'https://console.groq.com/keys', group: 'cloud' },
-  { id: 'google', label: 'Google AI', tagline: 'Gemini models', authType: 'key', keyPlaceholder: 'AIza…', signupUrl: 'https://aistudio.google.com/apikey', group: 'cloud' },
-  { id: 'openai', label: 'OpenAI', tagline: 'GPT-4o and family', authType: 'key', keyPlaceholder: 'sk-…', signupUrl: 'https://platform.openai.com/api-keys', group: 'cloud' },
+  { id: 'google', label: 'Google AI', tagline: 'Gemini models', fullStackTagline: 'Gemini · text, image, voice', authType: 'key', keyPlaceholder: 'AIza…', signupUrl: 'https://aistudio.google.com/apikey', group: 'cloud' },
+  { id: 'openai', label: 'OpenAI', tagline: 'GPT-4o and family', fullStackTagline: 'GPT-4o · text, image, voice', authType: 'key', keyPlaceholder: 'sk-…', signupUrl: 'https://platform.openai.com/api-keys', group: 'cloud' },
   { id: 'anthropic', label: 'Anthropic', tagline: 'Claude models', authType: 'key', keyPlaceholder: 'sk-ant-…', signupUrl: 'https://console.anthropic.com/keys', group: 'cloud' },
-  { id: 'qwen', label: 'Qwen', tagline: 'Qwen and family', authType: 'key', keyPlaceholder: 'sk-…', signupUrl: 'https://dashscope.console.aliyun.com/', group: 'cloud' },
+  { id: 'qwen', label: 'Qwen', tagline: 'Qwen and family', fullStackTagline: 'Qwen · text, image, voice', authType: 'key', keyPlaceholder: 'sk-…', signupUrl: 'https://dashscope.console.aliyun.com/', group: 'cloud' },
   { id: 'deepseek', label: 'DeepSeek', tagline: 'DeepSeek-V4', authType: 'key', keyPlaceholder: 'sk-…', signupUrl: 'https://platform.deepseek.com/', group: 'cloud' },
   { id: 'ollama', label: 'Ollama', tagline: 'Local models, no API key', authType: 'url', urlDefault: 'http://localhost:11434', group: 'local' },
   { id: 'cli/claude', label: 'Claude CLI', tagline: 'Local claude command, no key', authType: 'none', group: 'local' },
   { id: 'cli/gemini', label: 'Gemini CLI', tagline: 'Local gemini command, no key', authType: 'none', group: 'local' },
 ];
+
+const STANDARD_PROVIDERS = PROVIDERS.filter((p) => isFullStackProvider(p.id));
 
 const OLLAMA_QUICK_MODELS = ['llama3.2', 'qwen2.5', 'mistral', 'deepseek-r1', 'gemma3'];
 const IMAGE_PROVIDERS = [
@@ -152,6 +157,8 @@ export function Settings({ onClose }: Props) {
 
   const cloudProviders = PROVIDERS.filter(p => p.group === 'cloud');
   const localProviders = PROVIDERS.filter(p => p.group === 'local');
+  const mode: SettingsMode = draft.mode ?? 'standard';
+  const setMode = (next: SettingsMode) => setDraft(d => ({ ...d, mode: next }));
 
   return (
     <div
@@ -195,27 +202,53 @@ export function Settings({ onClose }: Props) {
           {/* ── Providers Tab ── */}
           {tab === 'providers' && (
             <>
+              {/* ── Mode Toggle ── */}
+              <ModeToggle mode={mode} onChange={setMode} />
+
               {/* ── Section: Text AI ── */}
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                  Text AI <span className="font-normal normal-case text-gray-400">— Transform · Roleplay · Course</span>
-                </p>
+                {mode === 'standard' ? (
+                  <>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                      Pick a provider
+                    </p>
+                    <p className="text-xs text-gray-400 mb-3">
+                      One key powers text, image, speech, and transcription.
+                    </p>
+                    <div className="grid grid-cols-2 gap-1.5 mb-4">
+                      {STANDARD_PROVIDERS.map(p => (
+                        <ProviderCard
+                          key={p.id}
+                          p={{ ...p, tagline: p.fullStackTagline ?? p.tagline }}
+                          selected={draft.global.provider === p.id}
+                          onSelect={handleProviderSelect}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                      Text AI <span className="font-normal normal-case text-gray-400">— Transform · Roleplay · Course</span>
+                    </p>
 
-                {/* Cloud providers */}
-                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">Cloud</p>
-                <div className="grid grid-cols-3 gap-1.5 mb-3">
-                  {cloudProviders.map(p => (
-                    <ProviderCard key={p.id} p={p} selected={draft.global.provider === p.id} onSelect={handleProviderSelect} />
-                  ))}
-                </div>
+                    {/* Cloud providers */}
+                    <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">Cloud</p>
+                    <div className="grid grid-cols-3 gap-1.5 mb-3">
+                      {cloudProviders.map(p => (
+                        <ProviderCard key={p.id} p={p} selected={draft.global.provider === p.id} onSelect={handleProviderSelect} />
+                      ))}
+                    </div>
 
-                {/* Local providers */}
-                <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">Local</p>
-                <div className="grid grid-cols-3 gap-1.5 mb-4">
-                  {localProviders.map(p => (
-                    <ProviderCard key={p.id} p={p} selected={draft.global.provider === p.id} onSelect={handleProviderSelect} />
-                  ))}
-                </div>
+                    {/* Local providers */}
+                    <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">Local</p>
+                    <div className="grid grid-cols-3 gap-1.5 mb-4">
+                      {localProviders.map(p => (
+                        <ProviderCard key={p.id} p={p} selected={draft.global.provider === p.id} onSelect={handleProviderSelect} />
+                      ))}
+                    </div>
+                  </>
+                )}
 
                 {/* Auth area */}
                 {selectedProvider && (
@@ -332,11 +365,12 @@ export function Settings({ onClose }: Props) {
                 )}
               </div>
 
+              {mode === 'advanced' && (<>
               {/* ── Section: TTS ── */}
               <CollapsibleSection
                 id="tts"
                 title="Text-to-Speech"
-                subtitle="Kokoro · Piper · Orpheus · openai.com"
+                subtitle="OpenAI · Qwen CosyVoice · OpenRouter · local servers"
                 open={!!openSections.tts}
                 onToggle={() => toggleSection('tts')}
               >
@@ -350,6 +384,8 @@ export function Settings({ onClose }: Props) {
                     >
                       <option value="">— disabled / use server default —</option>
                       <option value="openai">OpenAI-compatible (local or openai.com)</option>
+                      <option value="qwen">Qwen / DashScope CosyVoice</option>
+                      <option value="openrouter">OpenRouter (routes to openai/tts-1)</option>
                     </select>
                   </div>
                   {draft.advanced.tts?.provider === 'openai' && (
@@ -388,7 +424,7 @@ export function Settings({ onClose }: Props) {
               <CollapsibleSection
                 id="stt"
                 title="Speech-to-Text"
-                subtitle="faster-whisper · whisper.cpp · openai.com"
+                subtitle="OpenAI · Qwen Paraformer · OpenRouter · local servers"
                 open={!!openSections.stt}
                 onToggle={() => toggleSection('stt')}
               >
@@ -402,6 +438,8 @@ export function Settings({ onClose }: Props) {
                     >
                       <option value="">— disabled / use server default —</option>
                       <option value="openai">OpenAI-compatible (local or openai.com)</option>
+                      <option value="qwen">Qwen / DashScope Paraformer SenseVoice</option>
+                      <option value="openrouter">OpenRouter (routes to openai/whisper-1)</option>
                     </select>
                   </div>
                   {draft.advanced.stt?.provider === 'openai' && (
@@ -462,6 +500,7 @@ export function Settings({ onClose }: Props) {
                   )}
                 </div>
               </CollapsibleSection>
+              </>)}
             </>
           )}
 
@@ -511,6 +550,29 @@ export function Settings({ onClose }: Props) {
 }
 
 // ─── Sub-components ────────────────────────────────────────────────────────
+
+function ModeToggle({ mode, onChange }: { mode: SettingsMode; onChange: (m: SettingsMode) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl p-1">
+      {(['standard', 'advanced'] as const).map((m) => (
+        <button
+          key={m}
+          onClick={() => onChange(m)}
+          className={`flex-1 px-3 py-1.5 text-sm rounded-lg transition-all ${
+            mode === m
+              ? 'bg-white text-gray-900 shadow-sm font-medium'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          {m === 'standard' ? 'Standard' : 'Advanced'}
+          <span className="ml-2 text-[11px] text-gray-400 font-normal">
+            {m === 'standard' ? 'one key, all features' : 'mix providers per feature'}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 function ProviderCard({ p, selected, onSelect }: { p: ProviderDef; selected: boolean; onSelect: (id: string) => void }) {
   return (

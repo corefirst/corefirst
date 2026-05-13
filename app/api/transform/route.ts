@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { CFLTTransformer } from '@/src/core/transformer';
 import { appendTransform } from '@/src/lib/storage';
-import { getUserId } from '@/src/lib/auth/user';
-import { extractSettings, resolveFeatureFromSettings } from '@/src/lib/ai/settings-config';
+import { resolveTextContext } from '@/src/lib/ai/request-context';
 import { classifyAIError } from '@/src/lib/ai/errors';
 
 const MAX_INPUT_LEN = 8192;
@@ -33,10 +32,9 @@ export async function POST(request: Request) {
     }
     const { text, sourceLang, targetLang, uiLang, packageSlug } = parsed.data;
 
-    const settings = extractSettings(request);
-    const model = resolveFeatureFromSettings('transform', settings);
+    const { model, userId } = await resolveTextContext('transform', request);
     const transformer = new CFLTTransformer(model);
-    const result = await transformer.transform(text, sourceLang, targetLang, uiLang);
+    const result = await transformer.transform(text, sourceLang, targetLang, uiLang, userId);
 
     if ('error' in result) {
       console.error('[transform] LLM error:', result.error);
@@ -46,7 +44,6 @@ export async function POST(request: Request) {
     // Phase 1 persistence — non-blocking failure: a write failure must not
     // hide the successful transformation result from the learner.
     try {
-      const userId = await getUserId(request);
       await appendTransform(userId, packageSlug ?? null, {
         inputText: text,
         sourceLang: sourceLang ?? 'Chinese',

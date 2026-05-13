@@ -42,6 +42,7 @@ export async function POST(request: Request) {
   (async () => {
     try {
       const modelOverride = resolveFeatureFromSettings('courseGen', extractSettings(request));
+      const userId = await getUserId(request);
       const orchestrator = new CoursewareOrchestrator(modelOverride, emit);
 
       const result = await orchestrator.generate({
@@ -50,14 +51,12 @@ export async function POST(request: Request) {
         topic: parsed.data.topic,
         sourceLang,
         targetLang,
-      });
+      }, userId);
 
       if ('error' in result) {
         emit({ type: 'error', message: 'Course generation failed' });
         return;
       }
-
-      const userId = await getUserId(request);
       const written = await buildAndWritePackage({
         manifest: result,
         sourceLang,

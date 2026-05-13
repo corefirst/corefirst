@@ -1,6 +1,6 @@
 # Settings & AI Configuration
 
-> Status: Shipped | Updated: 2026-05-12  
+> Status: Shipped | Updated: 2026-05-13  
 > PRD: F-15 UI-Configurable AI Provider, F-16 BYOK Error Handling  
 > Source spec: `docs/prd.md` F-15/F-16
 
@@ -91,6 +91,8 @@ export function useSettings(): {
 
 All headers use the `x-cf-` prefix to avoid collisions:
 
+### Global / capability-level headers
+
 | Header | Source field | Server reads via |
 |--------|-------------|-----------------|
 | `x-cf-provider` | `global.provider` | `extractSettings().global.provider` |
@@ -108,33 +110,53 @@ All headers use the `x-cf-` prefix to avoid collisions:
 | `x-cf-image-provider` | `advanced.imageGen.provider` | `extractSettings().image.provider` |
 | `x-cf-image-key` | `advanced.imageGen.apiKey` | `extractSettings().image.apiKey` |
 
+### Per-feature text headers (highest priority)
+
+These override the text model for one specific feature without affecting others:
+
+| Header | Feature overridden | Example |
+|--------|-------------------|---------|
+| `x-cf-transform-provider` / `x-cf-transform-model` | `transform` | `anthropic` / `claude-sonnet-4-6` |
+| `x-cf-roleplay-provider` / `x-cf-roleplay-model` | `roleplay` | `ollama` / `llama3.2` |
+| `x-cf-course-gen-provider` / `x-cf-course-gen-model` | `courseGen` | `openai` / `gpt-4o` |
+| `x-cf-speech-eval-provider` / `x-cf-speech-eval-model` | `speechEval` | `groq` / `llama-3.3-70b-versatile` |
+
+Server stores them in `extractSettings().features[featureKey]`. When present, `resolveFeatureFromSettings(feature, settings)` uses the feature-specific provider and ignores the global text headers for that feature.
+
 ---
 
 ## Server-Side Resolution (`src/lib/ai/settings-config.ts`)
 
 ### Text model resolution order (highest to lowest priority)
 
-1. `x-cf-text-provider` + `x-cf-text-key` (advanced text override)
-2. `x-cf-provider` + `x-cf-api-key` (global UI setting)
-3. `<FEATURE>_PROVIDER` / `<FEATURE>_MODEL` env vars
-4. `<CAPABILITY>_PROVIDER` env vars
-5. `GLOBAL_PROVIDER` / `GLOBAL_API_KEY` env vars
-6. Baked-in defaults from `capabilities.ts`
+1. `x-cf-{feature}-provider` (per-feature header — e.g. `x-cf-roleplay-provider`)
+2. `x-cf-text-provider` + `x-cf-text-key` (advanced text override, all text features)
+3. `x-cf-provider` + `x-cf-api-key` (global UI setting)
+4. `<FEATURE>_PROVIDER` / `<FEATURE>_MODEL` env vars
+5. `<CAPABILITY>_PROVIDER` env vars
+6. `GLOBAL_PROVIDER` / `GLOBAL_API_KEY` env vars
+7. Baked-in defaults from `capabilities.ts`
 
 ### Key functions
 
 ```typescript
-// Extract all x-cf-* headers from a request into a typed object
+// Extract all x-cf-* headers from a request into a typed object.
+// Populates RequestSettings.features for any per-feature provider headers found.
 export function extractSettings(request: Request): RequestSettings
 
-// Build a LanguageModel from settings, or return undefined if no settings present
-// (callers fall back to the module-level model from env vars)
+// Build a LanguageModel for a specific feature.
+// Checks feature-specific header first, then falls back to global text settings.
+// Returns undefined if no client-side settings are present (callers use env-var model).
 export function resolveFeatureFromSettings(
   feature: FeatureKey,
   settings: RequestSettings,
 ): LanguageModel | undefined
-// NOTE: `feature` param currently unused — all text features share global resolution.
-// Accepted so call sites can pass feature keys; per-feature routing added later without changing routes.
+
+// Shared context helpers — combine extractSettings + resolveFeatureFromSettings + getUserId
+// Use in routes where the pattern is clean; import from src/lib/ai/request-context.ts
+export async function resolveTextContext(feature: FeatureKey, request: Request): Promise<TextRequestContext>
+export async function resolveTTSContext(request: Request): Promise<TTSRequestContext>
+export async function resolveSTTContext(request: Request): Promise<STTRequestContext>
 
 // TTS/STT/Image override extractors — return undefined if no override configured
 export function resolveTTSOverride(settings: RequestSettings): TTSOverride | undefined
@@ -146,19 +168,23 @@ export function resolveImageOverride(settings: RequestSettings): ImageOverride |
 
 ## Provider Default Models
 
+Default text models per provider are the single source of truth in `PROVIDER_DEFAULTS` in `src/lib/ai/capabilities.ts`. Use the exported helper:
+
 ```typescript
-// src/lib/constants.ts
-export const PROVIDER_DEFAULT_MODELS: Record<string, string> = {
-  openrouter:   'google/gemini-flash-1.5',
-  groq:         'llama-3.3-70b-versatile',
-  google:       'gemini-2.5-pro-preview',
-  openai:       'gpt-4o',
-  anthropic:    'claude-sonnet-4-6',
-  ollama:       'llama3.2',
-  'cli/claude': 'claude',
-  'cli/gemini': 'gemini',
-};
+// src/lib/ai/capabilities.ts
+export function getDefaultTextModel(provider: string): string
+// Returns PROVIDER_DEFAULTS[provider]?.text ?? ''
+
+// Example values:
+// getDefaultTextModel('google')       → 'gemini-2.5-pro-preview'
+// getDefaultTextModel('openai')       → 'gpt-4o'
+// getDefaultTextModel('anthropic')    → 'claude-sonnet-4-6'
+// getDefaultTextModel('groq')         → 'llama-3.3-70b-versatile'
+// getDefaultTextModel('ollama')       → 'llama3.2'
+// getDefaultTextModel('cli/claude')   → 'claude'
 ```
+
+> **Note:** `PROVIDER_DEFAULT_MODELS` in `src/lib/constants.ts` was removed in v0.3.1. Use `getDefaultTextModel()` instead.
 
 ---
 

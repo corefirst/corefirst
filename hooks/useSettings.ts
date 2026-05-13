@@ -4,7 +4,10 @@ import { USER_ID_COOKIE, PROVIDER_DEFAULT_MODELS } from '@/src/lib/constants';
 
 const COOKIE_NAME = USER_ID_COOKIE;
 
+export type SettingsMode = 'standard' | 'advanced';
+
 export interface UserSettings {
+  mode: SettingsMode;
   global: { provider: string; apiKey: string; model: string };
   advanced: {
     text?:     { provider?: string; model?: string; apiKey?: string };
@@ -16,9 +19,25 @@ export interface UserSettings {
 }
 
 const EMPTY_SETTINGS: UserSettings = {
+  mode: 'standard',
   global: { provider: '', apiKey: '', model: '' },
   advanced: {},
 };
+
+export function normalize(raw: unknown): UserSettings {
+  // Migrate legacy payloads that predate the `mode` field.
+  if (!raw || typeof raw !== 'object') return EMPTY_SETTINGS;
+  const r = raw as Partial<UserSettings>;
+  const hasAdvancedOverrides = !!(
+    r.advanced && Object.keys(r.advanced).length > 0 &&
+    Object.values(r.advanced).some(v => v && Object.keys(v).length > 0)
+  );
+  return {
+    mode: r.mode ?? (hasAdvancedOverrides ? 'advanced' : 'standard'),
+    global: { provider: '', apiKey: '', model: '', ...(r.global ?? {}) },
+    advanced: r.advanced ?? {},
+  };
+}
 
 function storageKey(userId: string): string {
   return `cf_settings_${userId}`;
@@ -44,7 +63,7 @@ export function useSettings() {
     if (!uid) return;
     try {
       const raw = localStorage.getItem(storageKey(uid));
-      if (raw) setSettings(JSON.parse(raw));
+      if (raw) setSettings(normalize(JSON.parse(raw)));
     } catch {}
   }, []);
 
@@ -63,11 +82,15 @@ export function useSettings() {
 
   const getHeaders = useCallback((): Record<string, string> => {
     const headers: Record<string, string> = {};
-    const { global: g, advanced: adv } = settings;
+    const { mode, global: g, advanced: adv } = settings;
 
     if (g.provider)  headers['x-cf-provider']      = g.provider;
     if (g.apiKey)    headers['x-cf-api-key']        = g.apiKey;
     if (g.model)     headers['x-cf-model']          = g.model;
+
+    // Standard mode: only ship the global picks; backend resolves per-capability
+    // defaults via PROVIDER_DEFAULTS. Skip advanced overrides entirely.
+    if (mode !== 'advanced') return headers;
 
     const text = adv.text;
     if (text?.provider) headers['x-cf-text-provider'] = text.provider;

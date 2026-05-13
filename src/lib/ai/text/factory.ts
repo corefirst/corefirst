@@ -1,6 +1,6 @@
 import type { LanguageModel } from 'ai';
 import { resolveFeature } from '../config';
-import type { FeatureKey } from '../capabilities';
+import { InvalidProviderError, type FeatureKey } from '../capabilities';
 import { googleTextModel } from './sdk/google';
 import { openaiTextModel } from './sdk/openai';
 import { anthropicTextModel } from './sdk/anthropic';
@@ -17,31 +17,31 @@ export interface TextModelSpec {
   baseUrl?: string;
 }
 
+type TextModelBuilder = (spec: TextModelSpec) => LanguageModel;
+
+const registry = new Map<string, TextModelBuilder>();
+
+/** Register a text-model builder for a provider id. */
+export function registerTextModelBuilder(provider: string, builder: TextModelBuilder): void {
+  registry.set(provider, builder);
+}
+
+// ── Built-in providers ────────────────────────────────────────────────────────
+registerTextModelBuilder('google',     (s) => googleTextModel(s.model, s.apiKey));
+registerTextModelBuilder('openai',     (s) => openaiTextModel(s.model, s.baseUrl, s.apiKey));
+registerTextModelBuilder('anthropic',  (s) => anthropicTextModel(s.model, s.apiKey));
+registerTextModelBuilder('ollama',     (s) => ollamaTextModel(s.model, s.baseUrl));
+registerTextModelBuilder('openrouter', (s) => openrouterTextModel(s.model, s.apiKey));
+registerTextModelBuilder('groq',       (s) => openaiTextModel(s.model, 'https://api.groq.com/openai/v1', s.apiKey));
+registerTextModelBuilder('qwen',       (s) => qwenTextModel(s.model, s.apiKey));
+registerTextModelBuilder('deepseek',   (s) => deepseekTextModel(s.model, s.apiKey));
+registerTextModelBuilder('cli/claude', (s) => cliTextModel('claude', s.model));
+registerTextModelBuilder('cli/gemini', (s) => cliTextModel('gemini', s.model));
+
 export function buildTextModelFromSpec(spec: TextModelSpec): LanguageModel {
-  switch (spec.provider) {
-    case 'google':
-      return googleTextModel(spec.model, spec.apiKey);
-    case 'openai':
-      return openaiTextModel(spec.model, spec.baseUrl, spec.apiKey);
-    case 'anthropic':
-      return anthropicTextModel(spec.model, spec.apiKey);
-    case 'ollama':
-      return ollamaTextModel(spec.model, spec.baseUrl);
-    case 'openrouter':
-      return openrouterTextModel(spec.model, spec.apiKey);
-    case 'groq':
-      return openaiTextModel(spec.model, 'https://api.groq.com/openai/v1', spec.apiKey);
-    case 'qwen':
-      return qwenTextModel(spec.model, spec.apiKey);
-    case 'deepseek':
-      return deepseekTextModel(spec.model, spec.apiKey);
-    case 'cli/claude':
-      return cliTextModel('claude', spec.model);
-    case 'cli/gemini':
-      return cliTextModel('gemini', spec.model);
-    default:
-      throw new Error(`[ai/text] Unhandled provider "${spec.provider}".`);
-  }
+  const builder = registry.get(spec.provider);
+  if (!builder) throw new InvalidProviderError(spec.provider, 'text');
+  return builder(spec);
 }
 
 export function buildTextModelFor(feature: FeatureKey): LanguageModel {
@@ -50,7 +50,7 @@ export function buildTextModelFor(feature: FeatureKey): LanguageModel {
     return new Proxy({}, {
       get() {
         throw new Error(
-          `[ai/${feature}] Text generation for "${feature}" is disabled. Set ${r.envPrefix}_PROVIDER to enable.`
+          `[ai/${feature}] Text generation is disabled. Set ${r.envPrefix}_PROVIDER to enable.`
         );
       },
     }) as LanguageModel;

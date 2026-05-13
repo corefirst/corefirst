@@ -1,7 +1,19 @@
 # Technical Design — CoreFirst
 
-> Software version: 0.3.0 | Status: Active | Last Updated: 2026-05-12  
+> Software version: 0.3.1 | Status: Active | Last Updated: 2026-05-13  
 > Companion document to: `docs/prd.md`
+
+### Changelog — v0.3.1 (2026-05-13)
+
+| Area | Change |
+|---|---|
+| **Skills system** | New `src/lib/skills/` module — user-editable prompt templates per feature slot. `loadSkill()` replaces `loadPrompt()` in all routes; falls back to system `.md` files when no preference set. See `docs/features/skills.md`. |
+| **Prompt templates** | All 9 LLM prompts extracted to `.md` files with `{{VAR}}` template syntax. `validatePromptTemplate()` added to `loader.ts` for syntax validation before save. |
+| **Provider registry** | All 6 factory files (`text`, `text-to-speech`, `speech-to-text`, `text-to-image`, `src/core/tts`, `src/core/stt`) converted from `switch` statements to `Map`-based registries. New providers call `register*()` without modifying factory source. |
+| **Provider defaults** | `PROVIDER_DEFAULT_MODELS` (constants.ts) removed. Single source: `PROVIDER_DEFAULTS` in `capabilities.ts` + `getDefaultTextModel(provider)` helper. `groq` added to `PROVIDERS_BY_CAPABILITY.text` (was previously missing despite being registered in factory). |
+| **Per-feature headers** | `resolveFeatureFromSettings()` now reads `x-cf-{feature}-provider` / `x-cf-{feature}-model` headers, enabling per-feature model overrides from the client without affecting other features. |
+| **Request context** | `src/lib/ai/request-context.ts` — shared `resolveTextContext`, `resolveTTSContext`, `resolveSTTContext` helpers eliminate 3-line boilerplate repeated across routes. |
+| **Community backend** | Publish/fork/like/community-browse API routes and shared PouchDB catalog are implemented but the UI tab is hidden — reserved for corefirst-world SaaS integration. |
 
 ---
 

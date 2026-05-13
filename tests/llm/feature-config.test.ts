@@ -156,11 +156,10 @@ describe('resolveFeature — precedence', () => {
 });
 
 describe('resolveFeature — GLOBAL_PROVIDER and Mix-and-Match', () => {
-  it('GLOBAL_PROVIDER sets defaults for supported capabilities', async () => {
+  it('GLOBAL_PROVIDER=google sets defaults for all four standard capabilities', async () => {
     process.env.GLOBAL_PROVIDER = 'google';
     const { resolveFeature } = await fresh();
-    
-    // Google supports text and image
+
     expect(resolveFeature('transform')).toMatchObject({
       provider: 'google',
       model: 'gemini-2.5-pro-preview',
@@ -169,10 +168,17 @@ describe('resolveFeature — GLOBAL_PROVIDER and Mix-and-Match', () => {
       provider: 'google',
       model: 'imagen-3.0-generate-001',
     });
-
-    // Google does NOT support TTS/STT, so they should failover to 'none'
-    expect(resolveFeature('tts').provider).toBe('none');
-    expect(resolveFeature('stt').provider).toBe('none');
+    // Gemini natively serves TTS and STT (gemini-2.5-flash-preview-tts / gemini-2.5-flash).
+    // They route through src/core/{tts,stt}/google-provider.ts rather than the AI-SDK
+    // SpeechModel/TranscriptionModel path — but config still picks 'google' for them.
+    expect(resolveFeature('tts')).toMatchObject({
+      provider: 'google',
+      model: 'gemini-2.5-flash-preview-tts',
+    });
+    expect(resolveFeature('stt')).toMatchObject({
+      provider: 'google',
+      model: 'gemini-2.5-flash',
+    });
   });
 
   it('GLOBAL_PROVIDER=openai sets defaults for all capabilities', async () => {
@@ -313,5 +319,27 @@ describe('NotImplementedError stubs', () => {
     expect(() => ai.buildTextToVideoModel()).toThrow(/text-to-video/);
     expect(() => ai.buildImageToVideoModel()).toThrow(/image-to-video/);
     expect(() => ai.buildMultimodalToVideoModel()).toThrow(/multimodal-to-video/);
+  });
+});
+
+describe('isFullStackProvider', () => {
+  it('returns true for providers with all four standard capabilities', async () => {
+    const { isFullStackProvider } = await import('@/src/lib/ai/capabilities');
+    expect(isFullStackProvider('openai')).toBe(true);
+    expect(isFullStackProvider('google')).toBe(true);
+    expect(isFullStackProvider('qwen')).toBe(true);
+    expect(isFullStackProvider('openrouter')).toBe(true);
+  });
+
+  it('returns false for text-only providers', async () => {
+    const { isFullStackProvider } = await import('@/src/lib/ai/capabilities');
+    expect(isFullStackProvider('anthropic')).toBe(false);
+    expect(isFullStackProvider('deepseek')).toBe(false);
+  });
+
+  it('returns false for unknown providers', async () => {
+    const { isFullStackProvider } = await import('@/src/lib/ai/capabilities');
+    expect(isFullStackProvider('nonexistent')).toBe(false);
+    expect(isFullStackProvider('')).toBe(false);
   });
 });

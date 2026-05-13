@@ -3,6 +3,10 @@ import * as path from 'path';
 
 const cache = new Map<string, string>();
 
+// Matches {{VAR_NAME}} — Claude Skills / Handlebars-style placeholders.
+// Variable names must be UPPER_SNAKE_CASE or lower_snake_case (letters, digits, underscore).
+const PLACEHOLDER_RE = /\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g;
+
 function resolveSafe(relativePath: string): string {
   const root = process.cwd();
   const resolved = path.resolve(root, relativePath);
@@ -35,6 +39,51 @@ export interface LoadPromptOptions {
    * every subsequent request to re-read.
    */
   fresh?: boolean;
+}
+
+export interface TemplateValidationResult {
+  valid: boolean;
+  /** Placeholders declared in the template. */
+  declared: string[];
+  /** Declared placeholders with no corresponding key in `vars`. */
+  missing: string[];
+  /** Keys in `vars` that don't appear in the template (likely typos). */
+  unused: string[];
+  /** Raw malformed fragments found (unclosed `{{`, stray `}}`, etc.). */
+  malformed: string[];
+}
+
+/**
+ * Validate a prompt template string against a set of variable keys.
+ *
+ * Follows the Claude Skills / Handlebars `{{VARIABLE}}` convention.
+ * Call this in admin routes before persisting user-edited templates.
+ */
+export function validatePromptTemplate(
+  template: string,
+  vars: Record<string, string> = {},
+): TemplateValidationResult {
+  // Find malformed fragments before extracting valid placeholders.
+  const malformed: string[] = [];
+  // Check line-by-line so the regex state doesn't bleed between checks.
+  for (const line of template.split('\n')) {
+    // Strip valid placeholders first, then look for leftover `{{` / `}}`.
+    const stripped = line.replace(PLACEHOLDER_RE, '');
+    const badMatches = stripped.match(/\{\{|\}\}/g);
+    if (badMatches) malformed.push(...badMatches.map(() => line.trim()));
+  }
+
+  const declared = [...new Set([...template.matchAll(PLACEHOLDER_RE)].map((m) => m[1]))];
+  const providedKeys = new Set(Object.keys(vars));
+  const declaredSet = new Set(declared);
+
+  return {
+    valid: malformed.length === 0 && declared.every((k) => providedKeys.has(k)),
+    declared,
+    missing: declared.filter((k) => !providedKeys.has(k)),
+    unused: [...providedKeys].filter((k) => !declaredSet.has(k)),
+    malformed,
+  };
 }
 
 /**

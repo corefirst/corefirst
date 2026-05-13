@@ -13,12 +13,13 @@ import { RoleplayHistory } from '../components/RoleplayHistory';
 import { CourseHistory } from '../components/CourseHistory';
 import { ProfileSwitcher } from '../components/ProfileSwitcher';
 import { Settings } from '../components/Settings';
+import { SkillsPanel } from '../components/SkillsPanel';
 import { VocabReview } from '../components/VocabReview';
 import { PhoneticBridge } from '../components/PhoneticBridge';
 import { useSettings } from '../hooks/useSettings';
 import {
   Loader2, Send, Languages, Info, BookOpen, User, Globe,
-  Briefcase, Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare, Settings as SettingsIcon,
+  Briefcase, Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare, Settings as SettingsIcon, Zap,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { CFLTResponse, CfltSlot } from '../src/types/cflt';
@@ -37,6 +38,7 @@ const LANG_KEY: Record<SupportedLang, 'langEnglish' | 'langChinese' | 'langJapan
 
 export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
+  const [showSkills, setShowSkills] = useState(false);
   const [showVocabReview, setShowVocabReview] = useState(false);
   const [keyError, setKeyError] = useState<'API_KEY_REQUIRED' | 'INVALID_API_KEY' | null>(null);
   const { getHeaders } = useSettings();
@@ -396,6 +398,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      {showSkills && <SkillsPanel onClose={() => setShowSkills(false)} />}
       {showVocabReview && <VocabReview targetLang={targetLang} uiLang={uiLang} onClose={() => setShowVocabReview(false)} />}
 
       <div className="p-4 md:p-8">
@@ -455,6 +458,13 @@ export default function Home() {
             </label>
 
             <ProfileSwitcher />
+            <button
+              onClick={() => setShowSkills(true)}
+              className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+              title="Skills"
+            >
+              <Zap size={18} />
+            </button>
             <button
               onClick={() => setShowSettings(true)}
               className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
@@ -982,6 +992,7 @@ export default function Home() {
                 setFetchError(null);
                 if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
+              onImport={() => setCourseHistoryKey((k) => k + 1)}
             />
           )}
         </div>

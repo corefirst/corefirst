@@ -1,27 +1,38 @@
 import { resolveFeature } from '@/src/lib/ai';
 import { buildSpeechModelWith } from '@/src/lib/ai/text-to-speech/factory';
 import type { TTSOverride } from '@/src/lib/ai/settings-config';
-import { TTSProvider } from './interface';
+import type { TTSProvider } from './interface';
 import { OpenAITTSProvider } from './openai-provider';
+import { GoogleGeminiTTSProvider } from './google-provider';
 
-/**
- * TTS provider factory.
- *
- * Currently exposes only the OpenAI provider (via the Vercel AI SDK
- * `generateSpeech` API). Google Gemini TTS models exist (`gemini-2.5-*-tts`)
- * but `@ai-sdk/google` doesn't yet ship a `.speech()` constructor, so the
- * Google branch is deferred. To add it back: implement a `GoogleTTSProvider`
- * once `@ai-sdk/google` (or `@ai-sdk/google-vertex`) exposes a SpeechModelV3.
- */
+type TTSCreator = () => TTSProvider;
+
+const registry = new Map<string, TTSCreator>();
+
+/** Register a TTSProvider factory for a provider id. */
+export function registerTTSProvider(provider: string, creator: TTSCreator): void {
+  registry.set(provider, creator);
+}
+
+// ── Built-in providers ────────────────────────────────────────────────────────
+// qwen (DashScope CosyVoice) and openrouter both use the OpenAI-compat TTS path.
+registerTTSProvider('openai',     () => new OpenAITTSProvider());
+registerTTSProvider('qwen',       () => new OpenAITTSProvider());
+registerTTSProvider('openrouter', () => new OpenAITTSProvider());
+registerTTSProvider('google',     () => new GoogleGeminiTTSProvider());
+
 export class TTSFactory {
   static getProvider(override?: TTSOverride): TTSProvider {
     if (override) {
+      // Per-request override: OpenAI-compatible endpoint supplied by the client.
       const model = buildSpeechModelWith({ baseUrl: override.baseUrl, model: override.model });
       return new OpenAITTSProvider(model);
     }
     const r = resolveFeature('tts');
     if (r.provider === 'none') return new NullTTSProvider(r.envPrefix);
-    return new OpenAITTSProvider();
+    const creator = registry.get(r.provider);
+    if (!creator) throw new Error(`[ai/tts] Unregistered TTS provider "${r.provider}". This is a bug.`);
+    return creator();
   }
 }
 

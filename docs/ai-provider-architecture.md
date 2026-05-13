@@ -1,6 +1,6 @@
 # Provider & Storage Architecture
 
-> Software version: 0.3.0 | Status: Implemented | Last Updated: 2026-05-12
+> Software version: 0.3.1 | Status: Implemented | Last Updated: 2026-05-13
 > Companion documents: `docs/prd.md`, `docs/tech-design.md`, `docs/storage-design.md`, `docs/package-format.md`, `docs/learning-architecture.md`
 
 ---
@@ -104,7 +104,8 @@ src/lib/ai/
   config.ts                    # resolveFeature() — applies the precedence chain
 
   text/                        # capability: text
-    factory.ts                 # buildTextModelFor(featureKey) — dispatch on provider
+    factory.ts                 # buildTextModelFor(featureKey) — registry lookup (not switch)
+                               #   registerTextModelBuilder(provider, builder) for external plugins
     sdk/
       google.ts                # createGoogleGenerativeAI({ ... })(model)
       openai.ts                # openai(model)
@@ -126,11 +127,11 @@ src/lib/ai/
       openai-image.ts
 
   text-to-speech/              # capability: text-to-speech
-    factory.ts                 # buildSpeechModel() — for the tts feature
+    factory.ts                 # buildSpeechModel() — registry; registerSpeechModelBuilder()
     sdk/openai-tts.ts
 
   speech-to-text/              # capability: speech-to-text
-    factory.ts                 # buildTranscriptionModel() — for the stt feature
+    factory.ts                 # buildTranscriptionModel() — registry; registerTranscriptionModelBuilder()
     sdk/openai-stt.ts
 
   text-to-video/               # stub
@@ -179,14 +180,27 @@ Each consumer imports exactly the feature it needs:
 import { transformModel } from '@/src/lib/ai';
 const { object } = await generateObject({ model: transformModel, schema, prompt });
 
-// app/api/roleplay/route.ts
-import { roleplayModel } from '@/src/lib/ai';
+// app/api/roleplay/route.ts — via shared context helper
+import { resolveTextContext } from '@/src/lib/ai/request-context';
+const { model: modelOverride, userId } = await resolveTextContext('roleplay', request);
+const activeModel = modelOverride ?? roleplayModel;
 
 // src/core/visuals/imagen-provider.ts
 import { imageGenModel } from '@/src/lib/ai';
 ```
 
 The CLI providers transparently fulfill the same `LanguageModelV3` interface — selecting `cli/claude` for any text feature is a config-only change.
+
+#### Shared request-context helpers (`src/lib/ai/request-context.ts`)
+
+Routes that need `(model, userId)` together use a shared helper that calls `extractSettings → resolveFeatureFromSettings → getUserId` in one step:
+
+```ts
+const { model, userId, settings } = await resolveTextContext('transform', request);
+// settings is also returned for routes that need e.g. STT override alongside text model
+```
+
+TTS/STT routes use `resolveTTSContext(request)` / `resolveSTTContext(request)` analogously.
 
 ### 3.3 Provider Selection
 
@@ -201,10 +215,10 @@ Each feature resolves provider + model via this precedence:
 
 | Capability | Providers |
 |---|---|
-| `text` | `google`, `openai`, `anthropic`, `ollama`, `openrouter`, `groq` (OpenAI-compatible, UI only), **`cli/claude`**, **`cli/gemini`** |
-| `text-to-image` | `google` (Imagen), `openai` (`gpt-image-1`) |
-| `text-to-speech` | `openai` (`gpt-4o-mini-tts`) — also covers OpenAI-compatible local servers via `TTS_BASE_URL` |
-| `speech-to-text` | `openai` (`gpt-4o-mini-transcribe`) |
+| `text` | `google`, `openai`, `anthropic`, `ollama`, `groq`, `openrouter`, `qwen`, `deepseek`, **`cli/claude`**, **`cli/gemini`** |
+| `text-to-image` | `google` (Imagen), `openai` (DALL-E 3), `qwen` (Wanx), `openrouter` |
+| `text-to-speech` | `openai` (+ OpenAI-compat local servers via `TTS_BASE_URL`), `google` (Gemini TTS), `qwen` (CosyVoice), `openrouter` |
+| `speech-to-text` | `openai` (+ OpenAI-compat local servers via `STT_BASE_URL`), `google` (Gemini STT), `qwen` (Paraformer), `openrouter` |
 | `text-to-video` | (none — stub) |
 | `image-to-video` | (none — stub) |
 | `multimodal-to-video` | (none — stub) |
@@ -236,16 +250,18 @@ TRANSFORM_MODEL=gemini-3.1-pro-preview-002
 
 | Provider | text | text-to-image | text-to-speech | speech-to-text |
 |---|:-:|:-:|:-:|:-:|
-| `google` | ✅ | ✅ | — | — |
+| `google` | ✅ | ✅ | ✅ | ✅ |
 | `openai` | ✅ | ✅ | ✅ | ✅ |
 | `anthropic` | ✅ | — | — | — |
 | `ollama` | ✅ | — | — | — |
-| `openrouter` | ✅ | — | — | — |
-| `groq`¹ | ✅ | — | — | — |
+| `groq` | ✅ | — | — | — |
+| `openrouter` | ✅ | ✅ | ✅ | ✅ |
+| `qwen` | ✅ | ✅ | ✅ | ✅ |
+| `deepseek` | ✅ | — | — | — |
 | `cli/claude` | ✅ | — | — | — |
 | `cli/gemini` | ✅ | — | — | — |
 
-¹ `groq` is supported via the Settings UI only (uses OpenAI-compatible endpoint `https://api.groq.com/openai/v1`). It is not registered in `PROVIDERS_BY_CAPABILITY` and cannot be selected via env vars — attempting to do so will fail at route resolution time.
+`groq` is fully registered in `PROVIDERS_BY_CAPABILITY.text` and can be selected via `GLOBAL_PROVIDER=groq` or `TEXT_PROVIDER=groq` env vars, as well as via the Settings UI.
 
 Selecting `cli/claude` for `IMAGE_GEN_PROVIDER` is rejected at module load with `InvalidProviderError` — a fail-fast guard, not a runtime surprise.
 
@@ -378,11 +394,27 @@ Image/audio parts are not supported on the CLI path (they aren't supported by th
 
 `buildLanguageModel('cli/claude', ...)` calls `adapter.probe()` lazily on first use, not at module load, so a missing CLI doesn't break unrelated parts of the app. The probe result is cached for the process lifetime. `pnpm test` and unit tests inject a mock adapter to avoid real CLI calls.
 
-### 3.5 Image / Speech / Transcription factories
+### 3.5 Image / Speech / Transcription factories — plugin registry
 
-Each modality gets a factory in the same shape as `text/factory.ts`, but trivially smaller (single-provider in v1 for TTS/STT, two-provider for image). Per §3.3, each is selected by its own `*_PROVIDER` env var with a sensible default that means "matches today's behavior".
+All four non-text factories (`text-to-image`, `text-to-speech`, `speech-to-text`, plus the `src/core/tts` and `src/core/stt` layers) use the same **Map-based registry** pattern as `text/factory.ts`.
 
-The factories enforce the §3.3.6 capability matrix at module load: requesting `cli/claude` for image generation throws before any HTTP request is ever made. This catches misconfiguration at startup rather than at the first lesson generation 30 seconds in.
+Each factory exports a `register*` function so external plugins can add providers without modifying factory source:
+
+| Factory | Register function |
+|---|---|
+| `text/factory.ts` | `registerTextModelBuilder(provider, builder)` |
+| `text-to-speech/factory.ts` | `registerSpeechModelBuilder(provider, builder)` |
+| `speech-to-text/factory.ts` | `registerTranscriptionModelBuilder(provider, builder)` |
+| `text-to-image/factory.ts` | `registerImageModelBuilder(provider, builder)` |
+| `src/core/tts/factory.ts` | `registerTTSProvider(provider, creator)` |
+| `src/core/stt/factory.ts` | `registerSTTProvider(provider, creator)` |
+
+Built-in providers self-register at module load. Adding a new provider requires only:
+1. Implement the interface (`TTSProvider`, `STTProvider`, `LanguageModel`, …)
+2. Call the matching `register*` function
+3. Add the provider to `PROVIDERS_BY_CAPABILITY` and `PROVIDER_DEFAULTS` in `capabilities.ts`
+
+The factories enforce the capability matrix: requesting `cli/claude` for image generation throws `InvalidProviderError` before any HTTP request — fail-fast at startup, not mid-lesson.
 
 ### 3.6 Video — out of scope
 

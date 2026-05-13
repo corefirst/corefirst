@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { generateObject, experimental_transcribe as transcribe } from 'ai';
-import { speechEvalModel, sttModel } from '@/src/lib/ai';
-import { buildTranscriptionModelWith } from '@/src/lib/ai/speech-to-text/factory';
+import { generateObject } from 'ai';
+import { speechEvalModel } from '@/src/lib/ai';
+import { STTFactory } from '@/src/core/stt/factory';
 import { extractSettings, resolveFeatureFromSettings, resolveSTTOverride } from '@/src/lib/ai/settings-config';
+import { loadSkill } from '@/src/lib/skills';
 import {
   appendAttempt,
   readPackageManifest,
@@ -63,37 +64,21 @@ export async function POST(request: Request) {
     const audioBytes = new Uint8Array(await audioFile.arrayBuffer());
     const settings = extractSettings(request);
     const sttOverride = resolveSTTOverride(settings);
-    const activeSttModel = sttOverride ? buildTranscriptionModelWith({ baseUrl: sttOverride.baseUrl }) : sttModel;
+    const sttProvider = STTFactory.getProvider(sttOverride ?? undefined);
     const activeEvalModel = resolveFeatureFromSettings('speechEval', settings) ?? speechEvalModel;
 
-    const { text: transcription } = await transcribe({
-      model: activeSttModel,
-      audio: audioBytes,
-    });
+    const { text: transcription } = await sttProvider.transcribe(audioBytes);
+    const userId = await getUserId(request);
 
-    const evalSystemPrompt = `
-You are a CFLT Speech Assessor with expertise in "Phonetic Migration."
-Languages: From ${sourceLang} to ${targetLang}.
+    const evalSystemPrompt = await loadSkill('speech-eval', {
+      SOURCE_LANG: sourceLang,
+      TARGET_LANG: targetLang,
+    }, userId);
 
-Assess the speech based on:
-1. Pronunciation accuracy (0-100).
-2. Logic Stress: did the user emphasize the [Core Action] correctly? (0-100).
-3. CFLT Element Breakdown (0-100 for each):
-   - score_core: Accuracy of the Core Action/Result element.
-   - score_condition: Accuracy of the Condition/Reason element.
-   - score_space: Accuracy of the Space/Context element.
-   - score_time: Accuracy of the Time element.
-4. Comparison: how close is the spoken text to the target?
-
-CRITICAL — Phonetic Migration:
-If ${sourceLang} is "Chinese", explain pronunciation errors using Pinyin references.
-Example: "To fix your /v/, start with Pinyin 'f' but vibrate your cords."
-Example: "To fix your /l/, start with Pinyin 'le' but keep the tongue tip on the teeth ridge."
-
-Return the transcription you were given as-is in the "transcription" field.
-`;
-
-    const userPrompt = `Target Sentence: "${expectedText}"\nUser Spoke: "${transcription}"\n\nEvaluate this speech attempt.`;
+    const userPrompt = await loadSkill('speech-eval-user', {
+      EXPECTED_TEXT: expectedText,
+      TRANSCRIPTION: transcription,
+    }, userId);
 
     const { object: evaluation } = await generateObject({
       model: activeEvalModel,
@@ -106,7 +91,6 @@ Return the transcription you were given as-is in the "transcription" field.
     const scriptIndex = typeof scriptIndexRaw === 'string' ? Number.parseInt(scriptIndexRaw, 10) : -1;
 
     try {
-      const userId = await getUserId(request);
       let packageId: string | null = null;
       if (packageSlug && packageSlug !== 'global' && packageSlug !== '_global') {
         try {

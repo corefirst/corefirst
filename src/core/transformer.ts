@@ -1,6 +1,6 @@
 import { generateObject, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import { transformModel } from '@/src/lib/ai';
-import { loadPrompt } from '@/src/lib/prompts/loader';
+import { loadSkill } from '@/src/lib/skills';
 import { CFLTResponse, CFLTResponseSchema } from '../types/cflt';
 
 export class CFLTTransformer {
@@ -15,13 +15,14 @@ export class CFLTTransformer {
     sourceLang: string = 'Chinese',
     targetLang: string = 'English',
     uiLang: string = sourceLang,
+    userId?: string,
   ): Promise<CFLTResponse | { error: string; raw: string }> {
     try {
-      const dynamicPrompt = loadPrompt('src/core/system_prompt.md', {
+      const dynamicPrompt = await loadSkill('cflt-transformer', {
         SOURCE_LANG: sourceLang,
         TARGET_LANG: targetLang,
         UI_LANG: uiLang,
-      });
+      }, userId);
 
       const { object } = await generateObject({
         model: this.model,

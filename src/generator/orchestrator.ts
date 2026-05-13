@@ -1,24 +1,12 @@
 import { generateObject, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import { courseGenModel } from '@/src/lib/ai';
-import { loadPrompt } from '@/src/lib/prompts/loader';
+import { loadSkill } from '@/src/lib/skills';
 import { CFLTTransformer } from '../core/transformer';
 import {
   CoursewareManifest,
   CoursewareManifestSchema,
 } from '../types/courseware';
 
-const REPAIR_INSTRUCTION = `
-
-## CRITICAL — JSON Output Discipline
-Your previous attempt produced output that was either invalid JSON or did not
-match the expected schema. Re-emit the manifest with strict adherence:
-- Output a SINGLE JSON object — no prose, no markdown fences, no commentary.
-- Every string value must be a valid JSON string. If you include SSML, escape
-  every double-quote inside it as \\".
-- If you cannot reliably embed SSML markup, omit the \`ssml\` field entirely
-  (it has a safe default).
-- Do not truncate. If a field would push you over budget, shorten its prose;
-  do not leave the JSON object incomplete.`;
 
 export interface GenerationRequest {
   age_group: string;
@@ -44,14 +32,15 @@ export class CoursewareOrchestrator {
 
   async generate(
     request: GenerationRequest,
+    userId?: string,
   ): Promise<CoursewareManifest | { error: string; raw: string }> {
     this.emit({ type: 'step', message: 'Designing lessons…' });
     const sourceLang = request.sourceLang || 'Chinese';
     const targetLang = request.targetLang || 'English';
-    const dynamicPrompt = loadPrompt('src/generator/courseware_prompt.md', {
+    const dynamicPrompt = await loadSkill('courseware-gen', {
       SOURCE_LANG: sourceLang,
       TARGET_LANG: targetLang,
-    });
+    }, userId);
     const userPrompt = JSON.stringify(request);
 
     let manifest: CoursewareManifest;
@@ -73,7 +62,11 @@ export class CoursewareOrchestrator {
         manifest = salvaged;
       } else {
         try {
-          manifest = await this.callOnce(dynamicPrompt + REPAIR_INSTRUCTION, userPrompt);
+          const repairInstr = await loadSkill('courseware-repair', {}, userId);
+          manifest = await this.callOnce(
+            dynamicPrompt + '\n\n' + repairInstr,
+            userPrompt,
+          );
           console.warn('[orchestrator] Recovered on repair retry.');
         } catch (secondErr) {
           const secondRaw = NoObjectGeneratedError.isInstance(secondErr) ? (secondErr.text ?? '') : '';
