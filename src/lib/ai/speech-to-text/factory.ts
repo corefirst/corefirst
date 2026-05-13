@@ -41,9 +41,9 @@ export function buildTranscriptionModel(): TranscriptionModel {
   return builder(r);
 }
 
-export function buildTranscriptionModelWith(overrides: { baseUrl?: string }): TranscriptionModel {
+export function buildTranscriptionModelWith(overrides: { baseUrl?: string; apiKey?: string; model?: string }): TranscriptionModel {
   const r = resolveFeature('stt');
-  return openaiSttModel(r.model, overrides.baseUrl || r.baseUrl, r.apiKey);
+  return openaiSttModel(overrides.model || r.model, overrides.baseUrl || r.baseUrl, overrides.apiKey ?? r.apiKey);
 }
 
 function nonAiSdkStub(): TranscriptionModel {

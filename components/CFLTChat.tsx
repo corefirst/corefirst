@@ -119,6 +119,16 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     } catch {}
   }, []);
 
+  // Sync initial message when context changes (industry/topic selection)
+  useEffect(() => {
+    setMessages([{ 
+      role: 'assistant', 
+      content: `Hello! I am your Core First coach. Today we are practicing ${targetLang}${context ? ` for ${context}` : ''}.`, 
+      cflt: "Hello! I am your coach, for Core First practice, today." 
+    }]);
+    if (typeof crypto !== 'undefined') setSessionId(crypto.randomUUID());
+  }, [context, targetLang]);
+
   const toggleAnalysis = (next: boolean) => {
     setAnalysisEnabled(next);
     try { window.localStorage.setItem('corefirst.roleplay.analysisEnabled', next ? 'true' : 'false'); } catch {}

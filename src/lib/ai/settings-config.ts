@@ -11,6 +11,7 @@ import type { LanguageModel } from 'ai';
 import type { FeatureKey } from './capabilities';
 import { getDefaultTextModel } from './capabilities';
 import { buildTextModelFromSpec } from './text/factory';
+import { PROVIDER_BASE_URLS } from './provider-urls';
 
 /** Per-feature text override from request headers (x-cf-{feature}-provider etc.). */
 export type FeatureTextOverride = { provider: string; model: string };
@@ -19,9 +20,9 @@ export interface RequestSettings {
   global:   { provider: string; apiKey: string; model: string };
   text:     { provider: string; model: string; apiKey: string };
   ollama:   { baseUrl: string };
-  tts:      { provider: string; baseUrl: string; model: string };
-  stt:      { provider: string; baseUrl: string };
-  image:    { provider: string; apiKey: string };
+  tts:      { provider: string; baseUrl: string; model: string; apiKey: string };
+  stt:      { provider: string; baseUrl: string; apiKey: string; model: string };
+  image:    { provider: string; apiKey: string; model: string };
   /** Per-feature text overrides. Take precedence over the global text settings.
    *  Headers: x-cf-{feature}-provider, x-cf-{feature}-model
    *  (e.g. x-cf-transform-provider=anthropic, x-cf-roleplay-model=claude-haiku-4-5) */
@@ -36,9 +37,9 @@ export interface RequestSettings {
  * along for completeness but the factory always uses the OpenAI-compat path for
  * overrides — provider switching must be done via env vars (TTS_PROVIDER etc.).
  */
-export interface TTSOverride  { provider?: string; baseUrl: string; model: string }
-export interface STTOverride  { provider?: string; baseUrl: string }
-export interface ImageOverride { provider: string; apiKey: string }
+export interface TTSOverride  { provider?: string; baseUrl: string; model: string; apiKey?: string }
+export interface STTOverride  { provider?: string; baseUrl: string; apiKey?: string; model?: string }
+export interface ImageOverride { provider: string; apiKey: string; model?: string }
 
 
 // Maps FeatureKey to the header prefix used for per-feature overrides.
@@ -84,14 +85,18 @@ export function extractSettings(request: Request): RequestSettings {
       provider: getHeader(request, 'x-cf-tts-provider'),
       baseUrl:  getHeader(request, 'x-cf-tts-url'),
       model:    getHeader(request, 'x-cf-tts-model'),
+      apiKey:   getHeader(request, 'x-cf-tts-key'),
     },
     stt: {
       provider: getHeader(request, 'x-cf-stt-provider'),
       baseUrl:  getHeader(request, 'x-cf-stt-url'),
+      apiKey:   getHeader(request, 'x-cf-stt-key'),
+      model:    getHeader(request, 'x-cf-stt-model'),
     },
     image: {
       provider: getHeader(request, 'x-cf-image-provider'),
       apiKey:   getHeader(request, 'x-cf-image-key'),
+      model:    getHeader(request, 'x-cf-image-model'),
     },
     features,
   };
@@ -111,6 +116,7 @@ export function resolveTextModel(settings: RequestSettings): LanguageModel | und
   const baseUrl = provider === 'ollama' ? (settings.ollama.baseUrl || undefined) : undefined;
   const model   = settings.text.model   || settings.global.model   || getDefaultTextModel(provider);
 
+  console.log(`[ai/text] request: provider=${provider} model=${model}`);
   return buildTextModelFromSpec({ provider, model, apiKey, baseUrl });
 }
 
@@ -143,23 +149,35 @@ export function resolveFeatureFromSettings(
 }
 
 export function resolveTTSOverride(settings: RequestSettings): TTSOverride | undefined {
-  const { tts } = settings;
-  // Per-request overrides are always routed to an OpenAI-compatible endpoint.
-  // Only create an override when a custom baseUrl is provided — provider-only
-  // requests cannot be fulfilled via the override path (use env vars instead).
-  if (!tts.baseUrl) return undefined;
-  return { provider: tts.provider || 'openai', baseUrl: tts.baseUrl, model: tts.model };
+  const { tts, global: g } = settings;
+  // TTS-specific key takes priority; fall back to global key as last resort.
+  const apiKey = tts.apiKey || g.apiKey || undefined;
+  if (tts.baseUrl) {
+    return { provider: tts.provider || 'openai', baseUrl: tts.baseUrl, model: tts.model, apiKey };
+  }
+  const provider = tts.provider;
+  if (provider && PROVIDER_BASE_URLS[provider]) {
+    return { provider, baseUrl: PROVIDER_BASE_URLS[provider], model: tts.model, apiKey };
+  }
+  return undefined;
 }
 
 export function resolveSTTOverride(settings: RequestSettings): STTOverride | undefined {
-  const { stt } = settings;
-  // Same constraint as TTS: only override when a custom baseUrl is given.
-  if (!stt.baseUrl) return undefined;
-  return { provider: stt.provider || 'openai', baseUrl: stt.baseUrl };
+  const { stt, global: g } = settings;
+  const apiKey = stt.apiKey || g.apiKey || undefined;
+  const model = stt.model || undefined;
+  if (stt.baseUrl) {
+    return { provider: stt.provider || 'openai', baseUrl: stt.baseUrl, apiKey, model };
+  }
+  const provider = stt.provider;
+  if (provider && PROVIDER_BASE_URLS[provider]) {
+    return { provider, baseUrl: PROVIDER_BASE_URLS[provider], apiKey, model };
+  }
+  return undefined;
 }
 
 export function resolveImageOverride(settings: RequestSettings): ImageOverride | undefined {
   const { image } = settings;
   if (!image.provider) return undefined;
-  return { provider: image.provider, apiKey: image.apiKey };
+  return { provider: image.provider, apiKey: image.apiKey, model: image.model || undefined };
 }

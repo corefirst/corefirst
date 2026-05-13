@@ -24,12 +24,13 @@ registerSTTProvider('google',     () => new GoogleGeminiSTTProvider());
 export class STTFactory {
   static getProvider(override?: STTOverride): STTProvider {
     if (override) {
-      // Per-request override: OpenAI-compatible endpoint supplied by the client.
-      const model = buildTranscriptionModelWith({ baseUrl: override.baseUrl });
+      console.log(`[ai/stt] provider=${override.provider ?? 'override'} baseUrl=${override.baseUrl}`);
+      const model = buildTranscriptionModelWith({ baseUrl: override.baseUrl, apiKey: override.apiKey, model: override.model });
       return new OpenAISTTProvider(model);
     }
     const r = resolveFeature('stt');
     if (r.provider === 'none') return new NullSTTProvider(r.envPrefix);
+    console.log(`[ai/stt] provider=${r.provider} model=${r.model}`);
     const creator = registry.get(r.provider);
     if (!creator) throw new Error(`[ai/stt] Unregistered STT provider "${r.provider}". This is a bug.`);
     return creator();

@@ -7,6 +7,37 @@ import {
   CoursewareManifestSchema,
 } from '../types/courseware';
 
+const AGE_GROUP_GUIDANCE: Record<string, string> = {
+  'Young Child (Under 12)':  'Picture-book words only; no abstractions. Keep each CFLT element ≤ 6 words. Tone: warm, playful, encouraging. Typical scenarios: fairy tale, zoo, park, bedtime, art table.',
+  'Young Learner (Age 12+)': 'Everyday + basic school vocabulary. Tone: friendly, curious. Typical scenarios: school life, hobbies, outdoor activities, simple travel.',
+  'Teenager':                'Casual contemporary language; light slang acceptable. Tone: relatable, energetic. Typical scenarios: social life, sports, entertainment, part-time work.',
+  'Adult / Professional':    'Full adult vocabulary; technical terms when appropriate. Tone: neutral to formal. Typical scenarios: workplace and industry-specific professional settings.',
+};
+
+const INDUSTRY_GUIDANCE: Record<string, string> = {
+  'General / Life':           'Everyday situations: grocery shopping, transport, household tasks, small talk.',
+  'Stories / Fairy Tales':    'Narrative characters (princess, dragon, wizard, knight); once-upon-a-time storytelling format; simple plot-driven sentences.',
+  'Animals / Nature':         'Real animals and nature vocabulary (puppy, butterfly, river, forest); settings: zoo, park, farm, garden.',
+  'Arts & Crafts':            'Making/creating verbs as [Core Actions] (draw, cut, fold, paint, glue); settings: art room, craft table, classroom.',
+  'Music / Songs':            'Rhythm and performance vocabulary (sing, clap, strum, beat, melody); settings: music class, choir, concert.',
+  'School / Academic':        'Study-skill verbs (explain, practise, revise, submit, grade); settings: classroom, library, study group, homework.',
+  'Hobbies / Interests':      'Passion-driven actions tied to the learner\'s hobby; settings: club meetings, weekend activities, competitions.',
+  'Sports / Recreation':      'Physical action verbs (run, kick, defend, score, train); settings: training session, match day, gym.',
+  'Social / Daily Life':      'Interpersonal interactions (greet, invite, apologize, thank, arrange); settings: friendships, cafés, social events.',
+  'IT / Software Engineering':'Engineering verbs as [Core Actions] (deploy, refactor, debug, optimize, ship); settings: code review, system architecture, incident response.',
+  'Medical / Healthcare':     'Clinical vocabulary (diagnose, prescribe, examine, treat, monitor); settings: patient consultation, ward rounds, clinic.',
+  'Business / Finance':       'Commercial verbs (negotiate, budget, forecast, pitch, close); settings: meetings, presentations, client negotiations.',
+  'Legal / Law':              'Formal legal vocabulary (draft, dispute, comply, rule, appeal, enforce); settings: contracts, hearings, client consultations.',
+  'Education / Teaching':     'Instructional verbs (explain, assess, mentor, demonstrate, evaluate); settings: classroom, curriculum planning, parent meetings.',
+  'Design / Creative':        'Creative-process verbs (sketch, iterate, prototype, revise, present); settings: design studio, client brief, critique session.',
+  'Sales / Marketing':        'Persuasion vocabulary (pitch, convert, retain, campaign, segment, launch); settings: client calls, product launches, market analysis.',
+  'Travel / Hospitality':     'Journey vocabulary (check in, board, recommend, reserve, explore); settings: airports, hotels, tour guides.',
+  'Logistics / Operations':   'Process verbs (ship, track, schedule, coordinate, optimise); settings: warehouses, dispatch, supply-chain planning.',
+};
+
+function resolveGuidance(map: Record<string, string>, key: string, fallback: string): string {
+  return map[key] ?? `${fallback}: ${key}`;
+}
 
 export interface GenerationRequest {
   age_group: string;
@@ -25,6 +56,7 @@ export class CoursewareOrchestrator {
   private emit: ProgressEmitter;
 
   constructor(modelOverride?: LanguageModel, onProgress?: ProgressEmitter) {
+    if (!modelOverride) console.log('[ai/courseGen] no UI settings — using env fallback');
     this.model = modelOverride ?? courseGenModel;
     this.transformer = new CFLTTransformer(modelOverride);
     this.emit = onProgress ?? (() => {});
@@ -40,6 +72,8 @@ export class CoursewareOrchestrator {
     const dynamicPrompt = await loadSkill('courseware-gen', {
       SOURCE_LANG: sourceLang,
       TARGET_LANG: targetLang,
+      AGE_GROUP_GUIDANCE: resolveGuidance(AGE_GROUP_GUIDANCE, request.age_group, 'Age group'),
+      INDUSTRY_GUIDANCE:  resolveGuidance(INDUSTRY_GUIDANCE, request.industry_context, 'Industry context'),
     }, userId);
     const userPrompt = JSON.stringify(request);
 
@@ -96,26 +130,38 @@ export class CoursewareOrchestrator {
     }
 
     this.emit({ type: 'step', message: 'Auditing scripts…' });
-    // Parallel self-audit: re-run every script through CFLTTransformer concurrently
+    // Parallel self-audit: re-verify cflt structure and backfill standard_l1.
+    // Young Child (Under 12) uses the lightweight auditScript schema because
+    // their sentences are intentionally simple and don't reliably fill all four
+    // CFLT slots — the strict corrections/slots schema causes consistent false
+    // failures. All other age groups use the full transform for proper CFLT audit.
+    const isYoungChild = request.age_group === 'Young Child (Under 12)';
     const auditTasks = manifest.lessons.flatMap((lesson) =>
       lesson.cflt_scripts.map(async (script) => {
-        const auditResult = await this.transformer.transform(
-          script.standard_l2,
-          sourceLang,
-          targetLang,
-        );
-        if (!('error' in auditResult)) {
-          script.cflt_l1 = auditResult.cflt_l1;
-          script.cflt_l2 = auditResult.cflt_l2;
-          // The course-generation prompt does not ask the LLM for the natural
-          // native-language rendering, so we backfill it from the audit pass —
-          // that's the canonical place where the transformer produces all four
-          // bilingual representations from a single standard_l2 input.
-          if (auditResult.standard_l1) {
-            script.standard_l1 = auditResult.standard_l1;
+        if (isYoungChild) {
+          const auditResult = await this.transformer.auditScript(
+            script.standard_l2,
+            sourceLang,
+            targetLang,
+          );
+          if (!('error' in auditResult)) {
+            script.cflt_l1 = auditResult.cflt_l1;
+            script.cflt_l2 = auditResult.cflt_l2;
+            if (auditResult.standard_l1) script.standard_l1 = auditResult.standard_l1;
           }
         } else {
-          console.error('[orchestrator] Script audit failed:', auditResult.error);
+          const auditResult = await this.transformer.transform(
+            script.standard_l2,
+            sourceLang,
+            targetLang,
+          );
+          if (!('error' in auditResult)) {
+            script.cflt_l1 = auditResult.cflt_l1;
+            script.cflt_l2 = auditResult.cflt_l2;
+            if (auditResult.standard_l1) script.standard_l1 = auditResult.standard_l1;
+          } else {
+            console.error('[orchestrator] Script audit failed:', auditResult.error);
+          }
         }
       })
     );

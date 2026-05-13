@@ -24,7 +24,7 @@ import {
 import { motion } from 'framer-motion';
 import type { CFLTResponse, CfltSlot } from '../src/types/cflt';
 import type { CoursewareManifest, Lesson, LessonScript } from '../src/types/courseware';
-import { t as tr, SUPPORTED_LANGS, detectUiLang, defaultLangPair, type SupportedLang } from '../src/lib/ui-i18n';
+import { t as tr, SUPPORTED_LANGS, detectUiLang, defaultLangPair, type SupportedLang, AGE_KEYS, type AgeKey, findAgeKey, type IndustryKey, findIndustryKey, INDUSTRY_KEYS, AGE_INDUSTRIES } from '../src/lib/ui-i18n';
 import { buildPlayableCflt, type SlotFillMap } from '../src/lib/cflt-playback';
 import { consumeSSE } from '../src/lib/sse-reader';
 
@@ -89,21 +89,43 @@ export default function Home() {
   // below re-syncs to the persisted/detected value on the client.
   const [uiLang, setUiLang] = useState<SupportedLang>('English');
 
-  const [ageGroup, setAgeGroup] = useState('Adult / Professional');
-  const [industry, setIndustry] = useState('General / Life');
+  const [ageGroup, setAgeGroup] = useState<AgeKey>('ageAdult');
+  const [industry, setIndustry] = useState<IndustryKey>('indGeneral');
   const [sourceLang, setSourceLang] = useState<SupportedLang>('English');
   const [targetLang, setTargetLang] = useState<SupportedLang>('Chinese');
 
   useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(UI_LANG_STORAGE_KEY) as SupportedLang | null;
-      const initial = stored && SUPPORTED_LANGS.includes(stored) ? stored : detectUiLang();
-      setUiLang(initial);
-      const pair = defaultLangPair(initial);
-      setSourceLang(pair.source);
-      setTargetLang(pair.target);
+      const storedUi = window.localStorage.getItem(UI_LANG_STORAGE_KEY) as SupportedLang | null;
+      const initialUi = storedUi && SUPPORTED_LANGS.includes(storedUi) ? storedUi : detectUiLang();
+      setUiLang(initialUi);
+
+      const storedAge = window.localStorage.getItem('corefirst.ageGroup');
+      if (storedAge) {
+        const key = (AGE_KEYS as readonly string[]).includes(storedAge)
+          ? (storedAge as AgeKey)
+          : findAgeKey(storedAge);
+        if (key) handleAgeChange(key);
+      }
+
+      const storedInd = window.localStorage.getItem('corefirst.industry');
+      if (storedInd) {
+        const indKey = (INDUSTRY_KEYS as readonly string[]).includes(storedInd)
+          ? (storedInd as IndustryKey)
+          : findIndustryKey(storedInd);
+        if (indKey) handleIndustryChange(indKey);
+      }
+
+      const storedSrc = window.localStorage.getItem('corefirst.sourceLang') as SupportedLang | null;
+      const storedTgt = window.localStorage.getItem('corefirst.targetLang') as SupportedLang | null;
+
+      if (storedSrc && SUPPORTED_LANGS.includes(storedSrc)) setSourceLang(storedSrc);
+      else setSourceLang(defaultLangPair(initialUi).source);
+
+      if (storedTgt && SUPPORTED_LANGS.includes(storedTgt)) setTargetLang(storedTgt);
+      else setTargetLang(defaultLangPair(initialUi).target);
     } catch {
-      // localStorage unavailable; stick with initial English defaults.
+      // localStorage unavailable
     }
   }, []);
 
@@ -111,8 +133,31 @@ export default function Home() {
     setUiLang(next);
     try { window.localStorage.setItem(UI_LANG_STORAGE_KEY, next); } catch {}
     const pair = defaultLangPair(next);
-    setSourceLang(pair.source);
-    setTargetLang(pair.target);
+    handleSourceLangChange(pair.source);
+    handleTargetLangChange(pair.target);
+  };
+
+  const handleAgeChange = (next: AgeKey) => {
+    setAgeGroup(next);
+    try { window.localStorage.setItem('corefirst.ageGroup', next); } catch {}
+    if (!(AGE_INDUSTRIES[next] as readonly string[]).includes(industry)) {
+      handleIndustryChange('indGeneral');
+    }
+  };
+
+  const handleIndustryChange = (next: IndustryKey) => {
+    setIndustry(next);
+    try { window.localStorage.setItem('corefirst.industry', next); } catch {}
+  };
+
+  const handleSourceLangChange = (next: SupportedLang) => {
+    setSourceLang(next);
+    try { window.localStorage.setItem('corefirst.sourceLang', next); } catch {}
+  };
+
+  const handleTargetLangChange = (next: SupportedLang) => {
+    setTargetLang(next);
+    try { window.localStorage.setItem('corefirst.targetLang', next); } catch {}
   };
 
   const [audioLoading, setAudioLoading] = useState<string | null>(null);
@@ -306,7 +351,7 @@ export default function Home() {
       const response = await fetch('/api/generate-course', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({ topic: input, age_group: ageGroup, industry_context: industry, sourceLang, targetLang }),
+        body: JSON.stringify({ topic: input, age_group: tr('English', ageGroup), industry_context: tr('English', industry), sourceLang, targetLang }),
       });
       if (response.status === 401) {
         const data = await response.json().catch(() => ({}));
@@ -489,7 +534,7 @@ export default function Home() {
                 <select
                   id="sourceLang"
                   value={sourceLang}
-                  onChange={(e) => setSourceLang(e.target.value as SupportedLang)}
+                  onChange={(e) => handleSourceLangChange(e.target.value as SupportedLang)}
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                 >
                   {LANGUAGES.map(l => <option key={l} value={l}>{tr(uiLang, LANG_KEY[l])}</option>)}
@@ -505,7 +550,7 @@ export default function Home() {
                 <select
                   id="targetLang"
                   value={targetLang}
-                  onChange={(e) => setTargetLang(e.target.value as SupportedLang)}
+                  onChange={(e) => handleTargetLangChange(e.target.value as SupportedLang)}
                   className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                 >
                   {LANGUAGES.map(l => <option key={l} value={l}>{tr(uiLang, LANG_KEY[l])}</option>)}
@@ -525,12 +570,13 @@ export default function Home() {
                   <select
                     id="ageGroup"
                     value={ageGroup}
-                    onChange={(e) => setAgeGroup(e.target.value)}
+                    onChange={(e) => handleAgeChange(e.target.value as AgeKey)}
                     className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                   >
-                    <option>Young Learner (Age 12+)</option>
-                    <option>Teenager</option>
-                    <option>Adult / Professional</option>
+                    <option value="ageChild">{tr(uiLang, 'ageChild')}</option>
+                    <option value="ageYoung">{tr(uiLang, 'ageYoung')}</option>
+                    <option value="ageTeen">{tr(uiLang, 'ageTeen')}</option>
+                    <option value="ageAdult">{tr(uiLang, 'ageAdult')}</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -540,27 +586,16 @@ export default function Home() {
                   >
                     <Briefcase className="w-3 h-3" /> {tr(uiLang, 'industryLabel')}
                   </label>
-                  {/* Combobox: pick from common options or type your own */}
-                  <input
+                  <select
                     id="industry"
-                    list="industry-options"
                     value={industry}
-                    onChange={(e) => setIndustry(e.target.value)}
-                    placeholder="e.g. General / Life, Law, Design…"
+                    onChange={(e) => handleIndustryChange(e.target.value as IndustryKey)}
                     className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                  />
-                  <datalist id="industry-options">
-                    <option value="General / Life" />
-                    <option value="IT / Software Engineering" />
-                    <option value="Medical / Healthcare" />
-                    <option value="Business / Finance" />
-                    <option value="Legal / Law" />
-                    <option value="Education / Teaching" />
-                    <option value="Design / Creative" />
-                    <option value="Sales / Marketing" />
-                    <option value="Travel / Hospitality" />
-                    <option value="Logistics / Operations" />
-                  </datalist>
+                  >
+                    {AGE_INDUSTRIES[ageGroup].map(key => (
+                      <option key={key} value={key}>{tr(uiLang, key)}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
             )}
@@ -655,7 +690,7 @@ export default function Home() {
                 uiLang={uiLang}
                 packageSlug={courseResult?.slug}
                 packageId={courseResult?.packageId}
-                context={courseResult?.topic || industry}
+                context={courseResult?.topic || tr('English', industry)}
                 onOpenSettings={() => setShowSettings(true)}
               />
               <RoleplayHistory uiLang={uiLang} />
@@ -989,6 +1024,20 @@ export default function Home() {
               refreshKey={courseHistoryKey}
               onLoad={(course) => {
                 setCourseResult(course as typeof courseResult);
+                if (course.industry) {
+                  const indKey = (INDUSTRY_KEYS as readonly string[]).includes(course.industry)
+                    ? (course.industry as IndustryKey)
+                    : findIndustryKey(course.industry);
+                  if (indKey) handleIndustryChange(indKey);
+                }
+                if (course.ageGroup) {
+                  const key = (AGE_KEYS as readonly string[]).includes(course.ageGroup)
+                    ? (course.ageGroup as AgeKey)
+                    : findAgeKey(course.ageGroup);
+                  if (key) handleAgeChange(key);
+                }
+                if (course.sourceLang) handleSourceLangChange(course.sourceLang as SupportedLang);
+                if (course.targetLang) handleTargetLangChange(course.targetLang as SupportedLang);
                 setFetchError(null);
                 if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
               }}

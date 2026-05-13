@@ -24,12 +24,13 @@ registerTTSProvider('google',     () => new GoogleGeminiTTSProvider());
 export class TTSFactory {
   static getProvider(override?: TTSOverride): TTSProvider {
     if (override) {
-      // Per-request override: OpenAI-compatible endpoint supplied by the client.
-      const model = buildSpeechModelWith({ baseUrl: override.baseUrl, model: override.model });
+      console.log(`[ai/tts] provider=${override.provider ?? 'override'} model=${override.model || '(default)'}`);
+      const model = buildSpeechModelWith({ baseUrl: override.baseUrl, model: override.model, apiKey: override.apiKey });
       return new OpenAITTSProvider(model);
     }
     const r = resolveFeature('tts');
     if (r.provider === 'none') return new NullTTSProvider(r.envPrefix);
+    console.log(`[ai/tts] provider=${r.provider} model=${r.model}`);
     const creator = registry.get(r.provider);
     if (!creator) throw new Error(`[ai/tts] Unregistered TTS provider "${r.provider}". This is a bug.`);
     return creator();

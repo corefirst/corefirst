@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useSettings, type UserSettings, type SettingsMode } from '@/hooks/useSettings';
 import { useProfile } from '@/hooks/useProfile';
-import { isFullStackProvider } from '@/src/lib/ai/capabilities';
+import { isFullStackProvider, PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
 
 interface Props { onClose: () => void }
 
@@ -92,12 +92,20 @@ export function Settings({ onClose }: Props) {
     const def = PROVIDERS.find(p => p.id === id)!;
     setVerifyState('idle');
     setVerifyError('');
-    // Reset auth fields; preserve URL for Ollama if re-selecting
-    const isSame = id === draft.global.provider;
+    // Preserve fields when re-selecting the same provider (within this draft),
+    // or restore from saved settings when switching back to the saved provider.
+    // Only clear when switching to a genuinely new provider.
+    const isSame    = id === draft.global.provider;
+    const isSaved   = id === settings.global.provider;
+    const pick = <T,>(draftVal: T, savedVal: T, empty: T): T =>
+      isSame ? draftVal : isSaved ? savedVal : empty;
     patchGlobal({
-      provider: id,
-      apiKey: isSame ? draft.global.apiKey : '',
-      model: isSame ? draft.global.model : '',
+      provider:   id,
+      apiKey:     pick(draft.global.apiKey,     settings.global.apiKey,     ''),
+      model:      pick(draft.global.model,      settings.global.model,      ''),
+      ttsModel:   pick(draft.global.ttsModel,   settings.global.ttsModel,   ''),
+      sttModel:   pick(draft.global.sttModel,   settings.global.sttModel,   ''),
+      imageModel: pick(draft.global.imageModel, settings.global.imageModel, ''),
     });
     // Seed Ollama URL default if first time
     if (def.authType === 'url' && !draft.advanced.ollama?.baseUrl) {
@@ -215,16 +223,16 @@ export function Settings({ onClose }: Props) {
                     <p className="text-xs text-gray-400 mb-3">
                       One key powers text, image, speech, and transcription.
                     </p>
-                    <div className="grid grid-cols-2 gap-1.5 mb-4">
+                    <select
+                      value={draft.global.provider}
+                      onChange={e => handleProviderSelect(e.target.value)}
+                      className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+                    >
+                      <option value="">— select a provider —</option>
                       {STANDARD_PROVIDERS.map(p => (
-                        <ProviderCard
-                          key={p.id}
-                          p={{ ...p, tagline: p.fullStackTagline ?? p.tagline }}
-                          selected={draft.global.provider === p.id}
-                          onSelect={handleProviderSelect}
-                        />
+                        <option key={p.id} value={p.id}>{p.label} — {p.fullStackTagline ?? p.tagline}</option>
                       ))}
-                    </div>
+                    </select>
                   </>
                 ) : (
                   <>
@@ -344,19 +352,35 @@ export function Settings({ onClose }: Props) {
                       </div>
                     )}
 
-                    {/* Cloud: optional model override */}
+                    {/* Cloud: optional model overrides (4 fields) */}
                     {selectedProvider.authType === 'key' && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Model override <span className="font-normal text-gray-400">(optional — leave blank for default)</span>
+                        <label className="block text-xs font-medium text-gray-500 mb-2">
+                          Model overrides <span className="font-normal text-gray-400">(blank = provider default)</span>
                         </label>
-                        <input
-                          type="text"
-                          value={draft.global.model}
-                          onChange={e => patchGlobal({ model: e.target.value })}
-                          placeholder="e.g. gemini-2.0-flash, gpt-4o-mini"
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          {[
+                            { label: 'LLM', key: 'model' as const, cap: 'text' },
+                            { label: 'TTS', key: 'ttsModel' as const, cap: 'text-to-speech' },
+                            { label: 'STT', key: 'sttModel' as const, cap: 'speech-to-text' },
+                            { label: 'Image', key: 'imageModel' as const, cap: 'text-to-image' },
+                          ].map(({ label, key, cap }) => {
+                            const defaults = PROVIDER_DEFAULTS[draft.global.provider] ?? {};
+                            const placeholder = defaults[cap as keyof typeof defaults] ?? 'provider default';
+                            return (
+                              <div key={key}>
+                                <label className="block text-[11px] font-medium text-gray-500 mb-0.5">{label}</label>
+                                <input
+                                  type="text"
+                                  value={draft.global[key] ?? ''}
+                                  onChange={e => patchGlobal({ [key]: e.target.value })}
+                                  placeholder={placeholder}
+                                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 
@@ -417,6 +441,20 @@ export function Settings({ onClose }: Props) {
                       </div>
                     </>
                   )}
+                  {(draft.advanced.tts?.provider === 'qwen' || draft.advanced.tts?.provider === 'openrouter') && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        API Key <span className="font-normal text-gray-400">(leave blank to use global key)</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={draft.advanced.tts?.apiKey ?? ''}
+                        onChange={e => patchAdv('tts', { apiKey: e.target.value })}
+                        placeholder={draft.advanced.tts?.provider === 'qwen' ? 'sk-…' : 'sk-or-…'}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    </div>
+                  )}
                 </div>
               </CollapsibleSection>
 
@@ -455,6 +493,20 @@ export function Settings({ onClose }: Props) {
                         className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                       <p className="text-xs text-gray-400 mt-1">Local servers: faster-whisper-server · whisper.cpp</p>
+                    </div>
+                  )}
+                  {(draft.advanced.stt?.provider === 'qwen' || draft.advanced.stt?.provider === 'openrouter') && (
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        API Key <span className="font-normal text-gray-400">(leave blank to use global key)</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={draft.advanced.stt?.apiKey ?? ''}
+                        onChange={e => patchAdv('stt', { apiKey: e.target.value })}
+                        placeholder={draft.advanced.stt?.provider === 'qwen' ? 'sk-…' : 'sk-or-…'}
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
                     </div>
                   )}
                 </div>

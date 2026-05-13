@@ -31,16 +31,19 @@ export function buildImageModel(): ImageModel {
       },
     }) as ImageModel;
   }
+  console.log(`[ai/imageGen] provider=${r.provider} model=${r.model}`);
   const builder = registry.get(r.provider);
   if (!builder) throw new InvalidProviderError(r.provider, 'text-to-image');
   return builder(r);
 }
 
-export function buildImageModelWith(overrides: { provider?: string; apiKey?: string }): ImageModel {
+export function buildImageModelWith(overrides: { provider?: string; apiKey?: string; model?: string }): ImageModel {
   const r = resolveFeature('imageGen');
   const provider = overrides.provider || r.provider;
   if (provider === 'none') return buildImageModel();
   const builder = registry.get(provider);
   if (!builder) throw new InvalidProviderError(provider, 'text-to-image');
-  return builder(r, overrides.apiKey);
+  const effectiveR = overrides.model ? { ...r, model: overrides.model } : r;
+  console.log(`[ai/imageGen] request: provider=${provider} model=${overrides.model || r.model}`);
+  return builder(effectiveR, overrides.apiKey);
 }

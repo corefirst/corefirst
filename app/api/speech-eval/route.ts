@@ -65,7 +65,9 @@ export async function POST(request: Request) {
     const settings = extractSettings(request);
     const sttOverride = resolveSTTOverride(settings);
     const sttProvider = STTFactory.getProvider(sttOverride ?? undefined);
-    const activeEvalModel = resolveFeatureFromSettings('speechEval', settings) ?? speechEvalModel;
+    const evalModelOverride = resolveFeatureFromSettings('speechEval', settings);
+    if (!evalModelOverride) console.log('[ai/speechEval] no UI settings — using env fallback');
+    const activeEvalModel = evalModelOverride ?? speechEvalModel;
 
     const { text: transcription } = await sttProvider.transcribe(audioBytes);
     const userId = await getUserId(request);

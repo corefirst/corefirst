@@ -82,7 +82,13 @@ type DictKey =
   // Stats empty state CTAs
   | 'statsGoTransform' | 'statsGoCourse'
   // Language names (for the lang dropdowns)
-  | 'langEnglish' | 'langChinese' | 'langJapanese' | 'langKorean' | 'langVietnamese' | 'langSpanish' | 'langFrench' | 'langGerman';
+  | 'langEnglish' | 'langChinese' | 'langJapanese' | 'langKorean' | 'langVietnamese' | 'langSpanish' | 'langFrench' | 'langGerman'
+  // Age groups
+  | 'ageChild' | 'ageYoung' | 'ageTeen' | 'ageAdult'
+  // Industries
+  | 'indGeneral' | 'indIT' | 'indMedical' | 'indBusiness' | 'indLegal' | 'indEducation' | 'indDesign' | 'indSales' | 'indTravel' | 'indLogistics'
+  | 'indSchool' | 'indHobby' | 'indSports' | 'indSocial'
+  | 'indStories' | 'indAnimals' | 'indArts' | 'indMusic';
 
 type Resolver = (arg: string, lang: SupportedLang) => string;
 type Dict = Record<DictKey, string | Resolver>;
@@ -189,6 +195,10 @@ const en: Dict = {
   langEnglish: 'English', langChinese: 'Chinese', langJapanese: 'Japanese',
   langKorean: 'Korean', langVietnamese: 'Vietnamese',
   langSpanish: 'Spanish', langFrench: 'French', langGerman: 'German',
+  ageChild: 'Young Child (Under 12)', ageYoung: 'Young Learner (Age 12+)', ageTeen: 'Teenager', ageAdult: 'Adult / Professional',
+  indGeneral: 'General / Life', indIT: 'IT / Software Engineering', indMedical: 'Medical / Healthcare', indBusiness: 'Business / Finance', indLegal: 'Legal / Law', indEducation: 'Education / Teaching', indDesign: 'Design / Creative', indSales: 'Sales / Marketing', indTravel: 'Travel / Hospitality', indLogistics: 'Logistics / Operations',
+  indSchool: 'School / Academic', indHobby: 'Hobbies / Interests', indSports: 'Sports / Recreation', indSocial: 'Social / Daily Life',
+  indStories: 'Stories / Fairy Tales', indAnimals: 'Animals / Nature', indArts: 'Arts & Crafts', indMusic: 'Music / Songs',
 };
 
 const zh: Dict = {
@@ -293,7 +303,12 @@ const zh: Dict = {
   langEnglish: '英语', langChinese: '中文', langJapanese: '日语',
   langKorean: '韩语', langVietnamese: '越南语',
   langSpanish: '西班牙语', langFrench: '法语', langGerman: '德语',
+  ageChild: '儿童 (12岁以下)', ageYoung: '青少年 (12岁+)', ageTeen: '青年', ageAdult: '成人 / 职场',
+  indGeneral: '通用 / 生活', indIT: 'IT / 软件工程', indMedical: '医疗 / 健康', indBusiness: '商务 / 金融', indLegal: '法律 / 法务', indEducation: '教育 / 教学', indDesign: '设计 / 创意', indSales: '销售 / 营销', indTravel: '旅游 / 酒店', indLogistics: '物流 / 运营',
+  indSchool: '学校 / 学业', indHobby: '爱好 / 兴趣', indSports: '体育 / 运动', indSocial: '社交 / 日常生活',
+  indStories: '故事 / 童话', indAnimals: '动物 / 自然', indArts: '艺术 / 手工', indMusic: '音乐 / 歌曲',
 };
+
 
 const ja: Dict = {
   tagline: 'コアファースト言語学習法',
@@ -636,4 +651,39 @@ export function defaultLangPair(uiLang: SupportedLang): { source: SupportedLang;
   return uiLang === 'English'
     ? { source: 'English', target: 'Chinese' }
     : { source: uiLang, target: 'English' };
+}
+
+// Canonical keys for closed-form selects. Stored in state/localStorage instead
+// of localized display strings so values stay correct across UI language changes.
+export const AGE_KEYS = ['ageChild', 'ageYoung', 'ageTeen', 'ageAdult'] as const;
+export type AgeKey = typeof AGE_KEYS[number];
+
+export const INDUSTRY_KEYS = ['indGeneral', 'indIT', 'indMedical', 'indBusiness', 'indLegal', 'indEducation', 'indDesign', 'indSales', 'indTravel', 'indLogistics', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indStories', 'indAnimals', 'indArts', 'indMusic'] as const;
+export type IndustryKey = typeof INDUSTRY_KEYS[number];
+
+export const AGE_INDUSTRIES: Record<AgeKey, readonly IndustryKey[]> = {
+  ageChild: ['indGeneral', 'indStories', 'indAnimals', 'indArts', 'indMusic', 'indSports', 'indSchool'],
+  ageYoung: ['indGeneral', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indTravel'],
+  ageTeen:  ['indGeneral', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indIT', 'indDesign', 'indTravel'],
+  ageAdult: ['indGeneral', 'indIT', 'indMedical', 'indBusiness', 'indLegal', 'indEducation', 'indDesign', 'indSales', 'indTravel', 'indLogistics'],
+};
+
+/** Maps any localized age display string back to its canonical key. */
+export function findAgeKey(value: string): AgeKey | undefined {
+  for (const lang of SUPPORTED_LANGS) {
+    for (const key of AGE_KEYS) {
+      if (t(lang, key) === value) return key;
+    }
+  }
+  return undefined;
+}
+
+/** Maps any localized industry display string back to its canonical key (undefined for custom values). */
+export function findIndustryKey(value: string): IndustryKey | undefined {
+  for (const lang of SUPPORTED_LANGS) {
+    for (const key of INDUSTRY_KEYS) {
+      if (t(lang, key) === value) return key;
+    }
+  }
+  return undefined;
 }

@@ -61,10 +61,11 @@ Output a SINGLE JSON object — no prose before or after, no markdown code fence
 - Do NOT wrap output in markdown code fences (no triple backticks).
 - Do NOT add fields outside the skeleton above.
 
-## Persona Adaptation Rules
-- **Child (Age < 12)**: Use simple "Atomic" vocabulary in both {{SOURCE_LANG}} and {{TARGET_LANG}}. Scenarios: playful (zoo, park).
-- **Professional**: Use industry-specific tokens. Scenarios: workplace (meetings, system architecture, medical diagnosis).
-- **IT English Specialization**: For tech/IT scenarios, prioritize high-impact engineering verbs as [Core Actions] (e.g., deploy, refactor, optimize).
+## Persona & Industry Adaptation
+
+**Age group:** {{AGE_GROUP_GUIDANCE}}
+
+**Industry context:** {{INDUSTRY_GUIDANCE}}
 
 ## Constraints
 - **NO NESTED CLAUSES**.

@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     const { model: modelOverride, userId } = await resolveTextContext('roleplay', request);
     await ensureDataDirs(userId);
 
+    if (!modelOverride) console.log('[ai/roleplay] no UI settings — using env fallback');
     const activeModel: LanguageModel = modelOverride ?? roleplayModel;
 
     // 1. Process and Save user audio if present (Commit-on-Submit)

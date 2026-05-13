@@ -8,11 +8,11 @@ export type SettingsMode = 'standard' | 'advanced';
 
 export interface UserSettings {
   mode: SettingsMode;
-  global: { provider: string; apiKey: string; model: string };
+  global: { provider: string; apiKey: string; model: string; ttsModel: string; sttModel: string; imageModel: string };
   advanced: {
     text?:     { provider?: string; model?: string; apiKey?: string };
-    tts?:      { provider?: string; baseUrl?: string; model?: string };
-    stt?:      { provider?: string; baseUrl?: string };
+    tts?:      { provider?: string; baseUrl?: string; model?: string; apiKey?: string };
+    stt?:      { provider?: string; baseUrl?: string; apiKey?: string };
     imageGen?: { provider?: string; apiKey?: string };
     ollama?:   { baseUrl?: string };
   };
@@ -20,7 +20,7 @@ export interface UserSettings {
 
 const EMPTY_SETTINGS: UserSettings = {
   mode: 'standard',
-  global: { provider: '', apiKey: '', model: '' },
+  global: { provider: '', apiKey: '', model: '', ttsModel: '', sttModel: '', imageModel: '' },
   advanced: {},
 };
 
@@ -34,13 +34,15 @@ export function normalize(raw: unknown): UserSettings {
   );
   return {
     mode: r.mode ?? (hasAdvancedOverrides ? 'advanced' : 'standard'),
-    global: { provider: '', apiKey: '', model: '', ...(r.global ?? {}) },
+    global: { provider: '', apiKey: '', model: '', ttsModel: '', sttModel: '', imageModel: '', ...(r.global ?? {}) },
     advanced: r.advanced ?? {},
   };
 }
 
+const ANON_STORAGE_KEY = 'cf_settings_anon';
+
 function storageKey(userId: string): string {
-  return `cf_settings_${userId}`;
+  return userId ? `cf_settings_${userId}` : ANON_STORAGE_KEY;
 }
 
 function getCookieValue(name: string): string {
@@ -60,7 +62,6 @@ export function useSettings() {
   useEffect(() => {
     const uid = getCookieValue(COOKIE_NAME);
     setUserId(uid);
-    if (!uid) return;
     try {
       const raw = localStorage.getItem(storageKey(uid));
       if (raw) setSettings(normalize(JSON.parse(raw)));
@@ -69,7 +70,6 @@ export function useSettings() {
 
   const save = useCallback((next: UserSettings): { ok: boolean; error?: string } => {
     setSettings(next);
-    if (!userId) return { ok: true };
     try {
       localStorage.setItem(storageKey(userId), JSON.stringify(next));
       return { ok: true };
@@ -88,9 +88,22 @@ export function useSettings() {
     if (g.apiKey)    headers['x-cf-api-key']        = g.apiKey;
     if (g.model)     headers['x-cf-model']          = g.model;
 
-    // Standard mode: only ship the global picks; backend resolves per-capability
-    // defaults via PROVIDER_DEFAULTS. Skip advanced overrides entirely.
-    if (mode !== 'advanced') return headers;
+    // Standard mode: one provider covers all capabilities — propagate global
+    // provider+key to TTS/STT/image headers so each backend route sees them.
+    if (mode !== 'advanced') {
+      if (g.provider) {
+        headers['x-cf-tts-provider'] = g.provider;
+        if (g.apiKey)     headers['x-cf-tts-key']    = g.apiKey;
+        if (g.ttsModel)   headers['x-cf-tts-model']  = g.ttsModel;
+        headers['x-cf-stt-provider'] = g.provider;
+        if (g.apiKey)     headers['x-cf-stt-key']    = g.apiKey;
+        if (g.sttModel)   headers['x-cf-stt-model']  = g.sttModel;
+        headers['x-cf-image-provider'] = g.provider;
+        if (g.apiKey)     headers['x-cf-image-key']  = g.apiKey;
+        if (g.imageModel) headers['x-cf-image-model'] = g.imageModel;
+      }
+      return headers;
+    }
 
     const text = adv.text;
     if (text?.provider) headers['x-cf-text-provider'] = text.provider;
@@ -103,9 +116,11 @@ export function useSettings() {
     if (tts?.provider)   headers['x-cf-tts-provider'] = tts.provider;
     if (tts?.baseUrl)    headers['x-cf-tts-url']      = tts.baseUrl;
     if (tts?.model)      headers['x-cf-tts-model']    = tts.model;
+    if (tts?.apiKey)     headers['x-cf-tts-key']      = tts.apiKey;
     const stt = adv.stt;
     if (stt?.provider)   headers['x-cf-stt-provider'] = stt.provider;
     if (stt?.baseUrl)    headers['x-cf-stt-url']      = stt.baseUrl;
+    if (stt?.apiKey)     headers['x-cf-stt-key']      = stt.apiKey;
     const img = adv.imageGen;
     if (img?.provider)   headers['x-cf-image-provider'] = img.provider;
     if (img?.apiKey)     headers['x-cf-image-key']      = img.apiKey;

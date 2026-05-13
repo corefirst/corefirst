@@ -67,13 +67,13 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
     'speech-to-text': 'whisper-1',
   },
   anthropic: { text: 'claude-sonnet-4-6' },
-  ollama:    { text: 'llama3.2' },
-  groq:      { text: 'llama-3.3-70b-versatile' },
-  deepseek:  { text: 'deepseek-chat' },
+  ollama: { text: 'llama3.2' },
+  groq: { text: 'llama-3.3-70b-versatile' },
+  deepseek: { text: 'deepseek-chat' },
   qwen: {
-    text: 'qwen-plus',
-    'text-to-image': 'wanx2.1-t2i-turbo',
-    'text-to-speech': 'cosyvoice-v1',
+    text: 'qwen3.5-plus',
+    'text-to-image': 'wanx2.7-image',
+    'text-to-speech': 'cosyvoice-v3.5-flash',
     'speech-to-text': 'paraformer-realtime-v2',
   },
   openrouter: {
@@ -223,7 +223,7 @@ export class InvalidProviderError extends Error {
     const where = feature ? `feature "${feature}" (capability ${capability})` : `capability ${capability}`;
     super(
       `Provider "${provider}" is not supported for ${where}. ` +
-        `Valid: ${(PROVIDERS_BY_CAPABILITY[capability] ?? []).join(', ') || '(none — capability not implemented)'}.`,
+      `Valid: ${(PROVIDERS_BY_CAPABILITY[capability] ?? []).join(', ') || '(none — capability not implemented)'}.`,
     );
     this.name = 'InvalidProviderError';
   }
@@ -233,7 +233,7 @@ export class NotImplementedError extends Error {
   constructor(capability: Capability) {
     super(
       `Capability "${capability}" is declared but not implemented in this release. ` +
-        `See docs/ai-provider-architecture.md §3.6.`,
+      `See docs/ai-provider-architecture.md §3.6.`,
     );
     this.name = 'NotImplementedError';
   }

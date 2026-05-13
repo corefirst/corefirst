@@ -39,9 +39,9 @@ export function buildSpeechModel(): SpeechModel {
   return builder(r);
 }
 
-export function buildSpeechModelWith(overrides: { baseUrl?: string; model?: string }): SpeechModel {
+export function buildSpeechModelWith(overrides: { baseUrl?: string; model?: string; apiKey?: string }): SpeechModel {
   const r = resolveFeature('tts');
-  return openaiTtsModel(overrides.model || r.model, overrides.baseUrl || r.baseUrl, r.apiKey);
+  return openaiTtsModel(overrides.model || r.model, overrides.baseUrl || r.baseUrl, overrides.apiKey ?? r.apiKey);
 }
 
 function nonAiSdkStub(kind: 'tts' | 'stt'): SpeechModel {
