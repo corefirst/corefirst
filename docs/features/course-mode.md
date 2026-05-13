@@ -5,7 +5,7 @@
 
 ## Purpose
 
-Course Mode is the structured practice layer of **CoreFirst**. It takes a user-defined topic and generates a complete, CRST-compliant lesson set on demand, then walks the learner through each dialogue line via a two-mode scaffolded flow: a **Learn** mode that demonstrates the CRST decomposition, an optional **Practice** mode that puzzle-tests it, and a **Voice Challenge** that scores delivery. The result is a repeatable, measurable practice session that can be saved, renamed, deleted, and re-opened from history.
+Course Mode is the structured practice layer of **CoreFirst**. It takes a user-defined topic and generates a complete, CRST-compliant lesson set on demand, then walks the learner through each dialogue line via a two-mode scaffolded flow: a **Learn** mode that demonstrates the CRST decomposition, an optional **Practice** mode that puzzle-tests it, and a **Voice Challenge** that scores delivery. The result is a repeatable, measurable practice session that can be saved, renamed, deleted, exported for sharing, and re-imported into any CoreFirst instance.
 
 ## Scope
 
@@ -20,6 +20,7 @@ Course Mode is the structured practice layer of **CoreFirst**. It takes a user-d
 - **Multi-user partitioning:** Every operation takes a `userId` (resolved from `X-User-Id` header → `cf_user_id` cookie → env → `'local'`); packages, records, and media are all scoped under `data/users/<userId>/` so multiple learners sharing a device never see each other's content.
 - **Progress Tracking:** Each Voice Challenge attempt is written as its own PouchDB doc in the `events` collection, ID-prefixed by slug for sync-safe enumeration.
 - **History, Re-open, Rename, Delete:** The Stats view lists per-user packages. Each row exposes Open / Rename / Delete actions. Rename changes only the displayed `topic` (slug is immutable — it's the join key for every event doc). Delete is a 5-step cascade: manifest unlink → state tombstone → bulk-tombstone every event doc with the slug prefix → orphan vocabulary `firstSeenIn` back-links → sweep orphan media. Returns structured per-step results; HTTP 207 on partial failure.
+- **Import / Export:** Users can export any course in the library as a portable `.corefirst` ZIP (Full ZIP manifest + audio + images) and import such files into any user's library. Re-importing the same course (matching `packageId`) is an idempotent overwrite.
 - **Vocabulary Capture:** On voice challenge, lesson `vocabulary_focus[]` tokens are captured into the global SRS deck with `(targetLang, token)` composite uniqueness and a `firstSeenIn` back-link to the originating script.
 
 **Excluded:**

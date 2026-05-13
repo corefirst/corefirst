@@ -14,6 +14,7 @@ The History & Storage module manages the persistence, isolation, and lifecycle o
 - **Multi-User Partitioning:** Isolation of data under `data/users/<userId>/`.
 - **Per-Event Persistence:** Storing actions as individual PouchDB documents to avoid sync conflicts.
 - **Hierarchical History Management:** Listing, renaming, and deleting records across Transforms, Roleplay Sessions, and Course Packages.
+- **Course Import / Export:** Support for portable `.corefirst` ZIP packages for sharing and offline distribution.
 - **Cascade Deletion:** Atomic-like cleanup of all associated data (events, states, media) when a parent package is deleted.
 - **Conflict-Safe Writes:** Using PouchDB revisions and a `mutate` primitive to handle concurrent writes.
 
@@ -26,8 +27,8 @@ The History & Storage module manages the persistence, isolation, and lifecycle o
 1. **Identity Resolution** — Extract and normalize `userId` from headers, cookies, or environment variables.
 2. **Namespace Partitioning** — Ensure every filesystem and database call is restricted to the current user's directory.
 3. **Event-Sourced Storage** — Write attempts and messages as discrete docs with unique IDs (`<slug>:<type>:<timestamp>:<rand>`) instead of growing arrays.
-4. **History Orchestration** — Provide API endpoints for listing and modifying history entries (Transforms, Roleplay Sessions, Course Manifests).
-5. **Garbage Collection** — Sweep orphan media files (CAS) that are no longer referenced by any manifest after a deletion.
+4. **History Orchestration** — Provide API endpoints for listing and modifying history entries (Transforms, Roleplay Sessions, Course Manifests), as well as exporting/importing course packages.
+5. **Garbage Collection** — Sweep orphan media files (CAS) that are no longer referenced by any manifest after a deletion or re-import.
 
 ## Interfaces
 

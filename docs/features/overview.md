@@ -14,7 +14,7 @@
 | [Voice Challenge](./voice-challenge.md) | Audio recording & CFLT-aware speech evaluation; BYOK headers; 401 key-error surface | none | shipped |
 | [Transform Mode](./transform-mode.md) | Ad-hoc restructuring + Cover & Recall self-test + Phonetic Bridge + post-result CTAs | logic-transformer, voice-challenge | shipped |
 | [Courseware Generator](./courseware-generator.md) | AI lesson generation with SSE real-time progress streaming | logic-transformer | shipped |
-| [Course Mode](./course-mode.md) | Learn/Practice/Voice flow with server-persisted puzzle completion state | courseware-generator, voice-challenge | shipped |
+| [Course Mode](./course-mode.md) | Learn/Practice/Voice flow with server-persisted progress state; Course Import/Export via `.corefirst` ZIP | courseware-generator, voice-challenge | shipped |
 | [Roleplay Coach](./roleplay-coach.md) | Multi-turn AI coach with CFLT Build Mode pre-production scaffold | voice-challenge | shipped |
 | [Progress Analytics](./progress-analytics.md) | Dashboard + SRS Vocabulary Review modal + Cross-Tab usage analytics | history-storage | shipped |
 
