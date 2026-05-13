@@ -1,6 +1,9 @@
 export interface STTOptions {
   /** ISO-639-1 hint (e.g. "en", "zh"). Some providers honor it, others ignore. */
   language?: string;
+  /** MIME type of the audio data (e.g. "audio/webm", "audio/wav"). Passed to
+   *  the AI SDK so the provider knows the container format. */
+  mimeType?: string;
 }
 
 export interface STTProvider {

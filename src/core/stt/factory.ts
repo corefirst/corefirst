@@ -4,6 +4,8 @@ import type { STTOverride } from '@/src/lib/ai/settings-config';
 import type { STTProvider, STTOptions } from './interface';
 import { OpenAISTTProvider } from './openai-provider';
 import { GoogleGeminiSTTProvider } from './google-provider';
+import { QwenSTTProvider } from './qwen-provider';
+import { PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
 
 type STTCreator = () => STTProvider;
 
@@ -15,15 +17,22 @@ export function registerSTTProvider(provider: string, creator: STTCreator): void
 }
 
 // ── Built-in providers ────────────────────────────────────────────────────────
-// qwen (DashScope SenseVoice/Paraformer) and openrouter both use the OpenAI-compat STT path.
 registerSTTProvider('openai',     () => new OpenAISTTProvider());
-registerSTTProvider('qwen',       () => new OpenAISTTProvider());
 registerSTTProvider('openrouter', () => new OpenAISTTProvider());
 registerSTTProvider('google',     () => new GoogleGeminiSTTProvider());
+// Qwen uses DashScope's native ASR API (not OpenAI-compat /audio/transcriptions)
+registerSTTProvider('qwen',       () => new OpenAISTTProvider()); // env-path fallback only
 
 export class STTFactory {
   static getProvider(override?: STTOverride): STTProvider {
     if (override) {
+      // Qwen DashScope does not implement /audio/transcriptions on its
+      // OpenAI-compatible endpoint — use the native DashScope ASR API instead.
+      if (override.provider === 'qwen' && override.apiKey) {
+        const model = override.model || PROVIDER_DEFAULTS['qwen']?.['speech-to-text'] || 'sensevoice-v1';
+        console.log(`[ai/stt] provider=qwen model=${model} (DashScope native API)`);
+        return new QwenSTTProvider(override.apiKey, model);
+      }
       console.log(`[ai/stt] provider=${override.provider ?? 'override'} baseUrl=${override.baseUrl}`);
       const model = buildTranscriptionModelWith({ baseUrl: override.baseUrl, apiKey: override.apiKey, model: override.model });
       return new OpenAISTTProvider(model);

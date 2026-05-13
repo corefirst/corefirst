@@ -74,7 +74,7 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
     text: 'qwen3.5-plus',
     'text-to-image': 'wanx2.7-image',
     'text-to-speech': 'cosyvoice-v3.5-flash',
-    'speech-to-text': 'paraformer-realtime-v2',
+    'speech-to-text': 'sensevoice-v1',
   },
   openrouter: {
     text: 'google/gemini-flash-1.5',

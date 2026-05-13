@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronRight, Clock, PlayCircle, Trash2 } from 'lucide-react';
 import { CFLTBlock, type CFLTBlockType } from './CFLTBlock';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
+import { useSettings } from '../hooks/useSettings';
 
 interface TransformItem {
   eventId: string;
@@ -57,6 +58,7 @@ interface Props {
 }
 
 export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
+  const { getHeaders } = useSettings();
   const [items, setItems] = useState<TransformItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -115,7 +117,7 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
     try {
       const response = await fetch('/api/tts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ text }),
       });
       if (!response.ok) throw new Error('TTS failed');

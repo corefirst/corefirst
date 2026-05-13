@@ -28,6 +28,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Audio file exceeds 10 MB limit' }, { status: 400 });
     }
 
+    const mimeType = audioFile.type || 'audio/webm';
     const audioBytes = new Uint8Array(await audioFile.arrayBuffer());
     const languageCode = targetLang ? LANG_MAP[targetLang] : undefined;
 
@@ -36,12 +37,17 @@ export async function POST(request: Request) {
 
     // Just transcribe, don't save.
     // Saving happens in the roleplay API upon final submission.
-    const { text } = await provider.transcribe(audioBytes, { language: languageCode });
+    const { text } = await provider.transcribe(audioBytes, { language: languageCode, mimeType });
 
     return NextResponse.json({ text });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error('[transcribe] Error:', msg);
+    console.error('[transcribe] Error:', msg || '(no message)');
+    if (error instanceof Error && error.cause) console.error('[transcribe] Cause:', error.cause);
+    if (error && typeof error === 'object') {
+      const extra = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      if (extra !== '{}') console.error('[transcribe] Details:', extra);
+    }
     return NextResponse.json({ error: 'Transcription failed', detail: msg }, { status: 500 });
   }
 }

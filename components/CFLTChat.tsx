@@ -204,7 +204,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     const transcribeAudio = async () => {
       setTranscribing(true);
       const formData = new FormData();
-      formData.append('audio', audioBlob);
+      formData.append('audio', audioBlob, 'recording.webm');
       formData.append('language', sourceLang);
       try {
         const response = await fetch('/api/transcribe', { method: 'POST', headers: getHeaders(), body: formData });

@@ -12,14 +12,21 @@ export class OpenAISTTProvider implements STTProvider {
   constructor(model?: TranscriptionModel) { this.model = model ?? sttModel; }
 
   async transcribe(audio: Uint8Array, opts?: STTOptions): Promise<{ text: string }> {
-    const { text } = await transcribe({
-      model: this.model,
-      audio,
-      // `openai` namespace is the AI-SDK convention for OpenAI-compat endpoints.
-      // Non-OpenAI backends (Qwen, OpenRouter Whisper) silently ignore unknown namespaces.
-      providerOptions: opts?.language ? { openai: { language: opts.language } } : undefined,
-      maxRetries: 1,
-    });
-    return { text };
+    try {
+      const { text } = await transcribe({
+        model: this.model,
+        audio,
+        // `openai` namespace is the AI-SDK convention for OpenAI-compat endpoints.
+        // Non-OpenAI backends (Qwen, OpenRouter Whisper) silently ignore unknown namespaces.
+        providerOptions: opts?.language ? { openai: { language: opts.language } } : undefined,
+        maxRetries: 0,
+      });
+      return { text };
+    } catch (e) {
+      // Re-throw with richer details so the route can log them.
+      const cause = (e as { responseBody?: unknown })?.responseBody ?? (e as { data?: unknown })?.data;
+      if (cause) throw Object.assign(new Error((e as Error).message ?? ''), { cause });
+      throw e;
+    }
   }
 }

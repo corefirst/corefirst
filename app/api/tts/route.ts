@@ -58,7 +58,12 @@ export async function POST(request: Request) {
     }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error('[tts] Error:', msg);
+    console.error('[tts] Error:', msg || '(no message)');
+    if (error instanceof Error && error.cause) console.error('[tts] Cause:', error.cause);
+    if (error && typeof error === 'object') {
+      const extra = JSON.stringify(error, Object.getOwnPropertyNames(error));
+      if (extra !== '{}') console.error('[tts] Details:', extra);
+    }
     return NextResponse.json({ error: 'TTS generation failed' }, { status: 500 });
   }
 }

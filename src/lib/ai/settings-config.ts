@@ -9,7 +9,7 @@
  */
 import type { LanguageModel } from 'ai';
 import type { FeatureKey } from './capabilities';
-import { getDefaultTextModel } from './capabilities';
+import { getDefaultTextModel, PROVIDER_DEFAULTS } from './capabilities';
 import { buildTextModelFromSpec } from './text/factory';
 import { PROVIDER_BASE_URLS } from './provider-urls';
 
@@ -37,7 +37,7 @@ export interface RequestSettings {
  * along for completeness but the factory always uses the OpenAI-compat path for
  * overrides — provider switching must be done via env vars (TTS_PROVIDER etc.).
  */
-export interface TTSOverride  { provider?: string; baseUrl: string; model: string; apiKey?: string }
+export interface TTSOverride  { provider?: string; baseUrl: string; model: string; apiKey?: string; voice?: string }
 export interface STTOverride  { provider?: string; baseUrl: string; apiKey?: string; model?: string }
 export interface ImageOverride { provider: string; apiKey: string; model?: string }
 
@@ -148,16 +148,25 @@ export function resolveFeatureFromSettings(
   return resolveTextModel(settings);
 }
 
+// Default TTS voice per provider. OpenAI-compatible providers each have their
+// own voice identifiers — 'alloy' is OpenAI-only and will fail for others.
+const PROVIDER_TTS_VOICES: Record<string, string> = {
+  qwen:       'longxiaochun',  // Qwen DashScope CosyVoice default
+  openrouter: 'alloy',
+  openai:     'alloy',
+};
+
 export function resolveTTSOverride(settings: RequestSettings): TTSOverride | undefined {
   const { tts, global: g } = settings;
-  // TTS-specific key takes priority; fall back to global key as last resort.
   const apiKey = tts.apiKey || g.apiKey || undefined;
   if (tts.baseUrl) {
     return { provider: tts.provider || 'openai', baseUrl: tts.baseUrl, model: tts.model, apiKey };
   }
   const provider = tts.provider;
   if (provider && PROVIDER_BASE_URLS[provider]) {
-    return { provider, baseUrl: PROVIDER_BASE_URLS[provider], model: tts.model, apiKey };
+    const model = tts.model || PROVIDER_DEFAULTS[provider]?.['text-to-speech'] || '';
+    const voice = PROVIDER_TTS_VOICES[provider];
+    return { provider, baseUrl: PROVIDER_BASE_URLS[provider], model, apiKey, voice };
   }
   return undefined;
 }
@@ -171,7 +180,8 @@ export function resolveSTTOverride(settings: RequestSettings): STTOverride | und
   }
   const provider = stt.provider;
   if (provider && PROVIDER_BASE_URLS[provider]) {
-    return { provider, baseUrl: PROVIDER_BASE_URLS[provider], apiKey, model };
+    const resolvedModel = model || PROVIDER_DEFAULTS[provider]?.['speech-to-text'] || '';
+    return { provider, baseUrl: PROVIDER_BASE_URLS[provider], apiKey, model: resolvedModel };
   }
   return undefined;
 }

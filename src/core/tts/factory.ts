@@ -26,7 +26,7 @@ export class TTSFactory {
     if (override) {
       console.log(`[ai/tts] provider=${override.provider ?? 'override'} model=${override.model || '(default)'}`);
       const model = buildSpeechModelWith({ baseUrl: override.baseUrl, model: override.model, apiKey: override.apiKey });
-      return new OpenAITTSProvider(model);
+      return new OpenAITTSProvider(model, override.voice);
     }
     const r = resolveFeature('tts');
     if (r.provider === 'none') return new NullTTSProvider(r.envPrefix);

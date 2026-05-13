@@ -18,7 +18,11 @@ const DEFAULT_VOICE = 'alloy';
  */
 export class OpenAITTSProvider implements TTSProvider {
   private model: SpeechModel;
-  constructor(model?: SpeechModel) { this.model = model ?? ttsModel; }
+  private voiceOverride?: string;
+  constructor(model?: SpeechModel, voice?: string) {
+    this.model = model ?? ttsModel;
+    this.voiceOverride = voice;
+  }
 
   async generateAudio(text: string): Promise<Uint8Array> {
     // Most TTS endpoints don't accept SSML — strip tags and decode entities.
@@ -30,14 +34,20 @@ export class OpenAITTSProvider implements TTSProvider {
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'");
 
-    const voice = process.env.TTS_VOICE ?? DEFAULT_VOICE;
+    // Priority: per-request voice override > TTS_VOICE env > default
+    const voice = this.voiceOverride ?? process.env.TTS_VOICE ?? DEFAULT_VOICE;
 
-    const { audio } = await generateSpeech({
-      model: this.model,
-      text: cleanText,
-      voice,
-    });
-
-    return audio.uint8Array;
+    try {
+      const { audio } = await generateSpeech({
+        model: this.model,
+        text: cleanText,
+        voice,
+      });
+      return audio.uint8Array;
+    } catch (e) {
+      const cause = (e as { responseBody?: unknown })?.responseBody ?? (e as { data?: unknown })?.data;
+      if (cause) throw Object.assign(new Error((e as Error).message ?? ''), { cause });
+      throw e;
+    }
   }
 }

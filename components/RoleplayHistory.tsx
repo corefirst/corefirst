@@ -18,6 +18,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
+import { useSettings } from '../hooks/useSettings';
 
 interface Slot { content: string; is_inferred: boolean }
 interface Crst { core: Slot; reason: Slot; space: Slot; time: Slot }
@@ -112,6 +113,7 @@ const formatTimestamp = (iso: string, lang: SupportedLang) => {
 interface Props { uiLang: SupportedLang }
 
 export const RoleplayHistory = ({ uiLang }: Props) => {
+  const { getHeaders } = useSettings();
   const [sessions, setSessions] = useState<RoleplaySessionItem[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
@@ -238,7 +240,7 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
     try {
       if (audioFile) url = `/api/media/${audioFile}`;
       else {
-        const response = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text }) });
+        const response = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify({ text }) });
         if (!response.ok) throw new Error('TTS failed');
         const blob = await response.blob();
         url = URL.createObjectURL(blob);
