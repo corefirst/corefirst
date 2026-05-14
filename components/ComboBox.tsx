@@ -52,17 +52,6 @@ export const ComboBox = ({
     setFilterText('');
   }, []);
 
-  // Close dropdown on click outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        closeDropdown();
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [closeDropdown]);
-
   // Scroll highlighted option into view
   useEffect(() => {
     if (isOpen && highlightIndex >= 0 && listRef.current) {
@@ -95,6 +84,26 @@ export const ComboBox = ({
     if (committed) onCommit?.(committed);
     closeDropdown();
   }, [value, options, onChange, onCommit, closeDropdown]);
+
+  // Keep a ref to the latest commitCustomValue so the click-outside handler
+  // can always call the current version without re-registering the listener.
+  const commitRef = useRef(commitCustomValue);
+  commitRef.current = commitCustomValue;
+
+  // Commit and close when clicking outside — same effect as pressing Enter.
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        if (blurTimeoutRef.current) {
+          clearTimeout(blurTimeoutRef.current);
+          blurTimeoutRef.current = null;
+        }
+        commitRef.current();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const openDropdown = useCallback(() => {
     if (blurTimeoutRef.current) {
