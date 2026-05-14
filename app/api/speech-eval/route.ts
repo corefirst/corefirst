@@ -18,6 +18,17 @@ const ALLOWED_AUDIO_TYPES = new Set([
   'audio/webm', 'audio/mp4', 'audio/wav', 'audio/mpeg', 'audio/ogg',
 ]);
 
+const LANG_MAP: Record<string, string> = {
+  'English': 'en',
+  'Chinese': 'zh',
+  'Japanese': 'ja',
+  'Korean': 'ko',
+  'Vietnamese': 'vi',
+  'Spanish': 'es',
+  'French': 'fr',
+  'German': 'de',
+};
+
 const SpeechEvalSchema = z.object({
   score: z.number(),
   pronunciation: z.number(),
@@ -62,6 +73,8 @@ export async function POST(request: Request) {
     const scriptIndexRaw = formData.get('scriptIndex');
 
     const audioBytes = new Uint8Array(await audioFile.arrayBuffer());
+    const languageCode = targetLang ? (LANG_MAP[targetLang] ?? undefined) : undefined;
+
     const settings = extractSettings(request);
     const sttOverride = resolveSTTOverride(settings);
     const sttProvider = STTFactory.getProvider(sttOverride ?? undefined);
@@ -69,7 +82,7 @@ export async function POST(request: Request) {
     if (!evalModelOverride) console.log('[ai/speechEval] no UI settings — using env fallback');
     const activeEvalModel = evalModelOverride ?? speechEvalModel;
 
-    const { text: transcription } = await sttProvider.transcribe(audioBytes);
+    const { text: transcription } = await sttProvider.transcribe(audioBytes, { language: languageCode, mimeType });
     const userId = await getUserId(request);
 
     const evalSystemPrompt = await loadSkill('speech-eval', {

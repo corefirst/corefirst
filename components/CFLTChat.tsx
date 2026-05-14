@@ -216,7 +216,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       setTranscribing(true);
       const formData = new FormData();
       formData.append('audio', audioBlob, 'recording.webm');
-      formData.append('language', sourceLang);
+      formData.append('language', targetLang);
       try {
         const response = await fetch('/api/transcribe', { method: 'POST', headers: getHeaders(), body: formData });
         const data = await response.json();
@@ -228,7 +228,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       } catch (err) { console.error(err); } finally { setTranscribing(false); }
     };
     transcribeAudio();
-  }, [audioBlob, sourceLang, getHeaders]);
+  }, [audioBlob, targetLang, getHeaders]);
 
   useEffect(() => { if (lastTranscribedText !== null && input !== lastTranscribedText) { setLastAudioBlob(null); setLastTranscribedText(null); } }, [input, lastTranscribedText]);
 
