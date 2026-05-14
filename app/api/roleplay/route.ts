@@ -19,14 +19,48 @@ const MAX_CONTEXT_LEN = 500;
 const MAX_MESSAGES_JSON_LEN = 8192;
 
 // ... (Schema definitions remain unchanged)
-const SlotSchema = z.object({ content: z.string(), is_inferred: z.boolean() });
-const CrstSchema = z.object({ core: SlotSchema, reason: SlotSchema, space: SlotSchema, time: SlotSchema });
-const ErrorTypeEnum = z.enum(['spelling', 'grammar', 'word_choice', 'word_order']);
-const ErrorItemSchema = z.object({ type: ErrorTypeEnum, original: z.string(), correction: z.string(), note: z.string() });
+// More flexible slot schema to handle model variations (strings, objects, or nulls)
+const SlotSchema = z.preprocess(
+  (val) => {
+    if (val === null || val === undefined) return { content: '', is_inferred: true };
+    if (typeof val === 'string') return { content: val, is_inferred: false };
+    return val;
+  },
+  z.object({
+    content: z.string().default(''),
+    is_inferred: z.boolean().default(false)
+  }).passthrough().default({ content: '', is_inferred: true })
+);
+
+const CrstSchema = z.object({
+  core:   SlotSchema,
+  reason: SlotSchema,
+  space:  SlotSchema,
+  time:   SlotSchema,
+}).catchall(z.any()); // Allow extra fields like is_inferred at the top level
+const ErrorItemSchema = z.object({
+  type: z.string(), // Changed from enum to string for better compatibility
+  original: z.string(),
+  correction: z.string(),
+  note: z.string()
+});
 const UserAnalysisSchema = z.object({ corrected: z.string(), errors: z.array(ErrorItemSchema), crst: CrstSchema, standard_l1: z.string() });
 const CoachAnalysisSchema = z.object({ crst: CrstSchema, standard_l1: z.string() });
-const RoleplayResponseSchemaFull = z.object({ reply: z.string(), ssml: z.string(), user_analysis: UserAnalysisSchema, coach_analysis: CoachAnalysisSchema, feedback: z.string().nullable(), session_title: z.string().optional() });
-const RoleplayResponseSchemaLean = z.object({ reply: z.string(), ssml: z.string(), feedback: z.string().nullable(), session_title: z.string().optional() });
+const RoleplayResponseSchemaFull = z.object({
+  reply: z.string(),
+  ssml: z.string(),
+  user_analysis: UserAnalysisSchema,
+  coach_analysis: CoachAnalysisSchema,
+  feedback: z.string().nullable().optional(), // Now optional
+  session_title: z.string().nullable().optional() // Now optional
+});
+
+const RoleplayResponseSchemaLean = z.object({
+  reply: z.string(),
+  ssml: z.string(),
+  feedback: z.string().nullable().optional(), // Now optional
+  session_title: z.string().nullable().optional() // Now optional
+});
 const RoleplayRequestSchema = z.object({ messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string() })), sourceLang: z.string(), targetLang: z.string(), context: z.string().optional(), audio: z.object({ data: z.string(), type: z.string().optional() }).optional(), sessionId: z.string().uuid().optional(), packageSlug: z.string().optional(), analysisEnabled: z.boolean().optional() });
 
 export async function POST(request: Request) {
@@ -75,13 +109,26 @@ export async function POST(request: Request) {
 
     const promptText = JSON.stringify(messages.slice(-10));
 
-    type FullResult = z.infer<typeof RoleplayResponseSchemaFull>;
-    type LeanResult = z.infer<typeof RoleplayResponseSchemaLean>;
-    const result: FullResult | LeanResult = analysisOn
-      ? (await generateObject({ model: activeModel, schema: RoleplayResponseSchemaFull, system: fullSystemPrompt, prompt: promptText })).object
-      : (await generateObject({ model: activeModel, schema: RoleplayResponseSchemaLean, system: baseSystemInstructions, prompt: promptText })).object;
+    let result: any;
+    try {
+      const { object } = analysisOn
+        ? await generateObject({ model: activeModel, schema: RoleplayResponseSchemaFull, system: fullSystemPrompt, prompt: promptText })
+        : await generateObject({ model: activeModel, schema: RoleplayResponseSchemaLean, system: baseSystemInstructions, prompt: promptText });
+      result = object;
+    } catch (e) {
+      const raw = (e as any).text || '';
+      console.warn('[roleplay] Primary parse failed, attempting salvage...');
+      const schema = analysisOn ? RoleplayResponseSchemaFull : RoleplayResponseSchemaLean;
+      const salvaged = trySalvageRoleplay(raw, schema);
+      if (salvaged) {
+        result = salvaged;
+      } else {
+        console.error('[roleplay] Salvage failed. Raw output:', raw);
+        throw e;
+      }
+    }
 
-    const fullResult = 'user_analysis' in result ? (result as FullResult) : null;
+    const fullResult = 'user_analysis' in result ? (result as z.infer<typeof RoleplayResponseSchemaFull>) : null;
 
     // 2. Generate Standard Audio for the corrected sentence (if mode is ON)
     // Corrected audio is TTS (deterministic, no personal data) → shared pool
@@ -144,11 +191,60 @@ export async function POST(request: Request) {
     return NextResponse.json({ ...result, audioFile: savedAudioFile, correctedAudioFile });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
+    const raw = (error as any).text || '';
     console.error('[roleplay] Error:', msg);
+    if (raw) console.error('[roleplay] Raw response:', raw);
+    
     const code = classifyAIError(error);
     if (code === 'API_KEY_REQUIRED' || code === 'INVALID_API_KEY') {
       return NextResponse.json({ error: code }, { status: 401 });
     }
     return NextResponse.json({ error: 'Roleplay failed', detail: msg }, { status: 500 });
   }
+}
+
+/**
+ * Robustly extracts and validates a JSON object from raw model output.
+ * Handles markdown fences, surrounding prose, and common object wrappers.
+ */
+function trySalvageRoleplay<T extends z.ZodType>(raw: string, schema: T): z.infer<T> | null {
+  if (!raw || !raw.trim()) return null;
+  const candidates: string[] = [];
+
+  // 1) Strip markdown fences
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenceMatch?.[1]) candidates.push(fenceMatch[1].trim());
+
+  // 2) Greedy curly brace extraction
+  const firstBrace = raw.indexOf('{');
+  const lastBrace = raw.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    candidates.push(raw.slice(firstBrace, lastBrace + 1));
+  }
+
+  // 3) Raw text as-is
+  candidates.push(raw.trim());
+
+  for (const text of candidates) {
+    try {
+      const parsed = JSON.parse(text);
+      // Unwrap common malformations
+      const unwrapped = unwrapObject(parsed);
+      const validated = schema.safeParse(unwrapped);
+      if (validated.success) return validated.data;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+function unwrapObject(parsed: any): any {
+  if (!parsed || typeof parsed !== 'object') return parsed;
+  // Handle models that wrap the response in a key matching the schema name
+  const wrappers = ['RoleplayResponse', 'Response', 'analysis', 'data'];
+  for (const key of wrappers) {
+    if (parsed[key] && typeof parsed[key] === 'object') return parsed[key];
+  }
+  return parsed;
 }
