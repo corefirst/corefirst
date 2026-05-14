@@ -10,6 +10,7 @@ export function openaiSttModel(model: string, baseUrl?: string, apiKey?: string)
   const provider = createOpenAI({
     baseURL: baseUrl,
     apiKey: apiKey ?? 'no-api-key-required',
+    compatibility: 'compatible',
   });
   return provider.transcription(model as Parameters<typeof provider.transcription>[0]);
 }

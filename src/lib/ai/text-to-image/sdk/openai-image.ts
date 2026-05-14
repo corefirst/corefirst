@@ -8,6 +8,7 @@ export function openaiImageModel(model: string, baseUrl?: string, apiKey?: strin
   const provider = createOpenAI({
     baseURL: baseUrl,
     apiKey: apiKey ?? 'no-api-key-required',
+    compatibility: 'compatible',
   });
   return provider.image(model);
 }

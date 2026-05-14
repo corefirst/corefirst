@@ -21,7 +21,10 @@ registerSTTProvider('openai',     () => new OpenAISTTProvider());
 registerSTTProvider('openrouter', () => new OpenAISTTProvider());
 registerSTTProvider('google',     () => new GoogleGeminiSTTProvider());
 // Qwen uses DashScope's native ASR API (not OpenAI-compat /audio/transcriptions)
-registerSTTProvider('qwen',       () => new OpenAISTTProvider()); // env-path fallback only
+registerSTTProvider('qwen',       () => {
+  const r = resolveFeature('stt');
+  return new QwenSTTProvider(r.apiKey || process.env.QWEN_API_KEY || '', r.model);
+});
 
 export class STTFactory {
   static getProvider(override?: STTOverride): STTProvider {

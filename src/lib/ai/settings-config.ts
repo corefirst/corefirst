@@ -202,8 +202,18 @@ export function resolveSTTOverride(settings: RequestSettings): STTOverride | und
 }
 
 export function resolveImageOverride(settings: RequestSettings): ImageOverride | undefined {
-  const { image } = settings;
-  if (!image.provider) return undefined;
-  const model = image.model || getProviderDefault(image.provider, 'text-to-image') || undefined;
-  return { provider: image.provider, apiKey: image.apiKey, model, baseUrl: image.baseUrl || undefined };
+  const { image, global: g } = settings;
+  const provider = image.provider || g.provider;
+  if (!provider) return undefined;
+
+  const apiKey = image.apiKey || g.apiKey || undefined;
+  if (!apiKey && provider !== 'none') return undefined;
+
+  const model = image.model || getProviderDefault(provider, 'text-to-image') || undefined;
+  return {
+    provider,
+    apiKey: apiKey || '',
+    model,
+    baseUrl: image.baseUrl || getProviderBaseUrl(provider) || undefined
+  };
 }

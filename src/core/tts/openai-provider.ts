@@ -45,8 +45,13 @@ export class OpenAITTSProvider implements TTSProvider {
       });
       return audio.uint8Array;
     } catch (e) {
+      const msg = (e as Error).message || 'Unknown TTS error';
       const cause = (e as { responseBody?: unknown })?.responseBody ?? (e as { data?: unknown })?.data;
-      if (cause) throw Object.assign(new Error((e as Error).message ?? ''), { cause });
+      if (cause) {
+        const errorWithCause = new Error(msg);
+        (errorWithCause as any).cause = cause;
+        throw errorWithCause;
+      }
       throw e;
     }
   }

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const CorrectionSchema = z.object({
-  type: z.enum(['logic', 'grammar', 'vocabulary']),
+  type: z.string(), // Changed from enum to string for better model compatibility
   original: z.string(),
   replacement: z.string(),
   reason: z.string(),

@@ -17,13 +17,25 @@ export class AISDKImageProvider implements VisualProvider {
   async generateImage(prompt: string): Promise<string> {
     const styledPrompt = `A clean, educational illustration for a language learning app. Style: modern, flat vector, soft colors. Subject: ${prompt}`;
 
-    const { image } = await generateImage({
-      model: this.model,
-      prompt: styledPrompt,
-      aspectRatio: '1:1',
-    });
+    try {
+      const { image } = await generateImage({
+        model: this.model,
+        prompt: styledPrompt,
+        aspectRatio: '1:1',
+      });
 
-    // image is a GeneratedFile with base64 + mediaType. Inline as data URL.
-    return `data:${image.mediaType};base64,${image.base64}`;
+      // image is a GeneratedFile with base64 + mediaType. Inline as data URL.
+      return `data:${image.mediaType};base64,${image.base64}`;
+    } catch (e) {
+      const msg = (e as Error).message || 'Unknown image generation error';
+      const cause = (e as { responseBody?: unknown })?.responseBody ?? (e as { data?: unknown })?.data;
+      if (cause) {
+        console.error('[ai/imageGen] error cause:', JSON.stringify(cause));
+        const errorWithCause = new Error(msg);
+        (errorWithCause as any).cause = cause;
+        throw errorWithCause;
+      }
+      throw e;
+    }
   }
 }

@@ -39,7 +39,7 @@ const staticDefaults: AppConfig = {
     ),
     providerBaseUrls: { ...STATIC_PROVIDER_BASE_URLS },
     providerTTSVoices: {
-      qwen: 'longxiaochun',
+      qwen: 'Cherry',
       openrouter: 'alloy',
       openai: 'alloy',
     },

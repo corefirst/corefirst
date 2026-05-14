@@ -40,9 +40,9 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
   groq: { text: 'llama-3.3-70b-versatile' },
   deepseek: { text: 'deepseek-chat' },
   qwen: {
-    text: 'qwen3.5-plus',
-    'text-to-image': 'wanx2.7-image',
-    'text-to-speech': 'cosyvoice-v3.5-flash',
+    text: 'qwen-plus',
+    'text-to-image': 'wanx-v1',
+    'text-to-speech': 'qwen3-tts-flash',
     'speech-to-text': 'sensevoice-v1',
   },
   openrouter: {

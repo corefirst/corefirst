@@ -75,9 +75,12 @@ export async function buildAndWritePackage(
             audio = await tts.generateAudio(script.ssml);
             await fs.writeFile(poolFile, audio);
           } catch (err) {
+            const msg = (err as Error).message;
+            const cause = (err as any).cause;
             console.error(
               `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
-              (err as Error).message,
+              msg,
+              cause ? `| Cause: ${JSON.stringify(cause)}` : ''
             );
           }
         }
@@ -115,9 +118,12 @@ export async function buildAndWritePackage(
             await fs.writeFile(poolFile, bytes);
           }
         } catch (err) {
+          const msg = (err as Error).message;
+          const cause = (err as any).cause;
           console.error(
             `[package-builder] Image generation failed for lesson ${lesson.lessonIndex}:`,
-            (err as Error).message,
+            msg,
+            cause ? `| Cause: ${JSON.stringify(cause)}` : ''
           );
         }
       }

@@ -78,6 +78,7 @@ export class CFLTTransformer {
       const raw = e instanceof NoObjectGeneratedError ? (e.text ?? '') : '';
       const msg = e instanceof Error ? e.message : String(e);
       console.error('[transformer] Error:', msg);
+      if (raw) console.error('[transformer] Raw response:', raw);
       return { error: msg, raw };
     }
   }
