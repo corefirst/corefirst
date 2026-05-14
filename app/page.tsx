@@ -13,13 +13,13 @@ import { RoleplayHistory } from '../components/RoleplayHistory';
 import { CourseHistory } from '../components/CourseHistory';
 import { ProfileSwitcher } from '../components/ProfileSwitcher';
 import { Settings } from '../components/Settings';
-import { SkillsPanel } from '../components/SkillsPanel';
 import { VocabReview } from '../components/VocabReview';
 import { PhoneticBridge } from '../components/PhoneticBridge';
+import { ComboBox } from '../components/ComboBox';
 import { useSettings } from '../hooks/useSettings';
 import {
   Loader2, Send, Languages, Info, BookOpen, User, Globe,
-  Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare, Settings as SettingsIcon, Zap,
+  Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare, Settings as SettingsIcon,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { CFLTResponse, CfltSlot } from '../src/types/cflt';
@@ -38,7 +38,6 @@ const LANG_KEY: Record<SupportedLang, 'langEnglish' | 'langChinese' | 'langJapan
 
 export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
-  const [showSkills, setShowSkills] = useState(false);
   const [showVocabReview, setShowVocabReview] = useState(false);
   const [keyError, setKeyError] = useState<'API_KEY_REQUIRED' | 'INVALID_API_KEY' | null>(null);
   const { getHeaders } = useSettings();
@@ -450,7 +449,7 @@ export default function Home() {
   return (
     <main className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
       {showSettings && <Settings onClose={() => setShowSettings(false)} />}
-      {showSkills && <SkillsPanel onClose={() => setShowSkills(false)} />}
+
       {showVocabReview && <VocabReview targetLang={targetLang} uiLang={uiLang} onClose={() => setShowVocabReview(false)} />}
 
       <div className="p-4 md:p-8">
@@ -510,13 +509,6 @@ export default function Home() {
             </label>
 
             <ProfileSwitcher />
-            <button
-              onClick={() => setShowSkills(true)}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              title="Skills"
-            >
-              <Zap size={18} />
-            </button>
             <button
               onClick={() => setShowSettings(true)}
               className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
@@ -593,31 +585,27 @@ export default function Home() {
                   >
                     <Globe className="w-3 h-3" /> {tr(uiLang, 'domainLabel')}
                   </label>
-                  <input
+                  <ComboBox
                     id="domain"
-                    list="domain-datalist"
-                    value={domainText}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      // If the user selected a predefined option (matched in any language),
-                      // normalise to the English label so the API prompt is always consistent.
-                      const matchedKey = findDomainKey(val) ??
-                        AGE_DOMAINS[ageGroup].find(k => tr(uiLang, k) === val);
+                    options={AGE_DOMAINS[ageGroup].map(key => ({
+                      value: tr('English', key),
+                      label: tr(uiLang, key),
+                    }))}
+                    value={findDomainKey(domainText) ? tr(uiLang, findDomainKey(domainText)!) : domainText}
+                    onChange={(val) => {
+                      const matchedKey = findDomainKey(val);
                       if (matchedKey) {
                         setDomain(matchedKey);
                         setDomainText(tr('English', matchedKey));
+                        try { window.localStorage.setItem('corefirst.domain', matchedKey); } catch {}
                       } else {
                         setDomainText(val);
                       }
                     }}
                     placeholder={tr(uiLang, 'domainLabel')}
-                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
+                    className="w-full"
+                    inputClassName="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                   />
-                  <datalist id="domain-datalist">
-                    {AGE_DOMAINS[ageGroup].map(key => (
-                      <option key={key} value={tr(uiLang, key)} />
-                    ))}
-                  </datalist>
                 </div>
               </div>
             )}

@@ -6,7 +6,8 @@ import { PlayCircle, Loader2, User, Bot, Send, Info, Mic, Square, Sparkles } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useSettings } from '@/hooks/useSettings';
-import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
+import { t as tr, type SupportedLang, DOMAIN_KEYS, findDomainKey } from '@/src/lib/ui-i18n';
+import { ComboBox } from './ComboBox';
 
 interface Slot { content: string; is_inferred: boolean; }
 interface Crst { core: Slot; reason: Slot; space: Slot; time: Slot; }
@@ -73,26 +74,6 @@ const CrstStrip: React.FC<{ crst: Crst, uiLang: string }> = ({ crst, uiLang }) =
 const HISTORY_WARN_MSGS = 12;
 const HISTORY_MAX_MSGS = 20;
 
-// Always English — these go directly into the English system prompt as {{CONTEXT}}.
-// Free-text input is passed as-is; the LLM handles multilingual context descriptions.
-const SCENARIO_OPTIONS = [
-  'General / Life',
-  'Workplace Communication',
-  'IT / Software Engineering',
-  'Business / Finance',
-  'Medical / Healthcare',
-  'Sales & Marketing',
-  'Legal / Law',
-  'Education / Teaching',
-  'Design & Creative',
-  'Travel & Hospitality',
-  'Logistics & Operations',
-  'School & Campus',
-  'Hobbies & Leisure',
-  'Sports & Fitness',
-  'Social & Daily Chat',
-];
-
 const DEFAULT_SCENARIO = 'General / Life';
 
 function buildGreeting(targetLang: string, scenario: string) {
@@ -158,12 +139,6 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     }]);
     if (typeof crypto !== 'undefined') setSessionId(crypto.randomUUID());
   }, [scenario, targetLang]);
-
-  const commitScenario = () => {
-    const val = scenarioInput.trim() || DEFAULT_SCENARIO;
-    setScenarioInput(val);
-    if (val !== scenario) setScenario(val);
-  };
 
   const toggleAnalysis = (next: boolean) => {
     setAnalysisEnabled(next);
@@ -351,19 +326,25 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
         <label htmlFor="scenario-input" className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
           Scenario
         </label>
-        <input
+        <ComboBox
           id="scenario-input"
-          list="scenario-datalist"
-          value={scenarioInput}
-          onChange={(e) => setScenarioInput(e.target.value)}
-          onBlur={commitScenario}
-          onKeyDown={(e) => { if (e.key === 'Enter') { commitScenario(); e.currentTarget.blur(); } }}
+          options={DOMAIN_KEYS.map(key => ({
+            value: tr('English', key),
+            label: tr(uiLang, key),
+          }))}
+          value={findDomainKey(scenarioInput) ? tr(uiLang, findDomainKey(scenarioInput)!) : scenarioInput}
+          onChange={(val) => setScenarioInput(val)}
+          onCommit={(val) => {
+            const trimmed = val.trim();
+            const matchedKey = findDomainKey(trimmed);
+            const committed = matchedKey ? tr('English', matchedKey) : (trimmed || DEFAULT_SCENARIO);
+            setScenarioInput(committed);
+            if (committed !== scenario) setScenario(committed);
+          }}
           placeholder="Select or describe a scenario…"
-          className="flex-1 text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder:text-slate-500"
+          className="flex-1"
+          inputClassName="w-full text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder:text-slate-500"
         />
-        <datalist id="scenario-datalist">
-          {SCENARIO_OPTIONS.map((s) => <option key={s} value={s} />)}
-        </datalist>
       </div>
 
       {historyNearLimit && (

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import * as fs from 'fs';
+import * as path from 'path';
 import { getUserId } from '@/src/lib/auth/user';
 import {
   getSkillPreferences,
@@ -9,11 +11,24 @@ import {
   isFeatureSlot,
 } from '@/src/lib/skills';
 
+function readDefaultContent(relativePath: string): string {
+  const root = process.cwd();
+  const resolved = path.resolve(root, relativePath);
+  if (path.relative(root, resolved).startsWith('..') || path.isAbsolute(path.relative(root, resolved))) {
+    return '';
+  }
+  try {
+    return fs.readFileSync(resolved, 'utf-8');
+  } catch {
+    return '';
+  }
+}
+
 /**
  * GET /api/skills/slots
  *
  * Returns all available feature slots with their labels, system default file,
- * and which skill (if any) the user has activated.
+ * default content, and which skill (if any) the user has activated.
  */
 export async function GET(request: Request) {
   try {
@@ -25,6 +40,7 @@ export async function GET(request: Request) {
         slot,
         label: SLOT_LABELS[slot],
         defaultFile: FEATURE_SLOTS[slot],
+        defaultContent: readDefaultContent(FEATURE_SLOTS[slot]),
         activeSkillId: prefs[slot] ?? null,
       }),
     );

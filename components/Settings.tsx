@@ -2,15 +2,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   X, CheckCircle, AlertCircle, Loader2, ChevronDown, ChevronRight,
-  Settings as SettingsIcon, User, Cpu,
+  Settings as SettingsIcon, User, Cpu, Zap,
 } from 'lucide-react';
+import { SkillsContent } from '@/components/SkillsPanel';
 import { useSettings, type UserSettings, type SettingsMode } from '@/hooks/useSettings';
 import { useProfile } from '@/hooks/useProfile';
 import { isFullStackProvider, PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
 
 interface Props { onClose: () => void; }
 
-type Tab = 'providers' | 'profile';
+type Tab = 'providers' | 'skills' | 'profile';
 type VerifyState = 'idle' | 'loading' | 'ok' | 'error';
 
 // === Provider definitions =================================================
@@ -224,7 +225,7 @@ export function Settings({ onClose }: Props) {
         </div>
 
         <div role="tablist" className="flex border-b border-gray-100 px-6 shrink-0">
-          {([['providers', Cpu, 'AI Providers'], ['profile', User, 'Profile']] as const).map(([id, Icon, label]) => (
+          {([['providers', Cpu, 'AI Providers'], ['skills', Zap, 'Skills'], ['profile', User, 'Profile']] as const).map(([id, Icon, label]) => (
             <button
               key={id}
               role="tab"
@@ -675,6 +676,15 @@ export function Settings({ onClose }: Props) {
               </CollapsibleSection>
               </>)}
             </>
+          )}
+
+          {tab === 'skills' && (
+            <div>
+              <p className="text-xs text-gray-400 mb-4">
+                Customize the AI prompt template for each feature slot. Use <code className="bg-gray-100 px-1 rounded text-xs">{`{{VARIABLE}}`}</code> for dynamic values.
+              </p>
+              <SkillsContent />
+            </div>
           )}
 
           {tab === 'profile' && (

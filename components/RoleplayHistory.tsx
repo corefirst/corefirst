@@ -52,10 +52,10 @@ interface RoleplayMessage {
 }
 
 const SLOT_META = {
-  core:   { bg: 'bg-cflt-core',   letter: 'C' },
+  core: { bg: 'bg-cflt-core', letter: 'C' },
   reason: { bg: 'bg-cflt-reason', letter: 'R' },
-  space:  { bg: 'bg-cflt-space',  letter: 'S' },
-  time:   { bg: 'bg-cflt-time',   letter: 'T' },
+  space: { bg: 'bg-cflt-space', letter: 'S' },
+  time: { bg: 'bg-cflt-time', letter: 'T' },
 } as const;
 
 const ERROR_LABEL: Record<ErrorItem['type'], string> = {
@@ -155,10 +155,10 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
         (prev ?? []).map((s) =>
           s.sessionId === sessionId
             ? {
-                ...s,
-                messages: s.messages.filter((m) => m.eventId !== eventId),
-                messageCount: Math.max(0, s.messageCount - 1),
-              }
+              ...s,
+              messages: s.messages.filter((m) => m.eventId !== eventId),
+              messageCount: Math.max(0, s.messageCount - 1),
+            }
             : s,
         ),
       );
@@ -334,7 +334,7 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
                   </div>
                 </div>
                 {renaming !== session.sessionId && (
-                  <div className="absolute top-3 right-12 flex items-center gap-1">
+                  <div className="absolute top-3 right-6 flex items-center gap-1">
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); startRename(session); }}
