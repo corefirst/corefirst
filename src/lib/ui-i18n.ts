@@ -534,6 +534,7 @@ const vi: Dict = {
   historyRoleplayHeader: 'Phiên đóng vai',
   historyCoursesHeader: 'Thư viện khóa học',
   historyEmpty: 'Chưa có gì — các hoạt động sẽ hiện ở đây.',
+  historyMore: 'Xem thêm',
   historyError: 'Không thể tải lịch sử. Vui lòng làm mới trang.',
   historyMessageCount: (n) => `${n} tin nhắn`,
   historyInputLabel: 'Bạn đã viết',

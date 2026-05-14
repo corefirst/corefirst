@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, AlertCircle, BookOpen, Clock, FolderOpen, Trash2, Pencil, Check, X, Download, Upload } from 'lucide-react';
+import { Loader2, AlertCircle, BookOpen, Clock, FolderOpen, Trash2, Pencil, Check, X, Download, Upload, ChevronDown } from 'lucide-react';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 import type { CoursewareManifest } from '../src/types/courseware';
+import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 
 interface CourseSummary {
   slug: string;
@@ -55,6 +56,7 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad, onImport }: Prop
   const [renamingSlug, setRenamingSlug] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [importing, setImporting] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(HISTORY_PAGE_SIZE);
   const importInputRef = useRef<HTMLInputElement>(null);
 
   const handleDelete = async (slug: string) => {
@@ -194,6 +196,9 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad, onImport }: Prop
     </div>
   );
 
+  const visibleItems = list.slice(0, visibleCount);
+  const hasMore = list.length > visibleCount;
+
   return (
     <section className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white space-y-6">
       <div className="flex items-center gap-3">
@@ -223,7 +228,7 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad, onImport }: Prop
       </div>
 
       <ul className="space-y-3">
-        {list.map((course) => {
+        {visibleItems.map((course) => {
           const isLoading = loadingSlug === course.slug;
           const isDeleting = deletingSlug === course.slug;
           const isRenaming = renamingSlug === course.slug;
@@ -322,6 +327,17 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad, onImport }: Prop
           );
         })}
       </ul>
+
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((prev) => prev + HISTORY_PAGE_SIZE)}
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-100 text-slate-400 text-xs font-black uppercase tracking-widest hover:border-amber-200 hover:text-amber-600 hover:bg-amber-50/50 transition-all flex items-center justify-center gap-2"
+        >
+          <ChevronDown className="w-4 h-4" />
+          {tr(uiLang, 'historyMore')}
+        </button>
+      )}
     </section>
   );
 };

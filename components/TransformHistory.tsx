@@ -6,6 +6,7 @@ import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronRight, Clock, PlayC
 import { CFLTBlock, type CFLTBlockType } from './CFLTBlock';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 import { useSettings } from '../hooks/useSettings';
+import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 
 interface TransformItem {
   eventId: string;
@@ -60,6 +61,7 @@ interface Props {
 export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
   const { getHeaders } = useSettings();
   const [items, setItems] = useState<TransformItem[] | null>(null);
+  const [visibleCount, setVisibleCount] = useState(HISTORY_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -91,7 +93,10 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
         const res = await fetch('/api/history/transforms');
         if (!res.ok) throw new Error('Failed to load history');
         const payload: HistoryPayload = await res.json();
-        if (!cancelled) setItems(payload.transforms);
+        if (!cancelled) {
+          setItems(payload.transforms);
+          setVisibleCount(HISTORY_PAGE_SIZE);
+        }
       } catch (err) {
         console.error('[TransformHistory] Error:', err);
         if (!cancelled) setHasError(true);
@@ -124,7 +129,7 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
       const blob = await response.blob();
       url = URL.createObjectURL(blob);
       const audio = new Audio(url);
-      audio.onended = () => { URL.revokeObjectURL(url!); url = null; };
+      audio.onended = () => { if (url) { URL.revokeObjectURL(url); url = null; } };
       audio.onerror = () => { if (url) { URL.revokeObjectURL(url); url = null; } };
       await audio.play();
     } catch (err) {
@@ -156,6 +161,9 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
     </div>
   );
 
+  const visibleItems = list.slice(0, visibleCount);
+  const hasMore = list.length > visibleCount;
+
   return (
     <section className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white space-y-6">
       <div className="flex items-center gap-3">
@@ -167,7 +175,7 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
       </div>
 
       <ul className="space-y-3">
-        {list.map((item, i) => {
+        {visibleItems.map((item, i) => {
           const id = item.eventId || `${item.createdAt}-${i}`;
           const isOpen = expanded.has(id);
           const isDeleting = deleting === item.eventId;
@@ -290,6 +298,17 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
           );
         })}
       </ul>
+
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((prev) => prev + HISTORY_PAGE_SIZE)}
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-100 text-slate-400 text-xs font-black uppercase tracking-widest hover:border-blue-200 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex items-center justify-center gap-2"
+        >
+          <ChevronDown className="w-4 h-4" />
+          {tr(uiLang, 'historyMore')}
+        </button>
+      )}
     </section>
   );
 };

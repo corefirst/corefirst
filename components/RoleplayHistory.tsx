@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
 import { useSettings } from '../hooks/useSettings';
+import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 
 interface Slot { content: string; is_inferred: boolean }
 interface Crst { core: Slot; reason: Slot; space: Slot; time: Slot }
@@ -115,6 +116,7 @@ interface Props { uiLang: SupportedLang }
 export const RoleplayHistory = ({ uiLang }: Props) => {
   const { getHeaders } = useSettings();
   const [sessions, setSessions] = useState<RoleplaySessionItem[] | null>(null);
+  const [visibleCount, setVisibleCount] = useState(HISTORY_PAGE_SIZE);
   const [loading, setLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -275,6 +277,9 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
   const list = sessions ?? [];
   if (list.length === 0) return <div className="bg-white p-8 rounded-3xl shadow-sm text-center space-y-3"><Clock className="w-8 h-8 text-slate-300 mx-auto" /><p className="text-slate-400 text-sm">{tr(uiLang, 'historyEmpty')}</p></div>;
 
+  const visibleItems = list.slice(0, visibleCount);
+  const hasMore = list.length > visibleCount;
+
   return (
     <section className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white space-y-6">
       <div className="flex items-center gap-3">
@@ -283,7 +288,7 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
         <span className="text-xs font-bold text-slate-400">({list.length})</span>
       </div>
       <ul className="space-y-3">
-        {list.map((session) => {
+        {visibleItems.map((session) => {
           const isOpen = expanded.has(session.sessionId);
           return (
             <li key={session.sessionId} className="border border-slate-100 rounded-2xl overflow-hidden hover:border-emerald-200 transition-all">
@@ -429,6 +434,17 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
           );
         })}
       </ul>
+
+      {hasMore && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((prev) => prev + HISTORY_PAGE_SIZE)}
+          className="w-full py-4 rounded-2xl border-2 border-dashed border-slate-100 text-slate-400 text-xs font-black uppercase tracking-widest hover:border-emerald-200 hover:text-emerald-600 hover:bg-emerald-50/50 transition-all flex items-center justify-center gap-2"
+        >
+          <ChevronDown className="w-4 h-4" />
+          {tr(uiLang, 'historyMore')}
+        </button>
+      )}
     </section>
   );
 };
