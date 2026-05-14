@@ -15,8 +15,9 @@ const GEMINI_PCM_CHANNELS = 1;
 export class GoogleGeminiTTSProvider implements TTSProvider {
   private readonly model: string;
   private readonly apiKey: string;
+  private readonly voice: string;
 
-  constructor(opts?: { model?: string; apiKey?: string }) {
+  constructor(opts?: { model?: string; apiKey?: string; voice?: string }) {
     const r = resolveFeature('tts');
     this.model = opts?.model || r.model;
     const key = opts?.apiKey || r.apiKey || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -24,11 +25,15 @@ export class GoogleGeminiTTSProvider implements TTSProvider {
       throw new Error('[ai/tts] Google Gemini TTS requires GOOGLE_GENERATIVE_AI_API_KEY (or GLOBAL_API_KEY).');
     }
     this.apiKey = key;
+    // GOOGLE_TTS_VOICE is Google-specific (e.g. "aoede", "kore"). Never read
+    // TTS_VOICE here — that env var is for OpenAI-compatible providers and may
+    // contain voice names like "af_sky" that Gemini does not support.
+    this.voice = opts?.voice || process.env.GOOGLE_TTS_VOICE || DEFAULT_VOICE;
   }
 
   async generateAudio(text: string): Promise<Uint8Array> {
     const cleanText = stripMarkup(text);
-    const voice = process.env.TTS_VOICE || DEFAULT_VOICE;
+    const voice = this.voice;
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(this.model)}:generateContent?key=${encodeURIComponent(this.apiKey)}`;
     const res = await fetch(url, {

@@ -28,7 +28,7 @@ export class TTSFactory {
       if (override.provider === 'google') {
         const model = override.model || PROVIDER_DEFAULTS['google']?.['text-to-speech'] || '';
         console.log(`[ai/tts] provider=google model=${model}`);
-        return new GoogleGeminiTTSProvider({ model, apiKey: override.apiKey });
+        return new GoogleGeminiTTSProvider({ model, apiKey: override.apiKey, voice: override.voice });
       }
       console.log(`[ai/tts] provider=${override.provider ?? 'override'} model=${override.model || '(default)'}`);
       const model = buildSpeechModelWith({ baseUrl: override.baseUrl, model: override.model, apiKey: override.apiKey });
