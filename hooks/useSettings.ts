@@ -10,11 +10,13 @@ export interface UserSettings {
   mode: SettingsMode;
   global: { provider: string; apiKey: string; model: string; ttsModel: string; sttModel: string; imageModel: string };
   advanced: {
-    text?:     { provider?: string; model?: string; apiKey?: string };
-    tts?:      { provider?: string; baseUrl?: string; model?: string; apiKey?: string };
-    stt?:      { provider?: string; baseUrl?: string; apiKey?: string };
-    imageGen?: { provider?: string; apiKey?: string; baseUrl?: string; model?: string };
-    ollama?:   { baseUrl?: string };
+    text?:       { provider?: string; model?: string; apiKey?: string };
+    transform?:  { provider?: string; model?: string; apiKey?: string };
+    courseGen?:  { provider?: string; model?: string; apiKey?: string };
+    tts?:        { provider?: string; baseUrl?: string; model?: string; apiKey?: string };
+    stt?:        { provider?: string; baseUrl?: string; apiKey?: string };
+    imageGen?:   { provider?: string; apiKey?: string; baseUrl?: string; model?: string };
+    ollama?:     { baseUrl?: string };
   };
 }
 
@@ -128,6 +130,16 @@ export function useSettings() {
     if (text?.provider) headers['x-cf-text-provider'] = text.provider;
     if (text?.model)    headers['x-cf-text-model']    = text.model;
     if (text?.apiKey)   headers['x-cf-text-key']      = text.apiKey;
+
+    const transform = adv.transform;
+    if (transform?.provider) headers['x-cf-transform-provider'] = transform.provider;
+    if (transform?.model)    headers['x-cf-transform-model']    = transform.model;
+    if (transform?.apiKey)   headers['x-cf-transform-key']      = transform.apiKey;
+
+    const courseGen = adv.courseGen;
+    if (courseGen?.provider) headers['x-cf-course-gen-provider'] = courseGen.provider;
+    if (courseGen?.model)    headers['x-cf-course-gen-model']    = courseGen.model;
+    if (courseGen?.apiKey)   headers['x-cf-course-gen-key']      = courseGen.apiKey;
 
     const ollama = adv.ollama;
     if (ollama?.baseUrl) headers['x-cf-ollama-url']   = ollama.baseUrl;

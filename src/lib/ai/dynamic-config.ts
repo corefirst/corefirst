@@ -11,7 +11,6 @@ import { PROVIDER_BASE_URLS as STATIC_PROVIDER_BASE_URLS } from './provider-urls
 
 /**
  * Global application configuration.
- * This structure is designed to be extensible as the application evolves.
  */
 export interface AppConfig {
   ai: {
@@ -21,12 +20,10 @@ export interface AppConfig {
     providerBaseUrls: Record<string, string>;
     providerTTSVoices: Record<string, string>;
   };
-  // Add other feature-affecting defaults here as needed
-  // UI settings, feature flags, etc.
 }
 
-// Initial state from hardcoded constants
-const initialState: AppConfig = {
+// L1: Initial state from hardcoded constants
+const staticDefaults: AppConfig = {
   ai: {
     providersByCapability: Object.entries(STATIC_PROVIDERS_BY_CAPABILITY).reduce(
       (acc, [cap, providers]) => ({ ...acc, [cap]: [...providers] }),
@@ -49,46 +46,99 @@ const initialState: AppConfig = {
   },
 };
 
-let currentConfig: AppConfig = initialState;
+let currentConfig: AppConfig = staticDefaults;
 
-/** Get the current application configuration. */
-export function getAppConfig(): AppConfig {
-  return currentConfig;
+/** 
+ * L2: Load last known good config from local disk.
+ */
+async function loadPersistedConfig() {
+  if (typeof window !== 'undefined') return;
+  
+  try {
+    // Dynamic import to avoid client-side build errors
+    const fs = await import('fs');
+    const path = await import('path');
+    const cacheFile = path.join(process.cwd(), 'data/app-config-cache.json');
+
+    if (fs.existsSync(cacheFile)) {
+      const data = fs.readFileSync(cacheFile, 'utf8');
+      const parsed = JSON.parse(data);
+      if (parsed?.ai?.providerDefaults) {
+        currentConfig = parsed;
+        console.log('[config] Loaded last known good config from disk.');
+      }
+    }
+  } catch (e) {
+    // Fail silently in terms of UI impact
+  }
 }
 
-/** Update the application configuration. */
-export function updateAppConfig(patch: Partial<AppConfig>): void {
-  currentConfig = {
+/** Update the application configuration and persist it. */
+export async function updateAppConfig(patch: Partial<AppConfig>): Promise<void> {
+  const nextConfig = {
     ...currentConfig,
     ...patch,
+    ai: {
+      ...currentConfig.ai,
+      ...(patch.ai || {}),
+    }
   };
+  
+  currentConfig = nextConfig;
+
+  // Persist to disk for next boot (L2)
+  if (typeof window === 'undefined') {
+    try {
+      const fs = await import('fs');
+      const path = await import('path');
+      const cacheFile = path.join(process.cwd(), 'data/app-config-cache.json');
+      const dir = path.dirname(cacheFile);
+      
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(cacheFile, JSON.stringify(currentConfig, null, 2));
+    } catch (e) {
+      console.error('[config] Failed to persist config update:', e);
+    }
+  }
 }
 
 /** 
- * Refresh the configuration from the CoreFirst SaaS server. 
+ * L3: Refresh from SaaS server.
  */
 export async function refreshAppConfig(): Promise<void> {
   const serverUrl = process.env.COREFIRST_SERVER_URL;
-  if (!serverUrl) {
-    console.warn('[config] COREFIRST_SERVER_URL not set. Skipping hot update.');
-    return;
-  }
+  if (!serverUrl) return;
 
-  // Ensure we are calling the config endpoint
   const configEndpoint = serverUrl.endsWith('/config') ? serverUrl : `${serverUrl.replace(/\/$/, '')}/api/v1/config`;
 
   try {
     const response = await fetch(configEndpoint, { 
       headers: { 'Cache-Control': 'no-cache' },
-      next: { revalidate: 0 } // For Next.js fetch caching
+      signal: AbortSignal.timeout(5000),
     });
-    if (!response.ok) throw new Error(`Failed to fetch config: ${response.statusText}`);
+    
+    if (!response.ok) return;
     const data = await response.json();
-    updateAppConfig(data);
-    console.log('[config] Application configuration updated from CoreFirst server.');
+    
+    if (!data || typeof data !== 'object' || !data.ai) return;
+
+    await updateAppConfig(data);
+    console.log('[config] Hot update successful: Config synced with CoreFirst server.');
   } catch (error) {
-    console.error('[config] Failed to refresh app config:', error);
+    console.warn('[config] Could not sync with SaaS server (offline or timeout).');
   }
+}
+
+// Initial initialization (Server-side only)
+if (typeof window === 'undefined') {
+  loadPersistedConfig().then(() => {
+    refreshAppConfig();
+  });
+}
+
+/** Get the current application configuration. */
+export function getAppConfig(): AppConfig {
+  return currentConfig;
 }
 
 // AI-specific helper functions for resolution logic
@@ -131,9 +181,4 @@ export function isFullStackProvider(provider: string): boolean {
   const defaults = currentConfig.ai.providerDefaults[provider];
   if (!defaults) return false;
   return STANDARD_MODE_CAPABILITIES.every((cap) => Boolean(defaults[cap]));
-}
-
-// Trigger initial refresh on server startup
-if (typeof window === 'undefined') {
-  refreshAppConfig();
 }

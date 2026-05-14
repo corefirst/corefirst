@@ -1,6 +1,6 @@
 /**
  * SM-2 Spaced Repetition Algorithm Implementation
- * Reference: https://en.wikipedia.org/wiki/SuperMemo_2
+ * Reference: https://en.wikipedia.org/wiki/Spaced_repetition
  */
 
 export interface SRSState {
@@ -57,7 +57,7 @@ export function calculateNextReview(
 
   // Update ease factor: EF' := EF + (0.1 - (5 - q) * (0.08 + (5 - q) * 0.02))
   easeFactor = easeFactor + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-  
+
   // Floor ease factor at 1.3
   if (easeFactor < 1.3) easeFactor = 1.3;
 

@@ -8,18 +8,17 @@ import { useSettings, type UserSettings, type SettingsMode } from '@/hooks/useSe
 import { useProfile } from '@/hooks/useProfile';
 import { isFullStackProvider, PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; }
 
 type Tab = 'providers' | 'profile';
 type VerifyState = 'idle' | 'loading' | 'ok' | 'error';
 
-// ─── Provider definitions ─────────────────────────────────────────────────
+// === Provider definitions =================================================
 
 interface ProviderDef {
   id: string;
   label: string;
   tagline: string;
-  /** Tagline shown in Standard mode (emphasizes full-stack coverage). */
   fullStackTagline?: string;
   authType: 'key' | 'url' | 'none';
   keyPlaceholder?: string;
@@ -38,18 +37,61 @@ const PROVIDERS: ProviderDef[] = [
   { id: 'deepseek', label: 'DeepSeek', tagline: 'DeepSeek-V4', authType: 'key', keyPlaceholder: 'sk-…', signupUrl: 'https://platform.deepseek.com/', group: 'cloud' },
   { id: 'ollama', label: 'Ollama', tagline: 'Local models, no API key', authType: 'url', urlDefault: 'http://localhost:11434', group: 'local' },
   { id: 'cli/claude', label: 'Claude CLI', tagline: 'Local claude command, no key', authType: 'none', group: 'local' },
-  { id: 'cli/gemini', label: 'Gemini CLI', tagline: 'Local gemini command, no key', authType: 'none', group: 'local' },
+  { id: 'cli/gemini', label: 'Gemini CLI', tagline: 'Local gemini command, no key', authType: 'none', group: 'local' }
 ];
 
 const STANDARD_PROVIDERS = PROVIDERS.filter((p) => isFullStackProvider(p.id));
 
 const OLLAMA_QUICK_MODELS = ['llama3.2', 'qwen2.5', 'mistral', 'deepseek-r1', 'gemma3'];
+
+const SUGGESTED_MODELS: Record<string, string[]> = {
+  google: ['gemini-2.0-flash', 'gemini-2.0-pro-exp', 'gemini-1.5-pro', 'gemini-1.5-flash'],
+  openai: ['gpt-4o', 'gpt-4o-mini', 'o1', 'o1-mini'],
+  anthropic: ['claude-3-5-sonnet-latest', 'claude-3-5-haiku-latest'],
+  groq: ['llama-3.3-70b-versatile', 'llama-3.1-70b-versatile', 'mixtral-8x7b-32768'],
+  deepseek: ['deepseek-chat', 'deepseek-reasoner'],
+  openrouter: ['google/gemini-2.0-flash-001', 'anthropic/claude-3.5-sonnet', 'deepseek/deepseek-chat']
+};
+
 const IMAGE_PROVIDERS = [
   { id: 'google', label: 'Google Imagen', placeholder: 'AIza…' },
-  { id: 'openai', label: 'OpenAI / Compatible', placeholder: 'sk-… or "ollama"' },
+  { id: 'openai', label: 'OpenAI / Compatible', placeholder: 'sk-… or "ollama"' }
 ];
 
-// ─── Component ────────────────────────────────────────────────────────────
+function ModelSelect({ value, onChange, provider, capability, placeholder }: {
+  value: string;
+  onChange: (val: string) => void;
+  provider: string;
+  capability: string;
+  placeholder?: string;
+}) {
+  const suggestions = SUGGESTED_MODELS[provider] || [];
+  return (
+    <div className="relative group">
+      <div className="flex gap-1">
+        <input
+          type="text"
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="flex-1 border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
+        />
+        {suggestions.length > 0 && (
+          <select
+            value=""
+            onChange={e => { if (e.target.value) onChange(e.target.value); }}
+            className="w-8 border border-gray-200 rounded-lg bg-gray-50 text-gray-500 text-[10px] focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            <option value="">v</option>
+            {suggestions.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// === Component ============================================================
 
 export function Settings({ onClose }: Props) {
   const { settings, save, verifyKey } = useSettings();
@@ -92,9 +134,6 @@ export function Settings({ onClose }: Props) {
     const def = PROVIDERS.find(p => p.id === id)!;
     setVerifyState('idle');
     setVerifyError('');
-    // Preserve fields when re-selecting the same provider (within this draft),
-    // or restore from saved settings when switching back to the saved provider.
-    // Only clear when switching to a genuinely new provider.
     const isSame    = id === draft.global.provider;
     const isSaved   = id === settings.global.provider;
     const pick = <T,>(draftVal: T, savedVal: T, empty: T): T =>
@@ -107,7 +146,6 @@ export function Settings({ onClose }: Props) {
       sttModel:   pick(draft.global.sttModel,   settings.global.sttModel,   ''),
       imageModel: pick(draft.global.imageModel, settings.global.imageModel, ''),
     });
-    // Seed Ollama URL default if first time
     if (def.authType === 'url' && !draft.advanced.ollama?.baseUrl) {
       patchAdv('ollama', { baseUrl: def.urlDefault ?? '' });
     }
@@ -122,7 +160,6 @@ export function Settings({ onClose }: Props) {
     const apiKey = draft.global.apiKey;
 
     if (selectedProvider.authType === 'none') {
-      // CLI: send a verify request — server will try to spawn the CLI
       const result = await verifyKey(provider, '');
       setVerifyState(result.ok ? 'ok' : 'error');
       if (!result.ok) setVerifyError(result.error ?? 'CLI not found or failed.');
@@ -130,7 +167,6 @@ export function Settings({ onClose }: Props) {
     }
 
     if (selectedProvider.authType === 'url') {
-      // Ollama: verify with baseUrl + selected model
       const baseUrl = draft.advanced.ollama?.baseUrl || selectedProvider.urlDefault || '';
       const model = draft.global.model || 'llama3.2';
       try {
@@ -177,7 +213,6 @@ export function Settings({ onClose }: Props) {
     >
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl flex flex-col" style={{ maxHeight: '92vh' }}>
 
-        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
             <SettingsIcon size={18} className="text-gray-500" />
@@ -188,7 +223,6 @@ export function Settings({ onClose }: Props) {
           </button>
         </div>
 
-        {/* Tabs */}
         <div role="tablist" className="flex border-b border-gray-100 px-6 shrink-0">
           {([['providers', Cpu, 'AI Providers'], ['profile', User, 'Profile']] as const).map(([id, Icon, label]) => (
             <button
@@ -204,16 +238,12 @@ export function Settings({ onClose }: Props) {
           ))}
         </div>
 
-        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
 
-          {/* ── Providers Tab ── */}
           {tab === 'providers' && (
             <>
-              {/* ── Mode Toggle ── */}
               <ModeToggle mode={mode} onChange={setMode} />
 
-              {/* ── Section: Text AI ── */}
               <div>
                 {mode === 'standard' ? (
                   <>
@@ -240,7 +270,6 @@ export function Settings({ onClose }: Props) {
                       Text AI <span className="font-normal normal-case text-gray-400">— Transform · Roleplay · Course</span>
                     </p>
 
-                    {/* Cloud providers */}
                     <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">Cloud</p>
                     <div className="grid grid-cols-3 gap-1.5 mb-3">
                       {cloudProviders.map(p => (
@@ -248,7 +277,6 @@ export function Settings({ onClose }: Props) {
                       ))}
                     </div>
 
-                    {/* Local providers */}
                     <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">Local</p>
                     <div className="grid grid-cols-3 gap-1.5 mb-4">
                       {localProviders.map(p => (
@@ -258,11 +286,9 @@ export function Settings({ onClose }: Props) {
                   </>
                 )}
 
-                {/* Auth area */}
                 {selectedProvider && (
                   <div className="space-y-3 bg-gray-50 rounded-xl p-4">
 
-                    {/* Cloud: API key */}
                     {selectedProvider.authType === 'key' && (
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>
@@ -287,7 +313,6 @@ export function Settings({ onClose }: Props) {
                       </div>
                     )}
 
-                    {/* Ollama: URL + model */}
                     {selectedProvider.authType === 'url' && (
                       <>
                         <div>
@@ -330,7 +355,6 @@ export function Settings({ onClose }: Props) {
                       </>
                     )}
 
-                    {/* CLI: no config */}
                     {selectedProvider.authType === 'none' && (
                       <div className="space-y-2">
                         <p className="text-sm text-gray-600">
@@ -352,7 +376,6 @@ export function Settings({ onClose }: Props) {
                       </div>
                     )}
 
-                    {/* Cloud: optional model overrides (4 fields) */}
                     {selectedProvider.authType === 'key' && (
                       <div>
                         <label className="block text-xs font-medium text-gray-500 mb-2">
@@ -360,7 +383,7 @@ export function Settings({ onClose }: Props) {
                         </label>
                         <div className="grid grid-cols-2 gap-2">
                           {[
-                            { label: 'LLM', key: 'model' as const, cap: 'text' },
+                            { label: 'LLM (Default)', key: 'model' as const, cap: 'text' },
                             { label: 'TTS', key: 'ttsModel' as const, cap: 'text-to-speech' },
                             { label: 'STT', key: 'sttModel' as const, cap: 'speech-to-text' },
                             { label: 'Image', key: 'imageModel' as const, cap: 'text-to-image' },
@@ -370,12 +393,12 @@ export function Settings({ onClose }: Props) {
                             return (
                               <div key={key}>
                                 <label className="block text-[11px] font-medium text-gray-500 mb-0.5">{label}</label>
-                                <input
-                                  type="text"
+                                <ModelSelect
                                   value={draft.global[key] ?? ''}
-                                  onChange={e => patchGlobal({ [key]: e.target.value })}
+                                  onChange={val => patchGlobal({ [key]: val })}
+                                  provider={draft.global.provider}
+                                  capability={cap}
                                   placeholder={placeholder}
-                                  className="w-full border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white"
                                 />
                               </div>
                             );
@@ -390,7 +413,78 @@ export function Settings({ onClose }: Props) {
               </div>
 
               {mode === 'advanced' && (<>
-              {/* ── Section: TTS ── */}
+              <CollapsibleSection
+                id="transform"
+                title="CFLT Transform"
+                subtitle="Sentence restructuring engine"
+                open={!!openSections.transform}
+                onToggle={() => toggleSection('transform')}
+              >
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                    <select
+                      value={draft.advanced.transform?.provider ?? ''}
+                      onChange={e => patchAdv('transform', { provider: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="">— use global / server default —</option>
+                      {PROVIDERS.filter(p => p.authType !== 'url').map(p => (
+                        <option key={p.id} value={p.id}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Model <span className="font-normal text-gray-400">(blank = provider default)</span>
+                    </label>
+                    <ModelSelect
+                      value={draft.advanced.transform?.model ?? ''}
+                      onChange={val => patchAdv('transform', { model: val })}
+                      provider={draft.advanced.transform?.provider || draft.global.provider}
+                      capability="text"
+                      placeholder="e.g. gemini-2.0-pro"
+                    />
+                  </div>
+                </div>
+              </CollapsibleSection>
+
+              <CollapsibleSection
+                id="courseGen"
+                title="Course Generation"
+                subtitle="Full lesson manifest orchestrator"
+                open={!!openSections.courseGen}
+                onToggle={() => toggleSection('courseGen')}
+              >
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                    <select
+                      value={draft.advanced.courseGen?.provider ?? ''}
+                      onChange={e => patchAdv('courseGen', { provider: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="">— use global / server default —</option>
+                      {PROVIDERS.filter(p => p.authType !== 'url').map(p => (
+                        <option key={p.id} value={p.id}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      Model <span className="font-normal text-gray-400">(blank = provider default)</span>
+                    </label>
+                    <ModelSelect
+                      value={draft.advanced.courseGen?.model ?? ''}
+                      onChange={val => patchAdv('courseGen', { model: val })}
+                      provider={draft.advanced.courseGen?.provider || draft.global.provider}
+                      capability="text"
+                      placeholder="e.g. gemini-2.0-pro"
+                    />
+                  </div>
+                </div>
+              </CollapsibleSection>
+
               <CollapsibleSection
                 id="tts"
                 title="Text-to-Speech"
@@ -431,12 +525,12 @@ export function Settings({ onClose }: Props) {
                         <label className="block text-xs font-medium text-gray-600 mb-1">
                           Model <span className="font-normal text-gray-400">(blank = server default)</span>
                         </label>
-                        <input
-                          type="text"
+                        <ModelSelect
                           value={draft.advanced.tts?.model ?? ''}
-                          onChange={e => patchAdv('tts', { model: e.target.value })}
+                          onChange={val => patchAdv('tts', { model: val })}
+                          provider={draft.advanced.tts?.provider || draft.global.provider}
+                          capability="text-to-speech"
                           placeholder="tts-1"
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
                         />
                       </div>
                     </>
@@ -458,7 +552,6 @@ export function Settings({ onClose }: Props) {
                 </div>
               </CollapsibleSection>
 
-              {/* ── Section: STT ── */}
               <CollapsibleSection
                 id="stt"
                 title="Speech-to-Text"
@@ -512,7 +605,6 @@ export function Settings({ onClose }: Props) {
                 </div>
               </CollapsibleSection>
 
-              {/* ── Section: Image Gen ── */}
               <CollapsibleSection
                 id="image"
                 title="Image Generation"
@@ -557,12 +649,12 @@ export function Settings({ onClose }: Props) {
                         <label className="block text-xs font-medium text-gray-600 mb-1">
                           Model <span className="font-normal text-gray-400">(blank = inherit from server env)</span>
                         </label>
-                        <input
-                          type="text"
+                        <ModelSelect
                           value={draft.advanced.imageGen?.model ?? ''}
-                          onChange={e => patchAdv('imageGen', { model: e.target.value })}
-                          placeholder="dall-e-3 · x/z-image-turbo · ..."
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          onChange={val => patchAdv('imageGen', { model: val })}
+                          provider={draft.advanced.imageGen?.provider || draft.global.provider}
+                          capability="text-to-image"
+                          placeholder="dall-e-3 · x/z-image-turbo · …"
                         />
                       </div>
                     </>
@@ -585,7 +677,6 @@ export function Settings({ onClose }: Props) {
             </>
           )}
 
-          {/* ── Profile Tab ── */}
           {tab === 'profile' && (
             <div className="space-y-4">
               <div>
@@ -607,7 +698,6 @@ export function Settings({ onClose }: Props) {
           )}
         </div>
 
-        {/* Footer */}
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-gray-100 shrink-0">
           {saveError
             ? <p className="text-xs text-red-600 flex-1">{saveError}</p>
@@ -630,7 +720,7 @@ export function Settings({ onClose }: Props) {
   );
 }
 
-// ─── Sub-components ────────────────────────────────────────────────────────
+// === Sub-components ========================================================
 
 function ModeToggle({ mode, onChange }: { mode: SettingsMode; onChange: (m: SettingsMode) => void }) {
   return (
