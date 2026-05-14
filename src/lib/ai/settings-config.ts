@@ -207,7 +207,9 @@ export function resolveImageOverride(settings: RequestSettings): ImageOverride |
   if (!provider) return undefined;
 
   const apiKey = image.apiKey || g.apiKey || undefined;
-  if (!apiKey && provider !== 'none') return undefined;
+  // Note: We no longer return undefined if apiKey is missing. 
+  // The factory will fall back to the server-side env var (IMAGE_GEN_API_KEY etc.)
+  // if the override doesn't carry a key.
 
   const model = image.model || getProviderDefault(provider, 'text-to-image') || undefined;
   return {
