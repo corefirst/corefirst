@@ -228,7 +228,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       } catch (err) { console.error(err); } finally { setTranscribing(false); }
     };
     transcribeAudio();
-  }, [audioBlob, sourceLang]);
+  }, [audioBlob, sourceLang, getHeaders]);
 
   useEffect(() => { if (lastTranscribedText !== null && input !== lastTranscribedText) { setLastAudioBlob(null); setLastTranscribedText(null); } }, [input, lastTranscribedText]);
 
@@ -250,7 +250,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       }
       await audio.play();
     } catch (error) { console.error(error); if (url && !audioFile) URL.revokeObjectURL(url); } finally { setAudioLoading(null); }
-  }, []);
+  }, [getHeaders]);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;

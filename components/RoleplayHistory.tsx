@@ -254,7 +254,7 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
       }
       await audio.play();
     } catch (err) { console.error(err); if (url && !audioFile) URL.revokeObjectURL(url); } finally { setAudioLoading(null); }
-  }, []);
+  }, [getHeaders]);
 
   useEffect(() => {
     let cancelled = false;
