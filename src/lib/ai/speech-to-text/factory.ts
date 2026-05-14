@@ -1,7 +1,7 @@
 import type { TranscriptionModel } from 'ai';
 import { resolveFeature, type ResolvedFeature } from '../config';
 import { InvalidProviderError } from '../capabilities';
-import { PROVIDER_BASE_URLS } from '../provider-urls';
+import { getProviderBaseUrl } from '../dynamic-config';
 import { openaiSttModel } from './sdk/openai-stt';
 
 type TranscriptionModelBuilder = (r: ResolvedFeature) => TranscriptionModel;
@@ -22,8 +22,8 @@ export function registerTranscriptionModelBuilder(
 // module-level `sttModel` singleton valid; callers must use STTFactory.getProvider().
 registerTranscriptionModelBuilder('openai',     (r) => openaiSttModel(r.model, r.baseUrl, r.apiKey));
 registerTranscriptionModelBuilder('google',     (_r) => nonAiSdkStub());
-registerTranscriptionModelBuilder('qwen',       (r) => openaiSttModel(r.model, PROVIDER_BASE_URLS.qwen, r.apiKey));
-registerTranscriptionModelBuilder('openrouter', (r) => openaiSttModel(r.model, PROVIDER_BASE_URLS.openrouter, r.apiKey));
+registerTranscriptionModelBuilder('qwen',       (r) => openaiSttModel(r.model, getProviderBaseUrl('qwen'), r.apiKey));
+registerTranscriptionModelBuilder('openrouter', (r) => openaiSttModel(r.model, getProviderBaseUrl('openrouter'), r.apiKey));
 
 export function buildTranscriptionModel(): TranscriptionModel {
   const r = resolveFeature('stt');

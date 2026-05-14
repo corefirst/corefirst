@@ -9,9 +9,13 @@
  */
 import type { LanguageModel } from 'ai';
 import type { FeatureKey } from './capabilities';
-import { getDefaultTextModel, PROVIDER_DEFAULTS } from './capabilities';
+import { getDefaultTextModel } from './capabilities';
 import { buildTextModelFromSpec } from './text/factory';
-import { PROVIDER_BASE_URLS } from './provider-urls';
+import {
+  getProviderDefault,
+  getProviderBaseUrl,
+  getProviderTTSVoice,
+} from './dynamic-config';
 
 /** Per-feature text override from request headers (x-cf-{feature}-provider etc.). */
 export type FeatureTextOverride = { provider: string; model: string };
@@ -149,14 +153,6 @@ export function resolveFeatureFromSettings(
   return resolveTextModel(settings);
 }
 
-// Default TTS voice per provider. OpenAI-compatible providers each have their
-// own voice identifiers — 'alloy' is OpenAI-only and will fail for others.
-const PROVIDER_TTS_VOICES: Record<string, string> = {
-  qwen:       'longxiaochun',  // Qwen DashScope CosyVoice default
-  openrouter: 'alloy',
-  openai:     'alloy',
-};
-
 export function resolveTTSOverride(settings: RequestSettings): TTSOverride | undefined {
   const { tts, global: g } = settings;
   const apiKey = tts.apiKey || g.apiKey || undefined;
@@ -165,14 +161,17 @@ export function resolveTTSOverride(settings: RequestSettings): TTSOverride | und
   }
   const provider = tts.provider || g.provider;
   if (!provider) return undefined;
-  if (PROVIDER_BASE_URLS[provider]) {
-    const model = tts.model || PROVIDER_DEFAULTS[provider]?.['text-to-speech'] || '';
-    const voice = PROVIDER_TTS_VOICES[provider];
-    return { provider, baseUrl: PROVIDER_BASE_URLS[provider], model, apiKey, voice };
+
+  const baseUrl = getProviderBaseUrl(provider);
+  if (baseUrl) {
+    const model = tts.model || getProviderDefault(provider, 'text-to-speech') || '';
+    const voice = getProviderTTSVoice(provider);
+    return { provider, baseUrl, model, apiKey, voice };
   }
   // Native providers (e.g. Google) use their own REST API — no base URL needed.
-  if (PROVIDER_DEFAULTS[provider]?.['text-to-speech']) {
-    const model = tts.model || PROVIDER_DEFAULTS[provider]?.['text-to-speech'] || '';
+  const defaultModel = getProviderDefault(provider, 'text-to-speech');
+  if (defaultModel) {
+    const model = tts.model || defaultModel || '';
     return { provider, model, apiKey };
   }
   return undefined;
@@ -187,13 +186,16 @@ export function resolveSTTOverride(settings: RequestSettings): STTOverride | und
   }
   const provider = stt.provider || g.provider;
   if (!provider) return undefined;
-  if (PROVIDER_BASE_URLS[provider]) {
-    const resolvedModel = model || PROVIDER_DEFAULTS[provider]?.['speech-to-text'] || '';
-    return { provider, baseUrl: PROVIDER_BASE_URLS[provider], apiKey, model: resolvedModel };
+
+  const baseUrl = getProviderBaseUrl(provider);
+  if (baseUrl) {
+    const resolvedModel = model || getProviderDefault(provider, 'speech-to-text') || '';
+    return { provider, baseUrl, apiKey, model: resolvedModel };
   }
   // Native providers (e.g. Google) use their own REST API — no base URL needed.
-  if (PROVIDER_DEFAULTS[provider]?.['speech-to-text']) {
-    const resolvedModel = model || PROVIDER_DEFAULTS[provider]?.['speech-to-text'] || '';
+  const defaultModel = getProviderDefault(provider, 'speech-to-text');
+  if (defaultModel) {
+    const resolvedModel = model || defaultModel || '';
     return { provider, apiKey, model: resolvedModel };
   }
   return undefined;
@@ -202,6 +204,6 @@ export function resolveSTTOverride(settings: RequestSettings): STTOverride | und
 export function resolveImageOverride(settings: RequestSettings): ImageOverride | undefined {
   const { image } = settings;
   if (!image.provider) return undefined;
-  const model = image.model || PROVIDER_DEFAULTS[image.provider]?.['text-to-image'] || undefined;
+  const model = image.model || getProviderDefault(image.provider, 'text-to-image') || undefined;
   return { provider: image.provider, apiKey: image.apiKey, model, baseUrl: image.baseUrl || undefined };
 }

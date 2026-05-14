@@ -12,8 +12,6 @@
 import {
   CAPABILITIES,
   FEATURES,
-  PROVIDERS_BY_CAPABILITY,
-  PROVIDER_DEFAULTS,
   InvalidProviderError,
   capabilityDefaultProviderEnv,
   capabilityDefaultModelEnv,
@@ -21,6 +19,11 @@ import {
   type FeatureKey,
   type FeatureSpec,
 } from './capabilities';
+import {
+  getProvidersForCapability,
+  getProviderDefault,
+  getFeatureDefaults,
+} from './dynamic-config';
 
 export interface ResolvedFeature {
   feature: FeatureKey;
@@ -49,7 +52,7 @@ export function resolveFeature(key: FeatureKey): ResolvedFeature {
   // If the resolved provider (e.g. from GLOBAL_PROVIDER) does not support
   // this capability, gracefully downgrade to 'none' instead of crashing.
   // This allows Global=Google + Feature=OpenAI mixing to work seamlessly.
-  const validProviders = PROVIDERS_BY_CAPABILITY[spec.capability] ?? [];
+  const validProviders = getProvidersForCapability(spec.capability);
   if (provider !== 'none' && !validProviders.includes(provider)) {
     console.warn(`[ai/config] Provider "${provider}" does not support capability "${spec.capability}" for feature "${key}". Falling back to "none".`);
     provider = 'none';
@@ -83,7 +86,7 @@ function readProviderForFeature(spec: FeatureSpec): string {
   const globalProvider = process.env.GLOBAL_PROVIDER;
   if (globalProvider) return globalProvider.trim();
 
-  return spec.defaultProvider;
+  return getFeatureDefaults(spec.key).defaultProvider;
 }
 
 function readModelForFeature(spec: FeatureSpec, provider: string): string {
@@ -94,9 +97,9 @@ function readModelForFeature(spec: FeatureSpec, provider: string): string {
   if (capModel) return capModel.trim();
 
   // Try provider-specific default for this capability
-  const providerDefaults = PROVIDER_DEFAULTS[provider];
-  if (providerDefaults?.[spec.capability]) {
-    return providerDefaults[spec.capability]!;
+  const providerDefault = getProviderDefault(provider, spec.capability);
+  if (providerDefault) {
+    return providerDefault;
   }
 
   // For cli/* providers, MODEL is a command-path override (e.g. `claude`,
@@ -108,7 +111,7 @@ function readModelForFeature(spec: FeatureSpec, provider: string): string {
     return provider.slice('cli/'.length);
   }
 
-  return spec.defaultModel;
+  return getFeatureDefaults(spec.key).defaultModel;
 }
 
 function readBaseUrlForFeature(spec: FeatureSpec): string | undefined {
@@ -144,7 +147,7 @@ function capabilityEnvPrefix(cap: Capability): string {
 }
 
 function validateProvider(spec: FeatureSpec, provider: string): void {
-  const valid = PROVIDERS_BY_CAPABILITY[spec.capability] ?? [];
+  const valid = getProvidersForCapability(spec.capability);
   if (!valid.includes(provider)) {
     throw new InvalidProviderError(provider, spec.capability, spec.key);
   }

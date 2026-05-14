@@ -1,7 +1,7 @@
 import type { ImageModel } from 'ai';
 import { resolveFeature, type ResolvedFeature } from '../config';
-import { InvalidProviderError, PROVIDER_DEFAULTS } from '../capabilities';
-import { PROVIDER_BASE_URLS } from '../provider-urls';
+import { InvalidProviderError } from '../capabilities';
+import { getProviderBaseUrl, getProviderDefault } from '../dynamic-config';
 import { googleImagenModel } from './sdk/google-imagen';
 import { openaiImageModel } from './sdk/openai-image';
 
@@ -17,8 +17,8 @@ export function registerImageModelBuilder(provider: string, builder: ImageModelB
 // ── Built-in providers ────────────────────────────────────────────────────────
 registerImageModelBuilder('google',     (r, k) => googleImagenModel(r.model, k ?? r.apiKey));
 registerImageModelBuilder('openai',     (r, k) => openaiImageModel(r.model, r.baseUrl, k ?? r.apiKey));
-registerImageModelBuilder('qwen',       (r, k) => openaiImageModel(r.model, PROVIDER_BASE_URLS.qwen, k ?? r.apiKey));
-registerImageModelBuilder('openrouter', (r, k) => openaiImageModel(r.model, PROVIDER_BASE_URLS.openrouter, k ?? r.apiKey));
+registerImageModelBuilder('qwen',       (r, k) => openaiImageModel(r.model, getProviderBaseUrl('qwen'), k ?? r.apiKey));
+registerImageModelBuilder('openrouter', (r, k) => openaiImageModel(r.model, getProviderBaseUrl('openrouter'), k ?? r.apiKey));
 
 export function buildImageModel(): ImageModel {
   const r = resolveFeature('imageGen');
@@ -49,7 +49,7 @@ export function buildImageModelWith(overrides: { provider?: string; apiKey?: str
   // from env vars and would be empty or wrong).
   const resolvedModel =
     overrides.model ||
-    PROVIDER_DEFAULTS[provider]?.['text-to-image'] ||
+    getProviderDefault(provider, 'text-to-image') ||
     r.model;
   const effectiveR = {
     ...r,

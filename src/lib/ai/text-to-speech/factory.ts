@@ -1,7 +1,7 @@
 import type { SpeechModel } from 'ai';
 import { resolveFeature, type ResolvedFeature } from '../config';
 import { InvalidProviderError } from '../capabilities';
-import { PROVIDER_BASE_URLS } from '../provider-urls';
+import { getProviderBaseUrl } from '../dynamic-config';
 import { openaiTtsModel } from './sdk/openai-tts';
 
 type SpeechModelBuilder = (r: ResolvedFeature) => SpeechModel;
@@ -20,8 +20,8 @@ export function registerSpeechModelBuilder(provider: string, builder: SpeechMode
 // TTSFactory.getProvider() for the google branch.
 registerSpeechModelBuilder('openai',     (r) => openaiTtsModel(r.model, r.baseUrl, r.apiKey));
 registerSpeechModelBuilder('google',     (_r) => nonAiSdkStub('tts'));
-registerSpeechModelBuilder('qwen',       (r) => openaiTtsModel(r.model, PROVIDER_BASE_URLS.qwen, r.apiKey));
-registerSpeechModelBuilder('openrouter', (r) => openaiTtsModel(r.model, PROVIDER_BASE_URLS.openrouter, r.apiKey));
+registerSpeechModelBuilder('qwen',       (r) => openaiTtsModel(r.model, getProviderBaseUrl('qwen'), r.apiKey));
+registerSpeechModelBuilder('openrouter', (r) => openaiTtsModel(r.model, getProviderBaseUrl('openrouter'), r.apiKey));
 
 export function buildSpeechModel(): SpeechModel {
   const r = resolveFeature('tts');

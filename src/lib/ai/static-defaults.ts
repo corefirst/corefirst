@@ -1,0 +1,115 @@
+import { type Capability, type FeatureKey, type FeatureSpec } from './capabilities';
+
+export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
+  text: [
+    'google',
+    'openai',
+    'anthropic',
+    'ollama',
+    'groq',
+    'openrouter',
+    'qwen',
+    'deepseek',
+    'cli/claude',
+    'cli/gemini',
+    'none',
+  ],
+  'text-to-image': ['google', 'openai', 'qwen', 'openrouter', 'none'],
+  'text-to-speech': ['openai', 'google', 'qwen', 'openrouter', 'none'],
+  'speech-to-text': ['openai', 'google', 'qwen', 'openrouter', 'none'],
+  'text-to-video': [],
+  'image-to-video': [],
+  'multimodal-to-video': [],
+};
+
+export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string>>> = {
+  google: {
+    text: 'gemini-2.5-pro',
+    'text-to-image': 'imagen-4.0-generate-001',
+    'text-to-speech': 'gemini-2.5-flash-preview-tts',
+    'speech-to-text': 'gemini-2.5-flash',
+  },
+  openai: {
+    text: 'gpt-4o',
+    'text-to-image': 'dall-e-3',
+    'text-to-speech': 'tts-1',
+    'speech-to-text': 'whisper-1',
+  },
+  anthropic: { text: 'claude-sonnet-4-6' },
+  ollama: { text: 'llama3.2' },
+  groq: { text: 'llama-3.3-70b-versatile' },
+  deepseek: { text: 'deepseek-chat' },
+  qwen: {
+    text: 'qwen3.5-plus',
+    'text-to-image': 'wanx2.7-image',
+    'text-to-speech': 'cosyvoice-v3.5-flash',
+    'speech-to-text': 'sensevoice-v1',
+  },
+  openrouter: {
+    text: 'google/gemini-2.5-flash',
+    'text-to-image': 'black-forest-labs/flux-schnell',
+    'text-to-speech': 'openai/tts-1',
+    'speech-to-text': 'openai/whisper-1',
+  },
+  'cli/claude': { text: 'claude' },
+  'cli/gemini': { text: 'gemini' },
+};
+
+export const FEATURES: Record<FeatureKey, FeatureSpec> = {
+  transform: {
+    key: 'transform',
+    capability: 'text',
+    envPrefix: 'TRANSFORM',
+    defaultProvider: 'none',
+    defaultModel: 'gemini-2.5-pro',
+    rationale: 'CFLT Logic Transformer — quality-critical: structured output must be exact.',
+  },
+  courseGen: {
+    key: 'courseGen',
+    capability: 'text',
+    envPrefix: 'COURSE_GEN',
+    defaultProvider: 'none',
+    defaultModel: 'gemini-2.5-pro',
+    rationale: 'Courseware orchestrator — full lesson manifest, multi-script audit.',
+  },
+  roleplay: {
+    key: 'roleplay',
+    capability: 'text',
+    envPrefix: 'ROLEPLAY',
+    defaultProvider: 'none',
+    defaultModel: 'gemini-2.5-flash',
+    rationale: 'Multi-turn dialogue — cost-optimized, latency-sensitive.',
+  },
+  speechEval: {
+    key: 'speechEval',
+    capability: 'text',
+    envPrefix: 'SPEECH_EVAL',
+    defaultProvider: 'none',
+    defaultModel: 'gemini-2.5-flash',
+    rationale: 'LLM "Speech Assessor" — compares user transcription vs target text to provide scores and corrective feedback (the "Teacher" logic).',
+  },
+  imageGen: {
+    key: 'imageGen',
+    capability: 'text-to-image',
+    envPrefix: 'IMAGE_GEN',
+    defaultProvider: 'none',
+    defaultModel: 'imagen-4.0-generate-001',
+    rationale: 'Lesson scene image generation.',
+  },
+  tts: {
+    key: 'tts',
+    capability: 'text-to-speech',
+    envPrefix: 'TTS',
+    defaultProvider: 'none',
+    defaultModel: 'gpt-4o-mini-tts',
+    rationale: 'Text-to-speech for lesson audio + Transform/Roleplay playback.',
+  },
+  stt: {
+    key: 'stt',
+    capability: 'speech-to-text',
+    envPrefix: 'STT',
+    defaultProvider: 'none',
+    defaultModel: 'gpt-4o-mini-transcribe',
+    rationale: 'Speech transcription for voice challenges + roleplay voice input.',
+  },
+};

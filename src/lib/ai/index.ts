@@ -30,23 +30,37 @@ import { buildTextModelFor } from './text/factory';
 import { buildImageModel } from './text-to-image/factory';
 import { buildSpeechModel } from './text-to-speech/factory';
 import { buildTranscriptionModel } from './speech-to-text/factory';
+import type { LanguageModel } from 'ai';
+
+function createModelProxy<T extends object>(builder: () => T): T {
+  return new Proxy({} as T, {
+    get(_, prop) {
+      const model = builder();
+      const val = (model as any)[prop];
+      if (typeof val === 'function') {
+        return val.bind(model);
+      }
+      return val;
+    },
+  });
+}
 
 // --- Text features (capability: text) ---
-export const transformModel = buildTextModelFor('transform');
-export const courseGenModel = buildTextModelFor('courseGen');
-export const roleplayModel = buildTextModelFor('roleplay');
+export const transformModel = createModelProxy(() => buildTextModelFor('transform'));
+export const courseGenModel = createModelProxy(() => buildTextModelFor('courseGen'));
+export const roleplayModel = createModelProxy(() => buildTextModelFor('roleplay'));
 
 /**
  * LLM "Speech Assessor" model. Used in /api/speech-eval to evaluate
  * transcribed user speech against target text, providing scores for
  * pronunciation and logic stress.
  */
-export const speechEvalModel = buildTextModelFor('speechEval');
+export const speechEvalModel = createModelProxy(() => buildTextModelFor('speechEval'));
 
 // --- text-to-image / text-to-speech / speech-to-text ---
-export const imageGenModel = buildImageModel();
-export const ttsModel = buildSpeechModel();
-export const sttModel = buildTranscriptionModel();
+export const imageGenModel = createModelProxy(() => buildImageModel());
+export const ttsModel      = createModelProxy(() => buildSpeechModel());
+export const sttModel      = createModelProxy(() => buildTranscriptionModel());
 
 // --- Stub capabilities (throw on first use) ---
 export { buildTextToVideoModel } from './text-to-video/factory';
