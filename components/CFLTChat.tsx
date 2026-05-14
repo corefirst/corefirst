@@ -29,6 +29,7 @@ interface RoleplayApiResponse {
 interface Message {
   role: 'user' | 'assistant';
   content: string;
+  ssml?: string;
   audioFile?: string;
   correctedAudioFile?: string;
   cflt?: string;
@@ -176,6 +177,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       next.push({
         role: 'assistant',
         content: data.reply ?? '(No response)',
+        ssml: data.ssml,
         coachAnalysis: data.coach_analysis,
         feedback: data.feedback ?? null,
       });
@@ -375,7 +377,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
               <div className="space-y-2 max-w-[80%]">
                 <div className={`p-4 rounded-2xl shadow-sm ${m.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-slate-800 rounded-tl-none border border-slate-100'}`}>
                   <p className="font-bold leading-relaxed text-lg">{m.content}</p>
-                  <button onClick={() => playAudio(m.userAnalysis?.corrected || m.content, `msg-${i}`, m.audioFile)} disabled={audioLoading === `msg-${i}`} className={`mt-2 ${m.role === 'user' ? 'text-blue-200 hover:text-white' : 'text-slate-400 hover:text-blue-500'}`}>{audioLoading === `msg-${i}` ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}</button>
+                  <button onClick={() => playAudio(m.ssml || m.content, `msg-${i}`, m.audioFile)} disabled={audioLoading === `msg-${i}`} className={`mt-2 ${m.role === 'user' ? 'text-blue-200 hover:text-white' : 'text-slate-400 hover:text-blue-500'}`}>{audioLoading === `msg-${i}` ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}</button>
                 </div>
                 {m.role === 'user' && m.userAnalysis && (
                   <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-2 text-left shadow-sm">
