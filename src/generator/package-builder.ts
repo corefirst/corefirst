@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import * as fs from 'fs/promises';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { VisualFactory } from '@/src/core/visuals/factory';
+import type { TTSOverride, ImageOverride } from '@/src/lib/ai/settings-config';
 import {
   buildSlug,
   resolveUniqueSlug,
@@ -30,6 +31,9 @@ export interface BuildPackageInput {
   /** Owner of this course package. Defaults to 'local' for single-user mode. */
   userId?: string;
   onProgress?: PackageProgressEmitter;
+  /** Client-supplied provider overrides — takes priority over env-var config. */
+  ttsOverride?: TTSOverride;
+  imageOverride?: ImageOverride;
 }
 
 /**
@@ -48,7 +52,7 @@ export async function buildAndWritePackage(
   const packageManifest = await mapToPackageManifest(input, userId);
 
   const emit = input.onProgress ?? (() => {});
-  const tts = TTSFactory.getProvider();
+  const tts = TTSFactory.getProvider(input.ttsOverride);
   const audioMap = new Map<string, Uint8Array>();
   const totalScripts = packageManifest.lessons.reduce((n, l) => n + l.scripts.length, 0);
   let audiosDone = 0;
@@ -83,7 +87,7 @@ export async function buildAndWritePackage(
   const imageMap = new Map<string, Uint8Array>();
   if (input.generateImages !== false) {
     emit({ type: 'step', message: 'Generating images…' });
-    const visuals = VisualFactory.getProvider();
+    const visuals = VisualFactory.getProvider(input.imageOverride);
     let imagesDone = 0;
     const totalImages = packageManifest.lessons.filter(l => l.visual_generation_prompts[0]).length;
     for (const lesson of packageManifest.lessons) {

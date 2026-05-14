@@ -8,7 +8,7 @@ import {
 
 describe('getDefaultTextModel', () => {
   it('returns text model for known providers', () => {
-    expect(getDefaultTextModel('google')).toBe('gemini-2.5-pro-preview');
+    expect(getDefaultTextModel('google')).toBe('gemini-2.5-pro');
     expect(getDefaultTextModel('openai')).toBe('gpt-4o');
     expect(getDefaultTextModel('anthropic')).toBe('claude-sonnet-4-6');
     expect(getDefaultTextModel('groq')).toBe('llama-3.3-70b-versatile');

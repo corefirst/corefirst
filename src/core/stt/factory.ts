@@ -26,12 +26,15 @@ registerSTTProvider('qwen',       () => new OpenAISTTProvider()); // env-path fa
 export class STTFactory {
   static getProvider(override?: STTOverride): STTProvider {
     if (override) {
-      // Qwen DashScope does not implement /audio/transcriptions on its
-      // OpenAI-compatible endpoint — use the native DashScope ASR API instead.
       if (override.provider === 'qwen' && override.apiKey) {
         const model = override.model || PROVIDER_DEFAULTS['qwen']?.['speech-to-text'] || 'sensevoice-v1';
         console.log(`[ai/stt] provider=qwen model=${model} (DashScope native API)`);
         return new QwenSTTProvider(override.apiKey, model);
+      }
+      if (override.provider === 'google') {
+        const model = override.model || PROVIDER_DEFAULTS['google']?.['speech-to-text'];
+        console.log(`[ai/stt] provider=google model=${model}`);
+        return new GoogleGeminiSTTProvider({ model, apiKey: override.apiKey });
       }
       console.log(`[ai/stt] provider=${override.provider ?? 'override'} baseUrl=${override.baseUrl}`);
       const model = buildTranscriptionModelWith({ baseUrl: override.baseUrl, apiKey: override.apiKey, model: override.model });

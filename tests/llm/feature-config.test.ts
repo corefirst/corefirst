@@ -162,11 +162,11 @@ describe('resolveFeature — GLOBAL_PROVIDER and Mix-and-Match', () => {
 
     expect(resolveFeature('transform')).toMatchObject({
       provider: 'google',
-      model: 'gemini-2.5-pro-preview',
+      model: 'gemini-2.5-pro',
     });
     expect(resolveFeature('imageGen')).toMatchObject({
       provider: 'google',
-      model: 'imagen-3.0-generate-001',
+      model: 'imagen-4.0-generate-001',
     });
     // Gemini natively serves TTS and STT (gemini-2.5-flash-preview-tts / gemini-2.5-flash).
     // They route through src/core/{tts,stt}/google-provider.ts rather than the AI-SDK

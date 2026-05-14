@@ -8,7 +8,7 @@ import { mediaPath, sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/pa
 import { contentHash } from '@/src/lib/storage/hash';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { getUserId } from '@/src/lib/auth/user';
-import { resolveTextContext } from '@/src/lib/ai/request-context';
+import { resolveTextContext, resolveTTSContext } from '@/src/lib/ai/request-context';
 import { classifyAIError } from '@/src/lib/ai/errors';
 import { loadSkill } from '@/src/lib/skills';
 
@@ -42,7 +42,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unsupported language' }, { status: 400 });
     }
 
-    const { model: modelOverride, userId } = await resolveTextContext('roleplay', request);
+    const [{ model: modelOverride, userId }, { ttsOverride }] = await Promise.all([
+      resolveTextContext('roleplay', request),
+      resolveTTSContext(request),
+    ]);
     await ensureDataDirs(userId);
 
     if (!modelOverride) console.log('[ai/roleplay] no UI settings — using env fallback');
@@ -93,7 +96,7 @@ export async function POST(request: Request) {
         correctedAudioFile = filename;
       } catch {
         try {
-          const tts = TTSFactory.getProvider();
+          const tts = TTSFactory.getProvider(ttsOverride ?? undefined);
           const bytes = await tts.generateAudio(text);
           await fs.writeFile(poolFile, bytes);
           correctedAudioFile = filename;

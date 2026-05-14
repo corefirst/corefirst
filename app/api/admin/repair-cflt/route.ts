@@ -1,14 +1,14 @@
 import { NextResponse } from 'next/server';
 import * as fsPromises from 'fs/promises';
-import { generateObject } from 'ai';
+import { generateObject, type LanguageModel } from 'ai';
 import { transformModel } from '@/src/lib/ai';
+import { resolveTextContext } from '@/src/lib/ai/request-context';
 import { CFLTResponseSchema } from '@/src/types/cflt';
 import { loadPrompt } from '@/src/lib/prompts/loader';
 import { providerFor } from '@/src/lib/storage/pouch-provider';
 import { listTransformEvents, listRoleplaySessions } from '@/src/lib/storage/record';
 import { listPackages } from '@/src/lib/storage/package';
 import { manifestPath } from '@/src/lib/storage/paths';
-import { getUserId } from '@/src/lib/auth/user';
 
 // Use `fresh: true` so this repair route always picks up the latest
 // system_prompt.md — bypasses the module-level cache used at request time.
@@ -20,11 +20,11 @@ function buildSystemPrompt(sourceLang: string, targetLang: string): string {
   );
 }
 
-async function retransform(input: string, sourceLang: string, targetLang: string) {
+async function retransform(input: string, sourceLang: string, targetLang: string, model: LanguageModel) {
   if (!input.trim()) return null;
   try {
     const { object } = await generateObject({
-      model: transformModel,
+      model,
       schema: CFLTResponseSchema,
       system: buildSystemPrompt(sourceLang, targetLang),
       prompt: input,
@@ -38,7 +38,8 @@ async function retransform(input: string, sourceLang: string, targetLang: string
 interface RepairCount { total: number; fixed: number; skipped: number; errors: number }
 
 export async function POST(request: Request) {
-  const userId = await getUserId(request);
+  const { model: modelOverride, userId } = await resolveTextContext('transform', request);
+  const activeModel = modelOverride ?? transformModel;
   const body = await request.json().catch(() => ({}));
   const scope: string = body.scope ?? 'all';
 
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     for (const t of transforms) {
       if (!t.inputText) { summary.transforms.skipped++; continue; }
       try {
-        const result = await retransform(t.inputText, t.sourceLang, t.targetLang);
+        const result = await retransform(t.inputText, t.sourceLang, t.targetLang, activeModel);
         if (!result || 'error' in result) { summary.transforms.errors++; continue; }
 
         await provider.mutate<any>('events', t.eventId, (doc) => ({
@@ -90,7 +91,7 @@ export async function POST(request: Request) {
           try {
             if (l1Input) {
               // Normal path: source-lang sentence → transform → store directly
-              const result = await retransform(l1Input, manifest.sourceLang, manifest.targetLang);
+              const result = await retransform(l1Input, manifest.sourceLang, manifest.targetLang, activeModel);
               if (!result || 'error' in result) { summary.courses.errors++; continue; }
               script.cfltL1 = result.cflt_l1;
               script.cfltL2 = result.cflt_l2;
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
               // transform(standardL2, targetLang, sourceLang) produces:
               //   cflt_l1 = CRST in targetLang  → becomes script.cfltL2
               //   cflt_l2 = CRST in sourceLang  → becomes script.cfltL1
-              const result = await retransform(l2Input!, manifest.targetLang, manifest.sourceLang);
+              const result = await retransform(l2Input!, manifest.targetLang, manifest.sourceLang, activeModel);
               if (!result || 'error' in result) { summary.courses.errors++; continue; }
               script.cfltL1 = result.cflt_l2;
               script.cfltL2 = result.cflt_l1;
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
             ? [session.sourceLang, session.targetLang]
             : [session.targetLang, session.sourceLang];
 
-          const result = await retransform(content, src, tgt);
+          const result = await retransform(content, src, tgt, activeModel);
           if (!result || 'error' in result || !result.slots) {
             summary.roleplay.errors++;
             continue;

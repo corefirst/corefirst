@@ -16,8 +16,10 @@ import {
   resolveFeatureFromSettings,
   resolveTTSOverride,
   resolveSTTOverride,
+  resolveImageOverride,
   type TTSOverride,
   type STTOverride,
+  type ImageOverride,
   type RequestSettings,
 } from './settings-config';
 import type { FeatureKey } from './capabilities';
@@ -61,4 +63,14 @@ export interface STTRequestContext {
 
 export async function resolveSTTContext(request: Request): Promise<STTRequestContext> {
   return { sttOverride: resolveSTTOverride(extractSettings(request)) };
+}
+
+// ── Image context ─────────────────────────────────────────────────────────────
+
+export interface ImageRequestContext {
+  imageOverride: ImageOverride | undefined;
+}
+
+export async function resolveImageContext(request: Request): Promise<ImageRequestContext> {
+  return { imageOverride: resolveImageOverride(extractSettings(request)) };
 }

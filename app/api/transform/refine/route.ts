@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { generateObject } from 'ai';
 import { transformModel } from '@/src/lib/ai';
+import { resolveTextContext } from '@/src/lib/ai/request-context';
 import { loadSkill } from '@/src/lib/skills';
-import { getUserId } from '@/src/lib/auth/user';
 
 // Refines the standard sentence after the user has filled (picked or typed)
 // any inferred CRST slots. We hand the LLM the four confirmed slot contents
@@ -40,7 +40,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
     }
     const { sourceLang, targetLang, slots } = parsed.data;
-    const userId = await getUserId(request);
+    const { model: modelOverride, userId } = await resolveTextContext('transform', request);
+    const activeModel = modelOverride ?? transformModel;
 
     const slotsTable = slots
       .map((s) => `- ${s.type.toUpperCase()}: ${sourceLang}="${s.l1}" | ${targetLang}="${s.l2}"`)
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
     const prompt = await loadSkill('sentence-refine-user', { SLOTS_TABLE: slotsTable }, userId);
 
     const { object } = await generateObject({
-      model: transformModel,
+      model: activeModel,
       schema: RefineResponseSchema,
       system,
       prompt,

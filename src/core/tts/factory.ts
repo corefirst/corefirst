@@ -1,5 +1,6 @@
 import { resolveFeature } from '@/src/lib/ai';
 import { buildSpeechModelWith } from '@/src/lib/ai/text-to-speech/factory';
+import { PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
 import type { TTSOverride } from '@/src/lib/ai/settings-config';
 import type { TTSProvider } from './interface';
 import { OpenAITTSProvider } from './openai-provider';
@@ -24,6 +25,11 @@ registerTTSProvider('google',     () => new GoogleGeminiTTSProvider());
 export class TTSFactory {
   static getProvider(override?: TTSOverride): TTSProvider {
     if (override) {
+      if (override.provider === 'google') {
+        const model = override.model || PROVIDER_DEFAULTS['google']?.['text-to-speech'] || '';
+        console.log(`[ai/tts] provider=google model=${model}`);
+        return new GoogleGeminiTTSProvider({ model, apiKey: override.apiKey });
+      }
       console.log(`[ai/tts] provider=${override.provider ?? 'override'} model=${override.model || '(default)'}`);
       const model = buildSpeechModelWith({ baseUrl: override.baseUrl, model: override.model, apiKey: override.apiKey });
       return new OpenAITTSProvider(model, override.voice);

@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { CoursewareOrchestrator } from '@/src/generator/orchestrator';
 import { buildAndWritePackage } from '@/src/generator/package-builder';
 import { getUserId } from '@/src/lib/auth/user';
-import { extractSettings, resolveFeatureFromSettings } from '@/src/lib/ai/settings-config';
+import { extractSettings, resolveFeatureFromSettings, resolveTTSOverride, resolveImageOverride } from '@/src/lib/ai/settings-config';
 
 const GenerateCourseRequestSchema = z.object({
   age_group: z.string().min(1),
@@ -41,7 +41,10 @@ export async function POST(request: Request) {
   // Run generation asynchronously so we can return the stream immediately
   (async () => {
     try {
-      const modelOverride = resolveFeatureFromSettings('courseGen', extractSettings(request));
+      const settings = extractSettings(request);
+      const modelOverride = resolveFeatureFromSettings('courseGen', settings);
+      const ttsOverride = resolveTTSOverride(settings) ?? undefined;
+      const imageOverride = resolveImageOverride(settings) ?? undefined;
       const userId = await getUserId(request);
       const orchestrator = new CoursewareOrchestrator(modelOverride, emit);
 
@@ -64,6 +67,8 @@ export async function POST(request: Request) {
         generateImages: parsed.data.generateImages,
         userId,
         onProgress: emit,
+        ttsOverride,
+        imageOverride,
       });
 
       emit({

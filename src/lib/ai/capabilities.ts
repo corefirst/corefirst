@@ -55,8 +55,8 @@ export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
  */
 export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string>>> = {
   google: {
-    text: 'gemini-2.5-pro-preview',
-    'text-to-image': 'imagen-3.0-generate-001',
+    text: 'gemini-2.5-pro',
+    'text-to-image': 'imagen-4.0-generate-001',
     'text-to-speech': 'gemini-2.5-flash-preview-tts',
     'speech-to-text': 'gemini-2.5-flash',
   },
@@ -77,7 +77,7 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
     'speech-to-text': 'sensevoice-v1',
   },
   openrouter: {
-    text: 'google/gemini-flash-1.5',
+    text: 'google/gemini-2.5-flash',
     'text-to-image': 'black-forest-labs/flux-schnell',
     'text-to-speech': 'openai/tts-1',
     'speech-to-text': 'openai/whisper-1',
@@ -143,7 +143,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'text',
     envPrefix: 'TRANSFORM',
     defaultProvider: 'none',
-    defaultModel: 'gemini-2.5-pro-preview',
+    defaultModel: 'gemini-2.5-pro',
     rationale: 'CFLT Logic Transformer — quality-critical: structured output must be exact.',
   },
   courseGen: {
@@ -151,7 +151,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'text',
     envPrefix: 'COURSE_GEN',
     defaultProvider: 'none',
-    defaultModel: 'gemini-2.5-pro-preview',
+    defaultModel: 'gemini-2.5-pro',
     rationale: 'Courseware orchestrator — full lesson manifest, multi-script audit.',
   },
   roleplay: {
@@ -159,7 +159,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'text',
     envPrefix: 'ROLEPLAY',
     defaultProvider: 'none',
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-2.5-flash',
     rationale: 'Multi-turn dialogue — cost-optimized, latency-sensitive.',
   },
   speechEval: {
@@ -167,7 +167,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'text',
     envPrefix: 'SPEECH_EVAL',
     defaultProvider: 'none',
-    defaultModel: 'gemini-2.0-flash',
+    defaultModel: 'gemini-2.5-flash',
     rationale: 'LLM "Speech Assessor" — compares user transcription vs target text to provide scores and corrective feedback (the "Teacher" logic).',
   },
   imageGen: {

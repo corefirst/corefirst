@@ -37,8 +37,8 @@ export interface RequestSettings {
  * along for completeness but the factory always uses the OpenAI-compat path for
  * overrides — provider switching must be done via env vars (TTS_PROVIDER etc.).
  */
-export interface TTSOverride  { provider?: string; baseUrl: string; model: string; apiKey?: string; voice?: string }
-export interface STTOverride  { provider?: string; baseUrl: string; apiKey?: string; model?: string }
+export interface TTSOverride  { provider?: string; baseUrl?: string; model: string; apiKey?: string; voice?: string }
+export interface STTOverride  { provider?: string; baseUrl?: string; apiKey?: string; model?: string }
 export interface ImageOverride { provider: string; apiKey: string; model?: string }
 
 
@@ -162,11 +162,17 @@ export function resolveTTSOverride(settings: RequestSettings): TTSOverride | und
   if (tts.baseUrl) {
     return { provider: tts.provider || 'openai', baseUrl: tts.baseUrl, model: tts.model, apiKey };
   }
-  const provider = tts.provider;
-  if (provider && PROVIDER_BASE_URLS[provider]) {
+  const provider = tts.provider || g.provider;
+  if (!provider) return undefined;
+  if (PROVIDER_BASE_URLS[provider]) {
     const model = tts.model || PROVIDER_DEFAULTS[provider]?.['text-to-speech'] || '';
     const voice = PROVIDER_TTS_VOICES[provider];
     return { provider, baseUrl: PROVIDER_BASE_URLS[provider], model, apiKey, voice };
+  }
+  // Native providers (e.g. Google) use their own REST API — no base URL needed.
+  if (PROVIDER_DEFAULTS[provider]?.['text-to-speech']) {
+    const model = tts.model || PROVIDER_DEFAULTS[provider]?.['text-to-speech'] || '';
+    return { provider, model, apiKey };
   }
   return undefined;
 }
@@ -178,10 +184,16 @@ export function resolveSTTOverride(settings: RequestSettings): STTOverride | und
   if (stt.baseUrl) {
     return { provider: stt.provider || 'openai', baseUrl: stt.baseUrl, apiKey, model };
   }
-  const provider = stt.provider;
-  if (provider && PROVIDER_BASE_URLS[provider]) {
+  const provider = stt.provider || g.provider;
+  if (!provider) return undefined;
+  if (PROVIDER_BASE_URLS[provider]) {
     const resolvedModel = model || PROVIDER_DEFAULTS[provider]?.['speech-to-text'] || '';
     return { provider, baseUrl: PROVIDER_BASE_URLS[provider], apiKey, model: resolvedModel };
+  }
+  // Native providers (e.g. Google) use their own REST API — no base URL needed.
+  if (PROVIDER_DEFAULTS[provider]?.['speech-to-text']) {
+    const resolvedModel = model || PROVIDER_DEFAULTS[provider]?.['speech-to-text'] || '';
+    return { provider, apiKey, model: resolvedModel };
   }
   return undefined;
 }
