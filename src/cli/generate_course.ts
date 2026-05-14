@@ -2,18 +2,18 @@ import { CoursewareOrchestrator } from "../generator/orchestrator";
 
 async function main() {
   const ageGroup = process.argv[2] || "Child (Age 8)";
-  const industry = process.argv[3] || "General / Life";
+  const domain = process.argv[3] || "General / Life";
   const topic = process.argv[4] || "At the Zoo";
 
   console.log(`\n--- Core First Courseware Generator ---`);
   console.log(`Age Group: ${ageGroup}`);
-  console.log(`Industry:  ${industry}`);
+  console.log(`Domain:    ${domain}`);
   console.log(`Topic:     ${topic}`);
 
   const orchestrator = new CoursewareOrchestrator();
   const result = await orchestrator.generate({
     age_group: ageGroup,
-    industry_context: industry,
+    domain_context: domain,
     topic: topic
   });
 

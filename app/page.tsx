@@ -19,12 +19,12 @@ import { PhoneticBridge } from '../components/PhoneticBridge';
 import { useSettings } from '../hooks/useSettings';
 import {
   Loader2, Send, Languages, Info, BookOpen, User, Globe,
-  Briefcase, Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare, Settings as SettingsIcon, Zap,
+  Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare, Settings as SettingsIcon, Zap,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { CFLTResponse, CfltSlot } from '../src/types/cflt';
 import type { CoursewareManifest, Lesson, LessonScript } from '../src/types/courseware';
-import { t as tr, SUPPORTED_LANGS, detectUiLang, defaultLangPair, type SupportedLang, AGE_KEYS, type AgeKey, findAgeKey, type IndustryKey, findIndustryKey, INDUSTRY_KEYS, AGE_INDUSTRIES } from '../src/lib/ui-i18n';
+import { t as tr, SUPPORTED_LANGS, detectUiLang, defaultLangPair, type SupportedLang, AGE_KEYS, type AgeKey, findAgeKey, type DomainKey, findDomainKey, DOMAIN_KEYS, AGE_DOMAINS } from '../src/lib/ui-i18n';
 import { buildPlayableCflt, type SlotFillMap } from '../src/lib/cflt-playback';
 import { consumeSSE } from '../src/lib/sse-reader';
 
@@ -90,7 +90,9 @@ export default function Home() {
   const [uiLang, setUiLang] = useState<SupportedLang>('English');
 
   const [ageGroup, setAgeGroup] = useState<AgeKey>('ageAdult');
-  const [industry, setIndustry] = useState<IndustryKey>('indGeneral');
+  const [domain, setDomain] = useState<DomainKey>('indGeneral');
+  // Free-text value sent to the API; kept in sync with domain key for predefined options.
+  const [domainText, setDomainText] = useState<string>(() => tr('English', 'indGeneral'));
   const [sourceLang, setSourceLang] = useState<SupportedLang>('English');
   const [targetLang, setTargetLang] = useState<SupportedLang>('Chinese');
 
@@ -108,12 +110,12 @@ export default function Home() {
         if (key) handleAgeChange(key);
       }
 
-      const storedInd = window.localStorage.getItem('corefirst.industry');
+      const storedInd = window.localStorage.getItem('corefirst.domain');
       if (storedInd) {
-        const indKey = (INDUSTRY_KEYS as readonly string[]).includes(storedInd)
-          ? (storedInd as IndustryKey)
-          : findIndustryKey(storedInd);
-        if (indKey) handleIndustryChange(indKey);
+        const domainKey = (DOMAIN_KEYS as readonly string[]).includes(storedInd)
+          ? (storedInd as DomainKey)
+          : findDomainKey(storedInd);
+        if (domainKey) handleDomainChange(domainKey);
       }
 
       const storedSrc = window.localStorage.getItem('corefirst.sourceLang') as SupportedLang | null;
@@ -140,14 +142,17 @@ export default function Home() {
   const handleAgeChange = (next: AgeKey) => {
     setAgeGroup(next);
     try { window.localStorage.setItem('corefirst.ageGroup', next); } catch {}
-    if (!(AGE_INDUSTRIES[next] as readonly string[]).includes(industry)) {
-      handleIndustryChange('indGeneral');
+    if (!(AGE_DOMAINS[next] as readonly string[]).includes(domain)) {
+      handleDomainChange('indGeneral');
     }
   };
 
-  const handleIndustryChange = (next: IndustryKey) => {
-    setIndustry(next);
-    try { window.localStorage.setItem('corefirst.industry', next); } catch {}
+  const handleDomainChange = (next: DomainKey) => {
+    setDomain(next);
+    // Only overwrite domainText when it currently holds a predefined value.
+    // Custom free-text input must survive implicit domain resets (e.g. age-group change).
+    setDomainText(prev => (findDomainKey(prev) !== undefined || prev === '' ? tr('English', next) : prev));
+    try { window.localStorage.setItem('corefirst.domain', next); } catch {}
   };
 
   const handleSourceLangChange = (next: SupportedLang) => {
@@ -160,6 +165,8 @@ export default function Home() {
     try { window.localStorage.setItem('corefirst.targetLang', next); } catch {}
   };
 
+  const [generateAudio, setGenerateAudio] = useState(true);
+  const [generateImages, setGenerateImages] = useState(true);
   const [audioLoading, setAudioLoading] = useState<string | null>(null);
   const [courseGenStep, setCourseGenStep] = useState<string | null>(null); // progress hint during course generation
   const [completedPuzzles, setCompletedPuzzles] = useState<Set<string>>(new Set());
@@ -351,7 +358,7 @@ export default function Home() {
       const response = await fetch('/api/generate-course', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({ topic: input, age_group: tr('English', ageGroup), industry_context: tr('English', industry), sourceLang, targetLang }),
+        body: JSON.stringify({ topic: input, age_group: tr('English', ageGroup), domain_context: domainText || tr('English', domain), sourceLang, targetLang, generateAudio, generateImages }),
       });
       if (response.status === 401) {
         const data = await response.json().catch(() => ({}));
@@ -558,7 +565,7 @@ export default function Home() {
               </div>
             </div>
 
-            {mode === 'course' && (
+            {(mode === 'course' || mode === 'roleplay') && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-slate-100">
                 <div className="space-y-2">
                   <label
@@ -581,21 +588,36 @@ export default function Home() {
                 </div>
                 <div className="space-y-2">
                   <label
-                    htmlFor="industry"
+                    htmlFor="domain"
                     className="text-xs font-black uppercase text-slate-400 flex items-center gap-2"
                   >
-                    <Briefcase className="w-3 h-3" /> {tr(uiLang, 'industryLabel')}
+                    <Globe className="w-3 h-3" /> {tr(uiLang, 'domainLabel')}
                   </label>
-                  <select
-                    id="industry"
-                    value={industry}
-                    onChange={(e) => handleIndustryChange(e.target.value as IndustryKey)}
+                  <input
+                    id="domain"
+                    list="domain-datalist"
+                    value={domainText}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      // If the user selected a predefined option (matched in any language),
+                      // normalise to the English label so the API prompt is always consistent.
+                      const matchedKey = findDomainKey(val) ??
+                        AGE_DOMAINS[ageGroup].find(k => tr(uiLang, k) === val);
+                      if (matchedKey) {
+                        setDomain(matchedKey);
+                        setDomainText(tr('English', matchedKey));
+                      } else {
+                        setDomainText(val);
+                      }
+                    }}
+                    placeholder={tr(uiLang, 'domainLabel')}
                     className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                  >
-                    {AGE_INDUSTRIES[ageGroup].map(key => (
-                      <option key={key} value={key}>{tr(uiLang, key)}</option>
+                  />
+                  <datalist id="domain-datalist">
+                    {AGE_DOMAINS[ageGroup].map(key => (
+                      <option key={key} value={tr(uiLang, key)} />
                     ))}
-                  </select>
+                  </datalist>
                 </div>
               </div>
             )}
@@ -628,6 +650,29 @@ export default function Home() {
                 }
               </button>
             </div>
+
+            {mode === 'course' && (
+              <div className="flex items-center gap-5 -mt-2">
+                <label className="flex items-center gap-2 cursor-pointer select-none group">
+                  <input
+                    type="checkbox"
+                    checked={generateAudio}
+                    onChange={(e) => setGenerateAudio(e.target.checked)}
+                    className="w-4 h-4 rounded accent-blue-600"
+                  />
+                  <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors uppercase tracking-wide">Audio</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none group">
+                  <input
+                    type="checkbox"
+                    checked={generateImages}
+                    onChange={(e) => setGenerateImages(e.target.checked)}
+                    className="w-4 h-4 rounded accent-blue-600"
+                  />
+                  <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors uppercase tracking-wide">Images</span>
+                </label>
+              </div>
+            )}
 
             <p className="text-xs text-slate-400 -mt-2">{loading && mode === 'course' ? 'This usually takes 20–30 seconds.' : tr(uiLang, 'submitHint')}</p>
 
@@ -690,7 +735,6 @@ export default function Home() {
                 uiLang={uiLang}
                 packageSlug={courseResult?.slug}
                 packageId={courseResult?.packageId}
-                context={courseResult?.topic || tr('English', industry)}
                 onOpenSettings={() => setShowSettings(true)}
               />
               <RoleplayHistory uiLang={uiLang} />
@@ -1024,16 +1068,16 @@ export default function Home() {
               refreshKey={courseHistoryKey}
               onLoad={(course) => {
                 setCourseResult(course as typeof courseResult);
-                if (course.industry) {
-                  const indKey = (INDUSTRY_KEYS as readonly string[]).includes(course.industry)
-                    ? (course.industry as IndustryKey)
-                    : findIndustryKey(course.industry);
-                  if (indKey) handleIndustryChange(indKey);
+                if (course.domain_context) {
+                  const domainKey = (DOMAIN_KEYS as readonly string[]).includes(course.domain_context)
+                    ? (course.domain_context as DomainKey)
+                    : findDomainKey(course.domain_context);
+                  if (domainKey) handleDomainChange(domainKey);
                 }
-                if (course.ageGroup) {
-                  const key = (AGE_KEYS as readonly string[]).includes(course.ageGroup)
-                    ? (course.ageGroup as AgeKey)
-                    : findAgeKey(course.ageGroup);
+                if (course.age_group) {
+                  const key = (AGE_KEYS as readonly string[]).includes(course.age_group)
+                    ? (course.age_group as AgeKey)
+                    : findAgeKey(course.age_group);
                   if (key) handleAgeChange(key);
                 }
                 if (course.sourceLang) handleSourceLangChange(course.sourceLang as SupportedLang);

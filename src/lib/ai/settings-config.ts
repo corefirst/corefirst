@@ -22,7 +22,7 @@ export interface RequestSettings {
   ollama:   { baseUrl: string };
   tts:      { provider: string; baseUrl: string; model: string; apiKey: string };
   stt:      { provider: string; baseUrl: string; apiKey: string; model: string };
-  image:    { provider: string; apiKey: string; model: string };
+  image:    { provider: string; apiKey: string; model: string; baseUrl: string };
   /** Per-feature text overrides. Take precedence over the global text settings.
    *  Headers: x-cf-{feature}-provider, x-cf-{feature}-model
    *  (e.g. x-cf-transform-provider=anthropic, x-cf-roleplay-model=claude-haiku-4-5) */
@@ -39,7 +39,7 @@ export interface RequestSettings {
  */
 export interface TTSOverride  { provider?: string; baseUrl?: string; model: string; apiKey?: string; voice?: string }
 export interface STTOverride  { provider?: string; baseUrl?: string; apiKey?: string; model?: string }
-export interface ImageOverride { provider: string; apiKey: string; model?: string }
+export interface ImageOverride { provider: string; apiKey: string; model?: string; baseUrl?: string }
 
 
 // Maps FeatureKey to the header prefix used for per-feature overrides.
@@ -97,6 +97,7 @@ export function extractSettings(request: Request): RequestSettings {
       provider: getHeader(request, 'x-cf-image-provider'),
       apiKey:   getHeader(request, 'x-cf-image-key'),
       model:    getHeader(request, 'x-cf-image-model'),
+      baseUrl:  getHeader(request, 'x-cf-image-url'),
     },
     features,
   };
@@ -201,5 +202,6 @@ export function resolveSTTOverride(settings: RequestSettings): STTOverride | und
 export function resolveImageOverride(settings: RequestSettings): ImageOverride | undefined {
   const { image } = settings;
   if (!image.provider) return undefined;
-  return { provider: image.provider, apiKey: image.apiKey, model: image.model || undefined };
+  const model = image.model || PROVIDER_DEFAULTS[image.provider]?.['text-to-image'] || undefined;
+  return { provider: image.provider, apiKey: image.apiKey, model, baseUrl: image.baseUrl || undefined };
 }

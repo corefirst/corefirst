@@ -38,7 +38,7 @@ type DictKey =
   | 'historyContextLabel' | 'historyExpand' | 'historyCollapse'
   | 'historyTopicLabel' | 'historyLoadCourse' | 'historyLessonCount'
   // Form
-  | 'sourceLangLabel' | 'targetLangLabel' | 'ageGroupLabel' | 'industryLabel'
+  | 'sourceLangLabel' | 'targetLangLabel' | 'ageGroupLabel' | 'domainLabel'
   | 'transformPlaceholder' | 'coursePlaceholder'
   | 'btnTransform' | 'btnGenerateCourse'
   | 'submitHint'
@@ -86,7 +86,7 @@ type DictKey =
   // Age groups
   | 'ageChild' | 'ageYoung' | 'ageTeen' | 'ageAdult'
   // Industries
-  | 'indGeneral' | 'indIT' | 'indMedical' | 'indBusiness' | 'indLegal' | 'indEducation' | 'indDesign' | 'indSales' | 'indTravel' | 'indLogistics'
+  | 'indGeneral' | 'indIT' | 'indMedical' | 'indBusiness' | 'indLegal' | 'indEducation' | 'indDesign' | 'indSales' | 'indTravel' | 'indLogistics' | 'indWorkplace'
   | 'indSchool' | 'indHobby' | 'indSports' | 'indSocial'
   | 'indStories' | 'indAnimals' | 'indArts' | 'indMusic';
 
@@ -112,7 +112,7 @@ const en: Dict = {
   historyLoadCourse: 'Open',
   historyLessonCount: (n) => `${n} lesson${Number(n) === 1 ? '' : 's'}`,
   sourceLangLabel: 'Native Language', targetLangLabel: 'Target Language',
-  ageGroupLabel: 'Target Age Group', industryLabel: 'Industry Context',
+  ageGroupLabel: 'Target Age Group', domainLabel: 'Domain',
   transformPlaceholder: 'Enter a sentence...',
   coursePlaceholder: 'Enter a topic (e.g., At the Zoo, Business Meeting)',
   btnTransform: 'Transform', btnGenerateCourse: 'Generate Course',
@@ -196,8 +196,8 @@ const en: Dict = {
   langKorean: 'Korean', langVietnamese: 'Vietnamese',
   langSpanish: 'Spanish', langFrench: 'French', langGerman: 'German',
   ageChild: 'Young Child (Under 12)', ageYoung: 'Young Learner (Age 12+)', ageTeen: 'Teenager', ageAdult: 'Adult / Professional',
-  indGeneral: 'General / Life', indIT: 'IT / Software Engineering', indMedical: 'Medical / Healthcare', indBusiness: 'Business / Finance', indLegal: 'Legal / Law', indEducation: 'Education / Teaching', indDesign: 'Design / Creative', indSales: 'Sales / Marketing', indTravel: 'Travel / Hospitality', indLogistics: 'Logistics / Operations',
-  indSchool: 'School / Academic', indHobby: 'Hobbies / Interests', indSports: 'Sports / Recreation', indSocial: 'Social / Daily Life',
+  indGeneral: 'General / Life', indIT: 'IT / Software Engineering', indMedical: 'Medical / Healthcare', indBusiness: 'Business / Finance', indLegal: 'Legal / Law', indEducation: 'Education / Teaching', indDesign: 'Design & Creative', indSales: 'Sales & Marketing', indTravel: 'Travel & Hospitality', indLogistics: 'Logistics & Operations', indWorkplace: 'Workplace Communication',
+  indSchool: 'School & Campus', indHobby: 'Hobbies & Leisure', indSports: 'Sports & Fitness', indSocial: 'Social & Daily Chat',
   indStories: 'Stories / Fairy Tales', indAnimals: 'Animals / Nature', indArts: 'Arts & Crafts', indMusic: 'Music / Songs',
 };
 
@@ -220,7 +220,7 @@ const zh: Dict = {
   historyLoadCourse: '打开',
   historyLessonCount: (n) => `${n} 节课`,
   sourceLangLabel: '母语', targetLangLabel: '目标语',
-  ageGroupLabel: '目标年龄段', industryLabel: '行业背景',
+  ageGroupLabel: '目标年龄段', domainLabel: '领域',
   transformPlaceholder: '输入一句话...',
   coursePlaceholder: '输入主题（例如：动物园、商务会议）',
   btnTransform: '转换', btnGenerateCourse: '生成课程',
@@ -304,7 +304,7 @@ const zh: Dict = {
   langKorean: '韩语', langVietnamese: '越南语',
   langSpanish: '西班牙语', langFrench: '法语', langGerman: '德语',
   ageChild: '儿童 (12岁以下)', ageYoung: '青少年 (12岁+)', ageTeen: '青年', ageAdult: '成人 / 职场',
-  indGeneral: '通用 / 生活', indIT: 'IT / 软件工程', indMedical: '医疗 / 健康', indBusiness: '商务 / 金融', indLegal: '法律 / 法务', indEducation: '教育 / 教学', indDesign: '设计 / 创意', indSales: '销售 / 营销', indTravel: '旅游 / 酒店', indLogistics: '物流 / 运营',
+  indGeneral: '通用 / 生活', indIT: 'IT / 软件工程', indMedical: '医疗 / 健康', indBusiness: '商务 / 金融', indLegal: '法律 / 法务', indEducation: '教育 / 教学', indDesign: '设计 / 创意', indSales: '销售 / 营销', indTravel: '旅游 / 酒店', indLogistics: '物流 / 运营', indWorkplace: '职场沟通',
   indSchool: '学校 / 学业', indHobby: '爱好 / 兴趣', indSports: '体育 / 运动', indSocial: '社交 / 日常生活',
   indStories: '故事 / 童话', indAnimals: '动物 / 自然', indArts: '艺术 / 手工', indMusic: '音乐 / 歌曲',
 };
@@ -329,7 +329,7 @@ const ja: Dict = {
   historyLoadCourse: '開く',
   historyLessonCount: (n) => `${n}レッスン`,
   sourceLangLabel: '母語', targetLangLabel: '学習言語',
-  ageGroupLabel: '対象年齢層', industryLabel: '業界・分野',
+  ageGroupLabel: '対象年齢層', domainLabel: '分野',
   transformPlaceholder: '文を入力してください...',
   coursePlaceholder: 'トピックを入力（例：動物園、ビジネス会議）',
   btnTransform: '変換', btnGenerateCourse: 'コースを生成',
@@ -412,6 +412,10 @@ const ja: Dict = {
   langEnglish: '英語', langChinese: '中国語', langJapanese: '日本語',
   langKorean: '韓国語', langVietnamese: 'ベトナム語',
   langSpanish: 'スペイン語', langFrench: 'フランス語', langGerman: 'ドイツ語',
+  ageChild: '幼児（12歳未満）', ageYoung: '若い学習者（12歳以上）', ageTeen: 'ティーンエイジャー', ageAdult: '成人 / 社会人',
+  indGeneral: '日常 / 生活', indIT: 'IT / ソフトウェアエンジニアリング', indMedical: '医療 / ヘルスケア', indBusiness: 'ビジネス / 金融', indLegal: '法律 / リーガル', indEducation: '教育 / 指導', indDesign: 'デザイン / クリエイティブ', indSales: '営業 / マーケティング', indTravel: '旅行 / ホスピタリティ', indLogistics: '物流 / オペレーション', indWorkplace: '職場コミュニケーション',
+  indSchool: '学校 / 学業', indHobby: '趣味 / 関心', indSports: 'スポーツ / レクリエーション', indSocial: '社交 / 日常生活',
+  indStories: '物語 / おとぎ話', indAnimals: '動物 / 自然', indArts: 'アート / 工作', indMusic: '音楽 / 歌',
 };
 
 const ko: Dict = {
@@ -433,7 +437,7 @@ const ko: Dict = {
   historyLoadCourse: '열기',
   historyLessonCount: (n) => `${n}개 레슨`,
   sourceLangLabel: '모국어', targetLangLabel: '학습 언어',
-  ageGroupLabel: '대상 연령대', industryLabel: '업종 / 분야',
+  ageGroupLabel: '대상 연령대', domainLabel: '분야',
   transformPlaceholder: '문장을 입력하세요...',
   coursePlaceholder: '주제를 입력하세요 (예: 동물원, 비즈니스 회의)',
   btnTransform: '변환', btnGenerateCourse: '코스 생성',
@@ -516,6 +520,10 @@ const ko: Dict = {
   langEnglish: '영어', langChinese: '중국어', langJapanese: '일본어',
   langKorean: '한국어', langVietnamese: '베트남어',
   langSpanish: '스페인어', langFrench: '프랑스어', langGerman: '독일어',
+  ageChild: '유아 (12세 미만)', ageYoung: '어린 학습자 (12세 이상)', ageTeen: '청소년', ageAdult: '성인 / 직장인',
+  indGeneral: '일반 / 생활', indIT: 'IT / 소프트웨어 엔지니어링', indMedical: '의료 / 헬스케어', indBusiness: '비즈니스 / 금융', indLegal: '법률 / 법무', indEducation: '교육 / 강의', indDesign: '디자인 / 크리에이티브', indSales: '영업 / 마케팅', indTravel: '여행 / 호스피탈리티', indLogistics: '물류 / 운영', indWorkplace: '직장 커뮤니케이션',
+  indSchool: '학교 / 학업', indHobby: '취미 / 관심사', indSports: '스포츠 / 레크리에이션', indSocial: '사교 / 일상생활',
+  indStories: '이야기 / 동화', indAnimals: '동물 / 자연', indArts: '미술 / 공예', indMusic: '음악 / 노래',
 };
 
 const vi: Dict = {
@@ -537,7 +545,7 @@ const vi: Dict = {
   historyLoadCourse: 'Mở',
   historyLessonCount: (n) => `${n} bài học`,
   sourceLangLabel: 'Tiếng mẹ đẻ', targetLangLabel: 'Ngôn ngữ học',
-  ageGroupLabel: 'Độ tuổi mục tiêu', industryLabel: 'Lĩnh vực / ngành',
+  ageGroupLabel: 'Độ tuổi mục tiêu', domainLabel: 'Lĩnh vực',
   transformPlaceholder: 'Nhập một câu...',
   coursePlaceholder: 'Nhập chủ đề (ví dụ: Sở thú, Họp công việc)',
   btnTransform: 'Chuyển đổi', btnGenerateCourse: 'Tạo khóa học',
@@ -620,6 +628,10 @@ const vi: Dict = {
   langEnglish: 'tiếng Anh', langChinese: 'tiếng Trung', langJapanese: 'tiếng Nhật',
   langKorean: 'tiếng Hàn', langVietnamese: 'tiếng Việt',
   langSpanish: 'tiếng Tây Ban Nha', langFrench: 'tiếng Pháp', langGerman: 'tiếng Đức',
+  ageChild: 'Trẻ nhỏ (Dưới 12 tuổi)', ageYoung: 'Học viên trẻ (12 tuổi trở lên)', ageTeen: 'Thanh thiếu niên', ageAdult: 'Người lớn / Người đi làm',
+  indGeneral: 'Tổng quát / Cuộc sống', indIT: 'CNTT / Kỹ thuật phần mềm', indMedical: 'Y tế / Chăm sóc sức khỏe', indBusiness: 'Kinh doanh / Tài chính', indLegal: 'Pháp lý / Luật', indEducation: 'Giáo dục / Giảng dạy', indDesign: 'Thiết kế / Sáng tạo', indSales: 'Bán hàng / Marketing', indTravel: 'Du lịch / Khách sạn', indLogistics: 'Logistics / Vận hành', indWorkplace: 'Giao tiếp công sở',
+  indSchool: 'Trường học / Học thuật', indHobby: 'Sở thích / Đam mê', indSports: 'Thể thao / Giải trí', indSocial: 'Xã hội / Đời sống',
+  indStories: 'Truyện / Cổ tích', indAnimals: 'Động vật / Thiên nhiên', indArts: 'Nghệ thuật / Thủ công', indMusic: 'Âm nhạc / Bài hát',
 };
 
 const DICTS: Partial<Record<SupportedLang, Dict>> = { English: en, Chinese: zh, Japanese: ja, Korean: ko, Vietnamese: vi };
@@ -658,14 +670,14 @@ export function defaultLangPair(uiLang: SupportedLang): { source: SupportedLang;
 export const AGE_KEYS = ['ageChild', 'ageYoung', 'ageTeen', 'ageAdult'] as const;
 export type AgeKey = typeof AGE_KEYS[number];
 
-export const INDUSTRY_KEYS = ['indGeneral', 'indIT', 'indMedical', 'indBusiness', 'indLegal', 'indEducation', 'indDesign', 'indSales', 'indTravel', 'indLogistics', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indStories', 'indAnimals', 'indArts', 'indMusic'] as const;
-export type IndustryKey = typeof INDUSTRY_KEYS[number];
+export const DOMAIN_KEYS = ['indGeneral', 'indIT', 'indMedical', 'indBusiness', 'indLegal', 'indEducation', 'indDesign', 'indSales', 'indTravel', 'indLogistics', 'indWorkplace', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indStories', 'indAnimals', 'indArts', 'indMusic'] as const;
+export type DomainKey = typeof DOMAIN_KEYS[number];
 
-export const AGE_INDUSTRIES: Record<AgeKey, readonly IndustryKey[]> = {
+export const AGE_DOMAINS: Record<AgeKey, readonly DomainKey[]> = {
   ageChild: ['indGeneral', 'indStories', 'indAnimals', 'indArts', 'indMusic', 'indSports', 'indSchool'],
   ageYoung: ['indGeneral', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indTravel'],
-  ageTeen:  ['indGeneral', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indIT', 'indDesign', 'indTravel'],
-  ageAdult: ['indGeneral', 'indIT', 'indMedical', 'indBusiness', 'indLegal', 'indEducation', 'indDesign', 'indSales', 'indTravel', 'indLogistics'],
+  ageTeen:  ['indGeneral', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indIT', 'indDesign', 'indTravel', 'indWorkplace'],
+  ageAdult: ['indGeneral', 'indWorkplace', 'indIT', 'indMedical', 'indBusiness', 'indLegal', 'indEducation', 'indDesign', 'indSales', 'indTravel', 'indLogistics'],
 };
 
 /** Maps any localized age display string back to its canonical key. */
@@ -678,10 +690,10 @@ export function findAgeKey(value: string): AgeKey | undefined {
   return undefined;
 }
 
-/** Maps any localized industry display string back to its canonical key (undefined for custom values). */
-export function findIndustryKey(value: string): IndustryKey | undefined {
+/** Maps any localized domain display string back to its canonical key (undefined for custom values). */
+export function findDomainKey(value: string): DomainKey | undefined {
   for (const lang of SUPPORTED_LANGS) {
-    for (const key of INDUSTRY_KEYS) {
+    for (const key of DOMAIN_KEYS) {
       if (t(lang, key) === value) return key;
     }
   }

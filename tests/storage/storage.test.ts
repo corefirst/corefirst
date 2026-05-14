@@ -32,7 +32,7 @@ const baseManifest = (slug: string, packageId: string) => ({
   slug,
   topic: 'Networking',
   ageGroup: 'adult',
-  industry: 'IT',
+  domain: 'IT',
   sourceLang: 'Chinese',
   targetLang: 'English',
   createdAt: '2026-05-08T10:00:00.000Z',

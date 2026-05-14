@@ -35,7 +35,7 @@ export async function GET(request: Request, ctx: { params: Promise<Params> }) {
     const manifest = await readPackageManifest(userId, slug);
     const courseware = {
       age_group: manifest.ageGroup,
-      industry_context: manifest.industry,
+      domain_context: manifest.domain,
       topic: manifest.topic,
       lessons: manifest.lessons.map((lesson) => ({
         title: lesson.title,
@@ -59,6 +59,8 @@ export async function GET(request: Request, ctx: { params: Promise<Params> }) {
       })),
       packageId: manifest.packageId,
       packageSlug: manifest.slug,
+      sourceLang: manifest.sourceLang,
+      targetLang: manifest.targetLang,
     };
     return NextResponse.json(courseware);
   } catch (err) {

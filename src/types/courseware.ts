@@ -34,7 +34,7 @@ export const LessonSchema = z.object({
 
 export const CoursewareManifestSchema = z.object({
   age_group: z.string(),
-  industry_context: z.string(),
+  domain_context: z.string(),
   topic: z.string(),
   lessons: z.array(LessonSchema),
 });

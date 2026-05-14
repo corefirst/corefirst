@@ -7,7 +7,7 @@ import { AISDKImageProvider } from './imagen-provider';
 export class VisualFactory {
   static getProvider(override?: ImageOverride): VisualProvider {
     if (override) {
-      const model = buildImageModelWith({ provider: override.provider, apiKey: override.apiKey, model: override.model });
+      const model = buildImageModelWith({ provider: override.provider, apiKey: override.apiKey, model: override.model, baseUrl: override.baseUrl });
       return new AISDKImageProvider(model);
     }
     const r = resolveFeature('imageGen');

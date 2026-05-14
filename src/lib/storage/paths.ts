@@ -70,22 +70,22 @@ export function globalRecordPath(userId: string): string {
 }
 
 /**
- * Slug formula: `{industry}-{targetLang}-{ageGroup}-{topicSlug}`.
+ * Slug formula: `{domain}-{targetLang}-{ageGroup}-{topicSlug}`.
  *
  * We always include the topic now — without it, two different courses with
- * the same industry/language/age silently overwrote each other (the previous
+ * the same domain/language/age silently overwrote each other (the previous
  * formula's worst bug). When the topic contains only non-ASCII characters
  * (e.g. Chinese topic for a Chinese learner), ASCII-stripping would empty it
  * and the collision returns, so we fall back to a short hash of the original
  * topic to keep the slug unique.
  */
 export function buildSlug(
-  industry: string,
+  domain: string,
   targetLang: string,
   ageGroup: string,
   topic: string,
 ): string {
-  const baseParts = [industry, targetLang, ageGroup]
+  const baseParts = [domain, targetLang, ageGroup]
     .map(asciiSlug)
     .filter(Boolean);
   const topicSlug = asciiSlug(topic);

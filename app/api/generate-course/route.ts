@@ -6,10 +6,11 @@ import { extractSettings, resolveFeatureFromSettings, resolveTTSOverride, resolv
 
 const GenerateCourseRequestSchema = z.object({
   age_group: z.string().min(1),
-  industry_context: z.string().min(1),
+  domain_context: z.string().min(1),
   topic: z.string().min(1).max(512),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
+  generateAudio: z.boolean().optional(),
   generateImages: z.boolean().optional(),
 });
 
@@ -50,7 +51,7 @@ export async function POST(request: Request) {
 
       const result = await orchestrator.generate({
         age_group: parsed.data.age_group,
-        industry_context: parsed.data.industry_context,
+        domain_context: parsed.data.domain_context,
         topic: parsed.data.topic,
         sourceLang,
         targetLang,
@@ -64,6 +65,7 @@ export async function POST(request: Request) {
         manifest: result,
         sourceLang,
         targetLang,
+        generateAudio: parsed.data.generateAudio,
         generateImages: parsed.data.generateImages,
         userId,
         onProgress: emit,

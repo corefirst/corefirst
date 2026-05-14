@@ -8,7 +8,7 @@ import { trySalvage } from '@/src/generator/orchestrator';
 
 const VALID_MANIFEST = {
   age_group: 'Adult / Professional',
-  industry_context: 'IT / Software Engineering',
+  domain_context: 'IT / Software Engineering',
   topic: 'Deploy a microservice',
   lessons: [
     {
@@ -60,7 +60,7 @@ describe('trySalvage', () => {
     const wrapped = "Sure! Here's your manifest:\n" + VALID_JSON;
     const result = trySalvage(wrapped);
     expect(result).not.toBeNull();
-    expect(result?.industry_context).toBe('IT / Software Engineering');
+    expect(result?.domain_context).toBe('IT / Software Engineering');
   });
 
   it('unwraps `{ "CoursewareManifest": {...} }` self-wrap', () => {

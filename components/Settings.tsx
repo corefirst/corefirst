@@ -46,7 +46,7 @@ const STANDARD_PROVIDERS = PROVIDERS.filter((p) => isFullStackProvider(p.id));
 const OLLAMA_QUICK_MODELS = ['llama3.2', 'qwen2.5', 'mistral', 'deepseek-r1', 'gemma3'];
 const IMAGE_PROVIDERS = [
   { id: 'google', label: 'Google Imagen', placeholder: 'AIza…' },
-  { id: 'openai', label: 'OpenAI (DALL-E 3)', placeholder: 'sk-…' },
+  { id: 'openai', label: 'OpenAI / Compatible', placeholder: 'sk-… or "ollama"' },
 ];
 
 // ─── Component ────────────────────────────────────────────────────────────
@@ -516,7 +516,7 @@ export function Settings({ onClose }: Props) {
               <CollapsibleSection
                 id="image"
                 title="Image Generation"
-                subtitle="Google Imagen · OpenAI DALL-E 3"
+                subtitle="Google Imagen · OpenAI · Ollama-compatible"
                 open={!!openSections.image}
                 onToggle={() => toggleSection('image')}
               >
@@ -524,7 +524,7 @@ export function Settings({ onClose }: Props) {
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
                     <div className="grid grid-cols-3 gap-1.5">
-                      {[{ id: '', label: 'None' }, ...IMAGE_PROVIDERS].map(p => (
+                      {[{ id: '', label: 'None (server env)' }, ...IMAGE_PROVIDERS].map(p => (
                         <button
                           key={p.id}
                           onClick={() => patchAdv('imageGen', { provider: p.id })}
@@ -538,6 +538,35 @@ export function Settings({ onClose }: Props) {
                       ))}
                     </div>
                   </div>
+                  {draft.advanced.imageGen?.provider === 'openai' && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Base URL <span className="font-normal text-gray-400">(blank = inherit from server env / openai.com)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={draft.advanced.imageGen?.baseUrl ?? ''}
+                          onChange={e => patchAdv('imageGen', { baseUrl: e.target.value })}
+                          placeholder="http://localhost:11434/v1"
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                        <p className="text-xs text-gray-400 mt-1">Ollama · ComfyUI · any OpenAI-compatible image API</p>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          Model <span className="font-normal text-gray-400">(blank = inherit from server env)</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={draft.advanced.imageGen?.model ?? ''}
+                          onChange={e => patchAdv('imageGen', { model: e.target.value })}
+                          placeholder="dall-e-3 · x/z-image-turbo · ..."
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                      </div>
+                    </>
+                  )}
                   {draft.advanced.imageGen?.provider && (
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>

@@ -10,7 +10,7 @@ interface CourseSummary {
   packageId: string;
   topic: string;
   ageGroup: string;
-  industry: string;
+  domain: string;
   sourceLang: string;
   targetLang: string;
   createdAt: string;
@@ -40,7 +40,7 @@ interface Props {
   refreshKey?: number;
   /** Called when the user picks a past course to render. The parent should
    *  set this as the live courseResult so the existing course UI takes over. */
-  onLoad: (course: CoursewareManifest & { packageId?: string; packageSlug?: string }) => void;
+  onLoad: (course: CoursewareManifest & { packageId?: string; packageSlug?: string; sourceLang?: string; targetLang?: string }) => void;
   /** Called after a successful import so the parent can refresh the list. */
   onImport?: () => void;
 }
@@ -265,7 +265,7 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad, onImport }: Prop
                     <p className="text-slate-900 font-black truncate">{course.topic}</p>
                   )}
                   <p className="text-xs text-slate-500 mt-1 truncate">
-                    {course.industry} · {course.ageGroup}
+                    {course.domain} · {course.ageGroup}
                   </p>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2">
                     {tr(uiLang, 'historyLessonCount', String(course.lessonCount))}

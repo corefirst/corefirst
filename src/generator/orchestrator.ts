@@ -14,7 +14,7 @@ const AGE_GROUP_GUIDANCE: Record<string, string> = {
   'Adult / Professional':    'Full adult vocabulary; technical terms when appropriate. Tone: neutral to formal. Typical scenarios: workplace and industry-specific professional settings.',
 };
 
-const INDUSTRY_GUIDANCE: Record<string, string> = {
+const DOMAIN_GUIDANCE: Record<string, string> = {
   'General / Life':           'Everyday situations: grocery shopping, transport, household tasks, small talk.',
   'Stories / Fairy Tales':    'Narrative characters (princess, dragon, wizard, knight); once-upon-a-time storytelling format; simple plot-driven sentences.',
   'Animals / Nature':         'Real animals and nature vocabulary (puppy, butterfly, river, forest); settings: zoo, park, farm, garden.',
@@ -41,7 +41,7 @@ function resolveGuidance(map: Record<string, string>, key: string, fallback: str
 
 export interface GenerationRequest {
   age_group: string;
-  industry_context: string;
+  domain_context: string;
   topic: string;
   sourceLang?: string;
   targetLang?: string;
@@ -73,7 +73,7 @@ export class CoursewareOrchestrator {
       SOURCE_LANG: sourceLang,
       TARGET_LANG: targetLang,
       AGE_GROUP_GUIDANCE: resolveGuidance(AGE_GROUP_GUIDANCE, request.age_group, 'Age group'),
-      INDUSTRY_GUIDANCE:  resolveGuidance(INDUSTRY_GUIDANCE, request.industry_context, 'Industry context'),
+      DOMAIN_GUIDANCE:     resolveGuidance(DOMAIN_GUIDANCE, request.domain_context, 'Domain'),
     }, userId);
     const userPrompt = JSON.stringify(request);
 

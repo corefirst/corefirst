@@ -26,6 +26,8 @@ export interface BuildPackageInput {
   manifest: CoursewareManifest;
   sourceLang: string;
   targetLang: string;
+  /** When false, skip audio generation entirely (e.g. cost / latency control). */
+  generateAudio?: boolean;
   /** When false, skip image generation entirely (e.g. cost / latency control). */
   generateImages?: boolean;
   /** Owner of this course package. Defaults to 'local' for single-user mode. */
@@ -52,35 +54,37 @@ export async function buildAndWritePackage(
   const packageManifest = await mapToPackageManifest(input, userId);
 
   const emit = input.onProgress ?? (() => {});
-  const tts = TTSFactory.getProvider(input.ttsOverride);
   const audioMap = new Map<string, Uint8Array>();
-  const totalScripts = packageManifest.lessons.reduce((n, l) => n + l.scripts.length, 0);
-  let audiosDone = 0;
+  if (input.generateAudio !== false) {
+    const tts = TTSFactory.getProvider(input.ttsOverride);
+    const totalScripts = packageManifest.lessons.reduce((n, l) => n + l.scripts.length, 0);
+    let audiosDone = 0;
 
-  for (const lesson of packageManifest.lessons) {
-    for (const script of lesson.scripts) {
-      const hash = contentHash(script.ssml);
-      const filename = `${hash}.mp3`;
-      script.audioFile = filename;
+    for (const lesson of packageManifest.lessons) {
+      for (const script of lesson.scripts) {
+        const hash = contentHash(script.ssml);
+        const filename = `${hash}.mp3`;
+        script.audioFile = filename;
 
-      const poolFile = sharedMediaPath(filename);
-      let audio: Uint8Array | null = null;
-      try {
-        audio = new Uint8Array(await fs.readFile(poolFile));
-      } catch {
+        const poolFile = sharedMediaPath(filename);
+        let audio: Uint8Array | null = null;
         try {
-          audio = await tts.generateAudio(script.ssml);
-          await fs.writeFile(poolFile, audio);
-        } catch (err) {
-          console.error(
-            `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
-            (err as Error).message,
-          );
+          audio = new Uint8Array(await fs.readFile(poolFile));
+        } catch {
+          try {
+            audio = await tts.generateAudio(script.ssml);
+            await fs.writeFile(poolFile, audio);
+          } catch (err) {
+            console.error(
+              `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
+              (err as Error).message,
+            );
+          }
         }
+        if (audio) audioMap.set(`media/${filename}`, audio);
+        audiosDone++;
+        emit({ type: 'step', message: `Generating audio… (${audiosDone}/${totalScripts})` });
       }
-      if (audio) audioMap.set(`media/${filename}`, audio);
-      audiosDone++;
-      emit({ type: 'step', message: `Generating audio… (${audiosDone}/${totalScripts})` });
     }
   }
 
@@ -144,7 +148,7 @@ async function mapToPackageManifest(
 ): Promise<PackageManifest> {
   const { manifest } = input;
   const baseSlug = buildSlug(
-    manifest.industry_context,
+    manifest.domain_context,
     input.targetLang,
     manifest.age_group,
     manifest.topic,
@@ -160,7 +164,7 @@ async function mapToPackageManifest(
     slug,
     topic: manifest.topic,
     ageGroup: manifest.age_group,
-    industry: manifest.industry_context,
+    domain: manifest.domain_context,
     sourceLang: input.sourceLang,
     targetLang: input.targetLang,
     createdAt: new Date().toISOString(),

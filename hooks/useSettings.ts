@@ -13,7 +13,7 @@ export interface UserSettings {
     text?:     { provider?: string; model?: string; apiKey?: string };
     tts?:      { provider?: string; baseUrl?: string; model?: string; apiKey?: string };
     stt?:      { provider?: string; baseUrl?: string; apiKey?: string };
-    imageGen?: { provider?: string; apiKey?: string };
+    imageGen?: { provider?: string; apiKey?: string; baseUrl?: string; model?: string };
     ollama?:   { baseUrl?: string };
   };
 }
@@ -62,16 +62,35 @@ export function useSettings() {
   useEffect(() => {
     const uid = getCookieValue(COOKIE_NAME);
     setUserId(uid);
+    const key = storageKey(uid);
     try {
-      const raw = localStorage.getItem(storageKey(uid));
+      const raw = localStorage.getItem(key);
       if (raw) setSettings(normalize(JSON.parse(raw)));
     } catch {}
+
+    // Re-sync when another useSettings instance (e.g. the Settings modal) saves.
+    // `storage` events cover cross-tab writes; `cf:settings-saved` covers same-window
+    // writes from other hook instances (Settings modal → page.tsx).
+    const reload = () => {
+      try {
+        const raw = localStorage.getItem(key);
+        setSettings(raw ? normalize(JSON.parse(raw)) : EMPTY_SETTINGS);
+      } catch {}
+    };
+    const onStorage = (e: StorageEvent) => { if (e.key === key) reload(); };
+    window.addEventListener('storage', onStorage);
+    window.addEventListener('cf:settings-saved', reload);
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      window.removeEventListener('cf:settings-saved', reload);
+    };
   }, []);
 
   const save = useCallback((next: UserSettings): { ok: boolean; error?: string } => {
     setSettings(next);
     try {
       localStorage.setItem(storageKey(userId), JSON.stringify(next));
+      window.dispatchEvent(new Event('cf:settings-saved'));
       return { ok: true };
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Storage write failed';
@@ -124,6 +143,8 @@ export function useSettings() {
     const img = adv.imageGen;
     if (img?.provider)   headers['x-cf-image-provider'] = img.provider;
     if (img?.apiKey)     headers['x-cf-image-key']      = img.apiKey;
+    if (img?.baseUrl)    headers['x-cf-image-url']      = img.baseUrl;
+    if (img?.model)      headers['x-cf-image-model']    = img.model;
 
     return headers;
   }, [settings]);

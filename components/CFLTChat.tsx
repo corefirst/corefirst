@@ -73,18 +73,48 @@ const CrstStrip: React.FC<{ crst: Crst, uiLang: string }> = ({ crst, uiLang }) =
 const HISTORY_WARN_MSGS = 12;
 const HISTORY_MAX_MSGS = 20;
 
-export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSlug, packageId, context, onOpenSettings }: {
+// Always English — these go directly into the English system prompt as {{CONTEXT}}.
+// Free-text input is passed as-is; the LLM handles multilingual context descriptions.
+const SCENARIO_OPTIONS = [
+  'General / Life',
+  'Workplace Communication',
+  'IT / Software Engineering',
+  'Business / Finance',
+  'Medical / Healthcare',
+  'Sales & Marketing',
+  'Legal / Law',
+  'Education / Teaching',
+  'Design & Creative',
+  'Travel & Hospitality',
+  'Logistics & Operations',
+  'School & Campus',
+  'Hobbies & Leisure',
+  'Sports & Fitness',
+  'Social & Daily Chat',
+];
+
+const DEFAULT_SCENARIO = 'General / Life';
+
+function buildGreeting(targetLang: string, scenario: string) {
+  return `Hello! I am your Core First coach. Today we are practicing ${targetLang}${scenario ? ` for ${scenario}` : ''}.`;
+}
+
+export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSlug, packageId, onOpenSettings }: {
   sourceLang: string;
   targetLang: string;
   uiLang?: SupportedLang;
   packageSlug?: string;
   packageId?: string;
-  context?: string;
   onOpenSettings?: () => void;
 }) => {
   const uiLang: SupportedLang = uiLangProp ?? 'English';
+
+  // scenarioInput: live value while typing; scenario: committed value that drives the prompt/greeting
+  const [scenarioInput, setScenarioInput] = useState(DEFAULT_SCENARIO);
+  const [scenario, setScenario] = useState(DEFAULT_SCENARIO);
+
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: `Hello! I am your Core First coach. Today we are practicing ${targetLang}${context ? ` for ${context}` : ''}.`, cflt: "Hello! I am your coach, for Core First practice, today." }
+    { role: 'assistant', content: buildGreeting(targetLang, scenario), cflt: "Hello! I am your coach, for Core First practice, today." }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -119,15 +149,21 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     } catch {}
   }, []);
 
-  // Sync initial message when context changes (industry/topic selection)
+  // Reset session when the committed scenario or target language changes.
   useEffect(() => {
-    setMessages([{ 
-      role: 'assistant', 
-      content: `Hello! I am your Core First coach. Today we are practicing ${targetLang}${context ? ` for ${context}` : ''}.`, 
-      cflt: "Hello! I am your coach, for Core First practice, today." 
+    setMessages([{
+      role: 'assistant',
+      content: buildGreeting(targetLang, scenario),
+      cflt: "Hello! I am your coach, for Core First practice, today.",
     }]);
     if (typeof crypto !== 'undefined') setSessionId(crypto.randomUUID());
-  }, [context, targetLang]);
+  }, [scenario, targetLang]);
+
+  const commitScenario = () => {
+    const val = scenarioInput.trim() || DEFAULT_SCENARIO;
+    setScenarioInput(val);
+    if (val !== scenario) setScenario(val);
+  };
 
   const toggleAnalysis = (next: boolean) => {
     setAnalysisEnabled(next);
@@ -135,7 +171,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
   };
 
   const resetSession = () => {
-    setMessages([{ role: 'assistant', content: `Hello! I am your Core First coach. Today we are practicing ${targetLang}${context ? ` for ${context}` : ''}.`, cflt: 'Hello! I am your coach, for Core First practice, today.' }]);
+    setMessages([{ role: 'assistant', content: buildGreeting(targetLang, scenario), cflt: 'Hello! I am your coach, for Core First practice, today.' }]);
     setInput('');
     setKeyError(false);
     setCfltSlots({ core: '', reason: '', space: '', time: '' });
@@ -184,7 +220,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     try {
       const response = await fetch('/api/roleplay', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context, ...(sessionId ? { sessionId } : {}) }),
+        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, ...(sessionId ? { sessionId } : {}) }),
       });
       if (response.status === 401) throw new Error('API_KEY');
       if (!response.ok) throw new Error('Coach unavailable');
@@ -265,7 +301,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     try {
       const response = await fetch('/api/roleplay', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context, audio: audioBase64 ? { data: audioBase64, type: audioType } : undefined, ...(sessionId ? { sessionId } : {}), }),
+        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, audio: audioBase64 ? { data: audioBase64, type: audioType } : undefined, ...(sessionId ? { sessionId } : {}), }),
       });
       if (response.status === 401) throw new Error('API_KEY');
       if (!response.ok) throw new Error('Coach unavailable');
@@ -308,6 +344,26 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
           </button>
         </div>
+      </div>
+
+      {/* Scenario selector — independent from course settings */}
+      <div className="px-4 py-2 bg-slate-800 border-b border-slate-700 flex items-center gap-2">
+        <label htmlFor="scenario-input" className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+          Scenario
+        </label>
+        <input
+          id="scenario-input"
+          list="scenario-datalist"
+          value={scenarioInput}
+          onChange={(e) => setScenarioInput(e.target.value)}
+          onBlur={commitScenario}
+          onKeyDown={(e) => { if (e.key === 'Enter') { commitScenario(); e.currentTarget.blur(); } }}
+          placeholder="Select or describe a scenario…"
+          className="flex-1 text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder:text-slate-500"
+        />
+        <datalist id="scenario-datalist">
+          {SCENARIO_OPTIONS.map((s) => <option key={s} value={s} />)}
+        </datalist>
       </div>
 
       {historyNearLimit && (
