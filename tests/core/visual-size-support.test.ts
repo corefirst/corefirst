@@ -90,7 +90,8 @@ describe('Visual Providers Size Support', () => {
 
   describe('AISDKImageProvider', () => {
     it('passes size to AI SDK generateImage', async () => {
-      const provider = new AISDKImageProvider();
+      const mockModel = { modelId: 'test-model' } as any;
+      const provider = new AISDKImageProvider(mockModel);
       (generateImage as any).mockResolvedValue({
         image: { base64: 'fake', mediaType: 'image/png' }
       });
@@ -99,6 +100,20 @@ describe('Visual Providers Size Support', () => {
 
       expect(generateImage).toHaveBeenCalledWith(expect.objectContaining({
         size: '896x512'
+      }));
+    });
+
+    it('maps 896x512 to 16:9 for imagen models', async () => {
+      const mockModel = { modelId: 'imagen-3' } as any;
+      const provider = new AISDKImageProvider(mockModel);
+      (generateImage as any).mockResolvedValue({
+        image: { base64: 'fake', mediaType: 'image/png' }
+      });
+
+      await provider.generateImage('cat', { size: '896x512' });
+
+      expect(generateImage).toHaveBeenCalledWith(expect.objectContaining({
+        aspectRatio: '16:9'
       }));
     });
   });

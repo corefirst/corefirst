@@ -1,6 +1,7 @@
 import { generateImage, type ImageModel } from 'ai';
 import { imageGenModel } from '@/src/lib/ai';
 import { VisualProvider } from './interface';
+import { parseSize, getClosestAspectRatio, getClosestSize } from './size-utils';
 
 /**
  * AI-SDK ImageModel wrapper — works with any provider that the AI-SDK
@@ -23,35 +24,28 @@ export class AISDKImageProvider implements VisualProvider {
         prompt: styledPrompt,
       };
 
-      // Smart Mapping: Determine whether to use 'size' or 'aspectRatio'
-      // Google Imagen via AI-SDK prefers aspectRatio.
-      // OpenAI DALL-E prefers size.
-      const size = options?.size || '1024x1024';
+      const requestedSize = options?.size || '1024x1024';
+      const parsed = parseSize(requestedSize);
       
       if (this.model.modelId.includes('imagen')) {
         // Map common sizes to Google-supported aspect ratios
-        if (size === '896x512' || size === '1280x720') {
-          params.aspectRatio = '16:9';
-        } else if (size === '1024x768' || size === '640x480') {
-          params.aspectRatio = '4:3';
-        } else if (size === '768x1024' || size === '480x640') {
-          params.aspectRatio = '3:4';
-        } else if (size === '720x1280') {
-          params.aspectRatio = '9:16';
+        if (parsed) {
+          params.aspectRatio = getClosestAspectRatio(parsed.width, parsed.height, ['1:1', '16:9', '4:3', '3:4', '9:16']);
         } else {
           params.aspectRatio = '1:1';
         }
       } else if (this.model.modelId.includes('gpt-image-2')) {
         // gpt-image-2 (OpenAI 2026) has higher minimum resolution requirements.
-        // Map 896x512 to its official landscape size.
-        if (size === '896x512' || size === '1280x720') {
-          params.size = '1792x1024';
+        // Map requested size to its official supported sizes.
+        const supported = ['1024x1024', '1792x1024', '1024x1792'];
+        if (parsed) {
+          params.size = getClosestSize(parsed.width, parsed.height, supported);
         } else {
           params.size = '1024x1024';
         }
       } else {
         // DALL-E and others use size
-        params.size = size;
+        params.size = requestedSize;
       }
 
       const { image } = await generateImage(params);

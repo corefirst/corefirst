@@ -1,3 +1,4 @@
+import { parseSize } from './size-utils';
 import { VisualProvider } from './interface';
 
 /**
@@ -125,12 +126,12 @@ export class OllamaImageProvider implements VisualProvider {
     };
 
     // If size is provided (e.g. "512x512"), parse it for Ollama options
-    if (size && size.includes('x')) {
-      const [w, h] = size.split('x').map(s => parseInt(s, 10));
-      if (!isNaN(w) && !isNaN(h)) {
+    if (size) {
+      const parsed = parseSize(size);
+      if (parsed) {
         body.options = {
-          width: w,
-          height: h
+          width: parsed.width,
+          height: parsed.height
         };
       }
     }

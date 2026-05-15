@@ -1,3 +1,4 @@
+import { parseSize, getClosestSize } from './size-utils';
 import { VisualProvider } from './interface';
 
 const DASH_SCOPE_WANX_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text2image/image-synthesis';
@@ -13,19 +14,13 @@ export class QwenVisualProvider implements VisualProvider {
   ) {}
 
   private normalizeSize(requested: string | undefined): string {
-    if (!requested) return '1024*1024';
-    const s = requested.replace('x', '*');
-    // DashScope Wanx-v1 strictly supported sizes as of May 2026:
-    // '1024*1024', '720*1280', '1280*720', '768*1152'
     const supported = ['1024*1024', '720*1280', '1280*720', '768*1152'];
-    if (supported.includes(s)) return s;
+    if (!requested) return '1024*1024';
 
-    // Mapping for common requested sizes to closest supported
-    if (s === '896*512') return '1280*720'; // 16:9 Landscape
-    if (s === '768*512') return '1280*720';
-    if (s === '1024*768') return '1280*720';
-    
-    return '1024*1024';
+    const parsed = parseSize(requested);
+    if (!parsed) return '1024*1024';
+
+    return getClosestSize(parsed.width, parsed.height, supported, '*');
   }
 
   async generateImage(prompt: string, options?: { size?: string }): Promise<string> {
