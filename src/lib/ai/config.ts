@@ -59,7 +59,7 @@ export function resolveFeature(key: FeatureKey): ResolvedFeature {
   }
 
   const model = readModelForFeature(spec, provider);
-  const baseUrl = readBaseUrlForFeature(spec);
+  const baseUrl = readBaseUrlForFeature(spec, provider);
   const apiKey = readApiKeyForFeature(spec, provider);
   
   // Final validation (should be 'none' if it fell through above)
@@ -96,6 +96,11 @@ function readModelForFeature(spec: FeatureSpec, provider: string): string {
   const capModel = process.env[capabilityDefaultModelEnv(spec.capability)];
   if (capModel) return capModel.trim();
 
+  // Try provider-specific model (e.g. OLLAMA_MODEL, OPENAI_MODEL)
+  const providerModelEnv = `${provider.replace(/\//g, '_').toUpperCase()}_MODEL`;
+  const providerModel = process.env[providerModelEnv];
+  if (providerModel) return providerModel.trim();
+
   // Try provider-specific default for this capability
   const providerDefault = getProviderDefault(provider, spec.capability);
   if (providerDefault) {
@@ -114,12 +119,23 @@ function readModelForFeature(spec: FeatureSpec, provider: string): string {
   return getFeatureDefaults(spec.key).defaultModel;
 }
 
-function readBaseUrlForFeature(spec: FeatureSpec): string | undefined {
+function readBaseUrlForFeature(spec: FeatureSpec, provider: string): string | undefined {
   const featureUrl = process.env[`${spec.envPrefix}_BASE_URL`];
   if (featureUrl) return featureUrl.trim();
 
   const capUrl = process.env[`${capabilityEnvPrefix(spec.capability)}_BASE_URL`];
-  if (capUrl) return capUrl.trim();
+  if (capUrl) {
+    // If the capability-level provider doesn't match the current provider,
+    // do NOT return the capability-level base URL. This prevents local
+    // Ollama URLs from being used for cloud providers.
+    const capProvider = process.env[capabilityDefaultProviderEnv(spec.capability)];
+    const globalProvider = process.env.GLOBAL_PROVIDER;
+    const resolvedCapProvider = (capProvider || globalProvider || getFeatureDefaults(spec.key).defaultProvider).trim();
+    
+    if (resolvedCapProvider === provider) {
+        return capUrl.trim();
+    }
+  }
 
   return undefined;
 }

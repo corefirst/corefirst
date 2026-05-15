@@ -54,7 +54,7 @@ describe('Visual Providers Size Support', () => {
   });
 
   describe('QwenVisualProvider', () => {
-    it('maps 896x512 to closest supported 1024*768', async () => {
+    it('maps 896x512 to closest supported 1280*720', async () => {
       const provider = new QwenVisualProvider('key');
       // Mock pollTask to avoid actual polling
       vi.spyOn(provider as any, 'pollTask').mockResolvedValue('data:image/png;base64,fake');
@@ -68,7 +68,7 @@ describe('Visual Providers Size Support', () => {
 
       const lastCall = vi.mocked(fetch).mock.calls[0];
       const body = JSON.parse(lastCall[1]?.body as string);
-      expect(body.parameters.size).toBe('1024*768');
+      expect(body.parameters.size).toBe('1280*720');
     });
 
     it('passes supported size directly (with * replacement)', async () => {

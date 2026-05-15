@@ -30,10 +30,10 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
     'speech-to-text': 'gemini-2.5-flash',
   },
   openai: {
-    text: 'gpt-4o',
-    'text-to-image': 'dall-e-3',
-    'text-to-speech': 'tts-1',
-    'speech-to-text': 'whisper-1',
+    text: 'gpt-5.5',
+    'text-to-image': 'gpt-image-2',
+    'text-to-speech': 'gpt-audio',
+    'speech-to-text': 'gpt-4o-transcribe',
   },
   anthropic: { text: 'claude-sonnet-4-6' },
   ollama: { 

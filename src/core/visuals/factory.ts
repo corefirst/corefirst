@@ -12,11 +12,15 @@ export class VisualFactory {
 
     if (override) {
       const effectiveApiKey = override.apiKey || r.apiKey;
+      // If an override is present, it must be fully self-contained. 
+      // Do NOT leak r.baseUrl into the override path.
+      const effectiveBaseUrl = override.baseUrl ?? undefined;
+      
       if (override.provider === 'qwen') {
         return new QwenVisualProvider(effectiveApiKey, override.model);
       }
       if (override.provider === 'ollama') {
-        const raw = (override.baseUrl || r.baseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/+$/, '');
+        const raw = (effectiveBaseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/+$/, '');
         const baseURL = /\/v1$/.test(raw) ? raw : `${raw}/v1`;
         return new OllamaImageProvider(baseURL, override.model || r.model, effectiveApiKey);
       }
@@ -24,7 +28,7 @@ export class VisualFactory {
         provider: override.provider, 
         apiKey: effectiveApiKey, 
         model: override.model, 
-        baseUrl: override.baseUrl 
+        baseUrl: effectiveBaseUrl
       });
       return new AISDKImageProvider(model);
     }

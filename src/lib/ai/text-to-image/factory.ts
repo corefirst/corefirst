@@ -67,7 +67,9 @@ export function buildImageModelWith(overrides: { provider?: string; apiKey?: str
   const effectiveR = {
     ...r,
     model: resolvedModel,
-    baseUrl: overrides.baseUrl || r.baseUrl,
+    baseUrl: overrides.baseUrl !== undefined 
+      ? overrides.baseUrl 
+      : (overrides.provider && overrides.provider !== r.provider ? undefined : r.baseUrl),
   };
   console.log(`[ai/imageGen] request: provider=${provider} model=${effectiveR.model} baseUrl=${effectiveR.baseUrl ?? '(default)'}`);
   return builder(effectiveR, overrides.apiKey);

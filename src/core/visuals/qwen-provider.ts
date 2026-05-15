@@ -15,13 +15,15 @@ export class QwenVisualProvider implements VisualProvider {
   private normalizeSize(requested: string | undefined): string {
     if (!requested) return '1024*1024';
     const s = requested.replace('x', '*');
-    // DashScope Wanx-v1 supported sizes: 1024*1024, 1280*720, 720*1280, 768*1024, 1024*768
-    const supported = ['1024*1024', '1280*720', '720*1280', '768*1024', '1024*768'];
+    // DashScope Wanx-v1 strictly supported sizes as of May 2026:
+    // '1024*1024', '720*1280', '1280*720', '768*1152'
+    const supported = ['1024*1024', '720*1280', '1280*720', '768*1152'];
     if (supported.includes(s)) return s;
 
     // Mapping for common requested sizes to closest supported
-    if (s === '896*512') return '1024*768'; // Closest landscape
-    if (s === '768*512') return '1024*768';
+    if (s === '896*512') return '1280*720'; // 16:9 Landscape
+    if (s === '768*512') return '1280*720';
+    if (s === '1024*768') return '1280*720';
     
     return '1024*1024';
   }
