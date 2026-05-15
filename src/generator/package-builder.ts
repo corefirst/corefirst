@@ -60,11 +60,10 @@ export async function buildAndWritePackage(
     const totalScripts = packageManifest.lessons.reduce((n, l) => n + l.scripts.length, 0);
     let audiosDone = 0;
 
-    for (const lesson of packageManifest.lessons) {
-      for (const script of lesson.scripts) {
+    for (const [lessonIdx, lesson] of packageManifest.lessons.entries()) {
+      for (const [scriptIdx, script] of lesson.scripts.entries()) {
         const hash = contentHash(script.ssml);
         const filename = `${hash}.mp3`;
-        script.audioFile = filename;
 
         const poolFile = sharedMediaPath(filename);
         let audio: Uint8Array | null = null;
@@ -84,7 +83,14 @@ export async function buildAndWritePackage(
             );
           }
         }
-        if (audio) audioMap.set(`media/${filename}`, audio);
+        if (audio) {
+          audioMap.set(`media/${filename}`, audio);
+          script.audioFile = filename;
+          // Populate UI-only field in the input manifest for immediate use
+          if (input.manifest.lessons[lessonIdx]?.cflt_scripts[scriptIdx]) {
+            input.manifest.lessons[lessonIdx].cflt_scripts[scriptIdx].audioUrl = `/api/media/${filename}`;
+          }
+        }
         audiosDone++;
         emit({ type: 'step', message: `Generating audio… (${audiosDone}/${totalScripts})` });
       }
@@ -97,13 +103,13 @@ export async function buildAndWritePackage(
     const visuals = VisualFactory.getProvider(input.imageOverride);
     let imagesDone = 0;
     const totalImages = packageManifest.lessons.filter(l => l.visual_generation_prompts[0]).length;
-    for (const lesson of packageManifest.lessons) {
+    for (const [lessonIdx, lesson] of packageManifest.lessons.entries()) {
       const prompt = lesson.visual_generation_prompts[0];
       if (!prompt) continue;
 
-      const hash = contentHash(prompt);
+      // Use same hash key as api/generate-image (prompt + default size)
+      const hash = contentHash(`${prompt}:1024x1024`);
       const filename = `${hash}.webp`;
-      lesson.imageFile = filename;
 
       const poolFile = sharedMediaPath(filename);
       let image: Uint8Array | null = null;
@@ -127,7 +133,14 @@ export async function buildAndWritePackage(
           );
         }
       }
-      if (image) imageMap.set(`media/${filename}`, image);
+      if (image) {
+        imageMap.set(`media/${filename}`, image);
+        lesson.imageFile = filename;
+        // Populate UI-only field in the input manifest for immediate use
+        if (input.manifest.lessons[lessonIdx]) {
+          input.manifest.lessons[lessonIdx].imageUrl = `/api/media/${filename}`;
+        }
+      }
       imagesDone++;
       emit({ type: 'step', message: `Generating images… (${imagesDone}/${totalImages})` });
     }

@@ -34,9 +34,19 @@ export async function POST(request: Request) {
   const encoder = new TextEncoder();
   const { readable, writable } = new TransformStream();
   const writer = writable.getWriter();
+  let isClosed = false;
+
+  request.signal.addEventListener('abort', () => {
+    isClosed = true;
+    writer.close().catch(() => {});
+  });
 
   const emit = (data: object) => {
-    writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+    if (isClosed) return;
+    const payload = encoder.encode(`data: ${JSON.stringify(data)}\n\n`);
+    writer.write(payload).catch(() => {
+      isClosed = true;
+    });
   };
 
   // Run generation asynchronously so we can return the stream immediately
@@ -57,6 +67,8 @@ export async function POST(request: Request) {
         targetLang,
       }, userId);
 
+      if (isClosed) return; // Stop if client disconnected
+
       if ('error' in result) {
         emit({ type: 'error', message: 'Course generation failed' });
         return;
@@ -68,10 +80,14 @@ export async function POST(request: Request) {
         generateAudio: parsed.data.generateAudio,
         generateImages: parsed.data.generateImages,
         userId,
-        onProgress: emit,
+        onProgress: (data) => {
+          if (!isClosed) emit(data);
+        },
         ttsOverride,
         imageOverride,
       });
+
+      if (isClosed) return;
 
       emit({
         type: 'complete',
@@ -79,10 +95,15 @@ export async function POST(request: Request) {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.error('[generate-course] Error:', msg);
-      emit({ type: 'error', message: 'Course generation failed' });
+      if (!isClosed) {
+        console.error('[generate-course] Error:', msg);
+        emit({ type: 'error', message: 'Course generation failed' });
+      }
     } finally {
-      writer.close();
+      if (!isClosed) {
+        isClosed = true;
+        writer.close().catch(() => {});
+      }
     }
   })();
 
