@@ -2,7 +2,7 @@ import { generateObject, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import { z } from 'zod';
 import { transformModel } from '@/src/lib/ai';
 import { loadSkill } from '@/src/lib/skills';
-import { CFLTResponse, CFLTResponseSchema } from '../types/cflt';
+import { CFLTResponse, CFLTResponseSchema, CFLTResponseGenerationSchema } from '../types/cflt';
 
 // Minimal schema for the orchestrator's script-audit pass.
 // Only captures the three fields orchestrator actually reads (cflt_l1, cflt_l2,
@@ -78,12 +78,12 @@ export class CFLTTransformer {
 
       const { object } = await generateObject({
         model: this.model,
-        schema: CFLTResponseSchema,
+        schema: CFLTResponseGenerationSchema,
         system: dynamicPrompt,
         prompt: userInput,
       });
 
-      return object;
+      return object as CFLTResponse;
     } catch (e) {
       const raw = e instanceof NoObjectGeneratedError ? (e.text ?? '') : '';
       const msg = e instanceof Error ? e.message : String(e);

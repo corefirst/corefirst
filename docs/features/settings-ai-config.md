@@ -213,7 +213,7 @@ Body: { provider, apiKey, baseUrl?, model? }
 Response: { ok: boolean, error?: string }
 ```
 
-Fires a minimal `generateText({ maxOutputTokens: 3 })` call. For Ollama, uses the provided `baseUrl` and `model`. Returns plain-English error messages for common failure modes (invalid key, insufficient credits, rate limit, network unreachable).
+Fires a minimal `generateText({ maxOutputTokens: 16 })` call. For Ollama, uses the provided `baseUrl` and `model`. Returns plain-English error messages for common failure modes (invalid key, insufficient credits, rate limit, network unreachable).
 
 **Used by:** `Settings.tsx` Verify button (cloud + Ollama + CLI paths).
 

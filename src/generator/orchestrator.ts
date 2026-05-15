@@ -3,6 +3,7 @@ import { courseGenModel } from '@/src/lib/ai';
 import { loadSkill } from '@/src/lib/skills';
 import { CFLTTransformer } from '../core/transformer';
 import {
+  CoursewareGenerationSchema,
   CoursewareManifest,
   CoursewareManifestSchema,
 } from '../types/courseware';
@@ -175,11 +176,11 @@ export class CoursewareOrchestrator {
   private async callOnce(system: string, prompt: string): Promise<CoursewareManifest> {
     const { object } = await generateObject({
       model: this.model,
-      schema: CoursewareManifestSchema,
+      schema: CoursewareGenerationSchema,
       system,
       prompt,
     });
-    return object;
+    return object as CoursewareManifest;
   }
 }
 

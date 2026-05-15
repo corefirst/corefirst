@@ -5,18 +5,22 @@ export const LessonScriptSchema = z.object({
   cflt_l1: z.string(),
   cflt_l2: z.string(),
   standard_l2: z.string(),
-  // Natural native-language rendering. Used by the learning-mode demo to anchor
-  // the CRST rearrangement against an everyday sentence. Optional because legacy
-  // generations and older stored packages predate this field — orchestrator
-  // backfills it from the audit pass when missing.
-  standard_l1: z.string().default(''),
-  // SSML is the most fragile field — `<prosody>` etc. inside a JSON string is
-  // a common breakage point for weaker JSON-mode models. Optional w/ default
-  // empty string; orchestrator falls back to wrapping standard_l2 if missing.
-  ssml: z.string().default(''),
-  // UI-only: pre-rendered mp3 served from a stored package. Never produced by
-  // the LLM; populated by /api/courses/:slug when loading from history.
+  standard_l1: z.string(),
+  ssml: z.string(),
   audioUrl: z.string().optional(),
+});
+
+/**
+ * Clean schema for LLM generation. 
+ * OpenAI Structured Outputs (strict: true) does NOT allow .optional() fields.
+ */
+export const LessonScriptGenerationSchema = z.object({
+  speaker: z.string(),
+  cflt_l1: z.string(),
+  cflt_l2: z.string(),
+  standard_l2: z.string(),
+  standard_l1: z.string(),
+  ssml: z.string(),
 });
 
 export const LessonSchema = z.object({
@@ -28,8 +32,18 @@ export const LessonSchema = z.object({
     token: z.string(),
     meaning: z.string()
   })),
-  // UI-only: pre-rendered scene image (.webp) from a stored package.
   imageUrl: z.string().optional(),
+});
+
+export const LessonGenerationSchema = z.object({
+  title: z.string(),
+  scenario_description: z.string(),
+  cflt_scripts: z.array(LessonScriptGenerationSchema),
+  visual_generation_prompts: z.array(z.string()),
+  vocabulary_focus: z.array(z.object({
+    token: z.string(),
+    meaning: z.string()
+  })),
 });
 
 export const CoursewareManifestSchema = z.object({
@@ -37,6 +51,13 @@ export const CoursewareManifestSchema = z.object({
   domain_context: z.string(),
   topic: z.string(),
   lessons: z.array(LessonSchema),
+});
+
+export const CoursewareGenerationSchema = z.object({
+  age_group: z.string(),
+  domain_context: z.string(),
+  topic: z.string(),
+  lessons: z.array(LessonGenerationSchema),
 });
 
 export type CoursewareManifest = z.infer<typeof CoursewareManifestSchema>;

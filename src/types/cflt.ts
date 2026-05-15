@@ -40,6 +40,19 @@ export const CFLTResponseSchema = z.object({
   slots: z.array(CflmSlotSchema).length(4).optional(),
 });
 
+/**
+ * Clean schema for LLM generation (OpenAI Strict Mode).
+ */
+export const CFLTResponseGenerationSchema = z.object({
+  is_cflt_compliant: z.boolean(),
+  cflt_l1: z.string(),
+  cflt_l2: z.string(),
+  standard_l2: z.string(),
+  standard_l1: z.string(),
+  corrections: z.array(CorrectionSchema),
+  slots: z.array(CflmSlotSchema).length(4),
+});
+
 export type CFLTResponse = z.infer<typeof CFLTResponseSchema>;
 export type Correction = z.infer<typeof CorrectionSchema>;
 export type CfltSlot = z.infer<typeof CflmSlotSchema>;

@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
   try {
     const model = buildBYOKModel({ provider, apiKey, baseUrl, model: modelOverride });
-    await generateText({ model, prompt: 'Say OK', maxOutputTokens: 3 });
+    await generateText({ model, prompt: 'Say OK', maxOutputTokens: 16 });
     return NextResponse.json({ ok: true });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
