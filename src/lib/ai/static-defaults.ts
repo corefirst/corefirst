@@ -36,7 +36,7 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
     'speech-to-text': 'whisper-1',
   },
   anthropic: { text: 'claude-sonnet-4-6' },
-  ollama: { 
+  ollama: {
     text: 'llama3.2',
     'text-to-image': 'x/z-image-turbo:latest',
     'text-to-speech': 'kokoro',
@@ -53,7 +53,7 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
   openrouter: {
     text: 'google/gemini-2.5-flash',
     'text-to-image': 'black-forest-labs/flux-schnell',
-    'text-to-speech': 'openai/gpt-4o-mini-tts-2025-12-15',
+    'text-to-speech': 'openai/tts-1',
     'speech-to-text': 'openai/whisper-1',
   },
   'cli/claude': { text: 'claude' },
@@ -106,7 +106,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'text-to-speech',
     envPrefix: 'TTS',
     defaultProvider: 'none',
-    defaultModel: 'gpt-4o-mini-tts',
+    defaultModel: 'tts-1',
     rationale: 'Text-to-speech for lesson audio + Transform/Roleplay playback.',
   },
   stt: {
@@ -114,7 +114,7 @@ export const FEATURES: Record<FeatureKey, FeatureSpec> = {
     capability: 'speech-to-text',
     envPrefix: 'STT',
     defaultProvider: 'none',
-    defaultModel: 'gpt-4o-mini-transcribe',
+    defaultModel: 'whisper-1',
     rationale: 'Speech transcription for voice challenges + roleplay voice input.',
   },
 };
