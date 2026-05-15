@@ -18,7 +18,7 @@ import { PhoneticBridge } from '../components/PhoneticBridge';
 import { ComboBox } from '../components/ComboBox';
 import { useSettings } from '../hooks/useSettings';
 import {
-  Loader2, Send, Languages, Info, BookOpen, User, Globe,
+  Loader2, Send, Languages, Info, BookOpen, User, Globe, Library, ChevronLeft,
   Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare, Settings as SettingsIcon,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -885,196 +885,235 @@ export default function Home() {
 
           {mode === 'transform' && <TransformHistory uiLang={uiLang} refreshKey={transformHistoryKey} />}
 
-          {mode === 'course' && courseResult && (
-            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-              {courseResult.lessons.map((lesson: Lesson, i: number) => (
-                <div key={i} className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white space-y-8">
-
-                  {(lesson.imageUrl || lesson.visual_generation_prompts?.[0]) && (
-                    <CFLTVisual
-                      prompt={lesson.visual_generation_prompts?.[0] ?? ''}
-                      imageUrl={lesson.imageUrl}
-                    />
-                  )}
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center font-black">
-                        {i + 1}
-                      </div>
-                      <h2 className="text-2xl font-black text-slate-800">{lesson.title}</h2>
-                    </div>
-                    <div className="bg-slate-100 px-4 py-1 rounded-full text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                      Lesson Scenario
-                    </div>
-                  </div>
-
-                  <p className="text-slate-500 font-medium leading-relaxed bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-200">
-                    {lesson.scenario_description}
-                  </p>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {(lessonMode[i] ?? 'learn') === 'practice' && (
-                        <span className="text-xs font-bold text-slate-400 italic">
-                          {tr(uiLang, 'practiceHint')}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex bg-slate-100 p-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0">
-                      <button
-                        onClick={() => setLessonMode(prev => ({ ...prev, [i]: 'learn' }))}
-                        className={`px-3 py-1 rounded-md transition-colors ${(lessonMode[i] ?? 'learn') === 'learn' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                      >
-                        {tr(uiLang, 'modeLearning')}
-                      </button>
-                      <button
-                        onClick={() => setLessonMode(prev => ({ ...prev, [i]: 'practice' }))}
-                        className={`px-3 py-1 rounded-md transition-colors ${(lessonMode[i] ?? 'learn') === 'practice' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                      >
-                        {tr(uiLang, 'modePractice')}
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    {lesson.cflt_scripts.map((script: LessonScript, j: number) => {
-                      const puzzleId = `puzzle-${i}-${j}`;
-                      const isComplete = completedPuzzles.has(puzzleId);
-                      const activeMode = lessonMode[i] ?? 'learn';
-
-                      return (
-                        <div key={j} className="group relative bg-white border border-slate-100 p-6 rounded-3xl hover:border-blue-200 transition-all hover:shadow-lg hover:shadow-blue-50">
-                          {!isComplete ? (
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-2 flex-wrap mb-2">
-                                <span className="text-[10px] font-black uppercase bg-slate-200 text-slate-500 px-2 py-0.5 rounded inline-flex items-center gap-1">
-                                  <User className="w-3 h-3" />{script.speaker}
-                                </span>
-                              </div>
-                              {activeMode === 'learn' ? (
-                                <CFLTDemo
-                                  standardL1={script.standard_l1 || ''}
-                                  cfltL1={script.cflt_l1}
-                                  cfltL2={script.cflt_l2}
-                                  standardL2={script.standard_l2}
-                                  uiLang={uiLang}
-                                  onContinue={() => markPuzzleComplete(puzzleId, i, j)}
-                                />
-                              ) : (
-                                <CFLTBuilder
-                                  cfltString={script.cflt_l1}
-                                  cfltL2={script.cflt_l2}
-                                  onSuccess={() => markPuzzleComplete(puzzleId, i, j)}
-                                />
-                              )}
-                            </div>
-                          ) : (
-                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                              <div className="flex items-start justify-between mb-4">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="text-[10px] font-black uppercase bg-slate-900 text-white px-2 py-0.5 rounded inline-flex items-center gap-1 shrink-0">
-                                    <User className="w-3 h-3" />{script.speaker}
-                                  </span>
-                                  <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
-                                  <span className="text-xl font-black text-slate-800 italic">
-                                    "{script.standard_l2}"
-                                  </span>
-                                </div>
-                                <button
-                                  onClick={() => script.audioUrl
-                                    ? playAudioFromUrl(script.audioUrl, `audio-${i}-${j}`)
-                                    : playAudio(script.ssml, `audio-${i}-${j}`)}
-                                  disabled={audioLoading === `audio-${i}-${j}`}
-                                  aria-label="Play audio"
-                                  className="text-blue-500 hover:text-blue-700 transition-colors disabled:text-slate-300"
-                                >
-                                  {audioLoading === `audio-${i}-${j}` ? (
-                                    <Loader2 className="w-8 h-8 animate-spin" />
-                                  ) : (
-                                    <PlayCircle className="w-8 h-8" />
-                                  )}
-                                </button>
-                              </div>
-                              <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                                    {tr(uiLang, 'cfltThinkingHeader')}
-                                  </p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {renderBlocks(script.cflt_l1)}
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                                    {tr(uiLang, 'targetMappingHeader')}
-                                  </p>
-                                  <div className="flex flex-wrap gap-2">
-                                    {renderBlocks(script.cflt_l2)}
-                                  </div>
-                                </div>
-                              </div>
-
-                              <VoiceChallenge
-                                expectedText={script.standard_l2}
-                                sourceLang={sourceLang}
-                                targetLang={targetLang}
-                                packageSlug={courseResult.packageSlug}
-                                lessonIndex={i}
-                                scriptIndex={j}
-                                sessionId={courseResult.sessionId}
-                              />
-                            </motion.div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t border-slate-50">
-                    <div className="space-y-3">
-                      <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                        <Sparkles className="w-3 h-3 text-amber-500" /> Vocabulary Tokens
-                      </h4>
-                      <div className="flex flex-wrap gap-2">
-                        {lesson.vocabulary_focus.map((v, k: number) => (
-                          <div key={k} className="bg-slate-100 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-700">
-                            {v.token} <span className="opacity-40 font-normal ml-1">({v.meaning})</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {mode === 'course' && (
-            <CourseHistory
-              uiLang={uiLang}
-              refreshKey={courseHistoryKey}
-              onLoad={(course) => {
-                setCourseResult(course as typeof courseResult);
-                if (course.domain_context) {
-                  const domainKey = (DOMAIN_KEYS as readonly string[]).includes(course.domain_context)
-                    ? (course.domain_context as DomainKey)
-                    : findDomainKey(course.domain_context);
-                  if (domainKey) handleDomainChange(domainKey);
-                }
-                if (course.age_group) {
-                  const key = (AGE_KEYS as readonly string[]).includes(course.age_group)
-                    ? (course.age_group as AgeKey)
-                    : findAgeKey(course.age_group);
-                  if (key) handleAgeChange(key);
-                }
-                if (course.sourceLang) handleSourceLangChange(course.sourceLang as SupportedLang);
-                if (course.targetLang) handleTargetLangChange(course.targetLang as SupportedLang);
-                setFetchError(null);
-                if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-              onImport={() => setCourseHistoryKey((k) => k + 1)}
-            />
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {courseResult ? (
+                <>
+                  <div className="flex items-center justify-between bg-white p-6 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-white">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-blue-100 p-2 rounded-xl text-blue-600">
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h2 className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none mb-1">{tr(uiLang, 'tabCourse')}</h2>
+                        <p className="text-slate-900 font-black leading-none">{courseResult.topic}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setCourseResult(null);
+                        if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-black uppercase tracking-wider transition-colors group"
+                    >
+                      <Library className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                      {tr(uiLang, 'library')}
+                    </button>
+                  </div>
+
+                  <div className="space-y-8">
+                    {courseResult.lessons.map((lesson: Lesson, i: number) => (
+                      <div key={i} className="bg-white p-8 rounded-[2.5rem] shadow-xl shadow-slate-200/50 border border-white space-y-8">
+
+                        {(lesson.imageUrl || lesson.visual_generation_prompts?.[0]) && (
+                          <CFLTVisual
+                            prompt={lesson.visual_generation_prompts?.[0] ?? ''}
+                            imageUrl={lesson.imageUrl}
+                          />
+                        )}
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-4">
+                            <div className="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center font-black">
+                              {i + 1}
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-800">{lesson.title}</h2>
+                          </div>
+                          <div className="bg-slate-100 px-4 py-1 rounded-full text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                            Lesson Scenario
+                          </div>
+                        </div>
+
+                        <p className="text-slate-500 font-medium leading-relaxed bg-slate-50 p-6 rounded-2xl border border-dashed border-slate-200">
+                          {lesson.scenario_description}
+                        </p>
+
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {(lessonMode[i] ?? 'learn') === 'practice' && (
+                              <span className="text-xs font-bold text-slate-400 italic">
+                                {tr(uiLang, 'practiceHint')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex bg-slate-100 p-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider shrink-0">
+                            <button
+                              onClick={() => setLessonMode(prev => ({ ...prev, [i]: 'learn' }))}
+                              className={`px-3 py-1 rounded-md transition-colors ${(lessonMode[i] ?? 'learn') === 'learn' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                              {tr(uiLang, 'modeLearning')}
+                            </button>
+                            <button
+                              onClick={() => setLessonMode(prev => ({ ...prev, [i]: 'practice' }))}
+                              className={`px-3 py-1 rounded-md transition-colors ${(lessonMode[i] ?? 'learn') === 'practice' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                              {tr(uiLang, 'modePractice')}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {lesson.cflt_scripts.map((script: LessonScript, j: number) => {
+                            const puzzleId = `puzzle-${i}-${j}`;
+                            const isComplete = completedPuzzles.has(puzzleId);
+                            const activeMode = lessonMode[i] ?? 'learn';
+
+                            return (
+                              <div key={j} className="group relative bg-white border border-slate-100 p-6 rounded-3xl hover:border-blue-200 transition-all hover:shadow-lg hover:shadow-blue-50">
+                                {!isComplete ? (
+                                  <div className="space-y-4">
+                                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                                      <span className="text-[10px] font-black uppercase bg-slate-200 text-slate-500 px-2 py-0.5 rounded inline-flex items-center gap-1">
+                                        <User className="w-3 h-3" />{script.speaker}
+                                      </span>
+                                    </div>
+                                    {activeMode === 'learn' ? (
+                                      <CFLTDemo
+                                        standardL1={script.standard_l1 || ''}
+                                        cfltL1={script.cflt_l1}
+                                        cfltL2={script.cflt_l2}
+                                        standardL2={script.standard_l2}
+                                        uiLang={uiLang}
+                                        onContinue={() => markPuzzleComplete(puzzleId, i, j)}
+                                      />
+                                    ) : (
+                                      <CFLTBuilder
+                                        cfltString={script.cflt_l1}
+                                        cfltL2={script.cflt_l2}
+                                        onSuccess={() => markPuzzleComplete(puzzleId, i, j)}
+                                      />
+                                    )}
+                                  </div>
+                                ) : (
+                                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                                    <div className="flex items-start justify-between mb-4">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-[10px] font-black uppercase bg-slate-900 text-white px-2 py-0.5 rounded inline-flex items-center gap-1 shrink-0">
+                                          <User className="w-3 h-3" />{script.speaker}
+                                        </span>
+                                        <ChevronRight className="w-4 h-4 text-slate-300 shrink-0" />
+                                        <span className="text-xl font-black text-slate-800 italic">
+                                          "{script.standard_l2}"
+                                        </span>
+                                      </div>
+                                      <button
+                                        onClick={() => script.audioUrl
+                                          ? playAudioFromUrl(script.audioUrl, `audio-${i}-${j}`)
+                                          : playAudio(script.ssml, `audio-${i}-${j}`)}
+                                        disabled={audioLoading === `audio-${i}-${j}`}
+                                        aria-label="Play audio"
+                                        className="text-blue-500 hover:text-blue-700 transition-colors disabled:text-slate-300"
+                                      >
+                                        {audioLoading === `audio-${i}-${j}` ? (
+                                          <Loader2 className="w-8 h-8 animate-spin" />
+                                        ) : (
+                                          <PlayCircle className="w-8 h-8" />
+                                        )}
+                                      </button>
+                                    </div>
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                                          {tr(uiLang, 'cfltThinkingHeader')}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                          {renderBlocks(script.cflt_l1)}
+                                        </div>
+                                      </div>
+                                      <div className="space-y-2">
+                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                                          {tr(uiLang, 'targetMappingHeader')}
+                                        </p>
+                                        <div className="flex flex-wrap gap-2">
+                                          {renderBlocks(script.cflt_l2)}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    <VoiceChallenge
+                                      expectedText={script.standard_l2}
+                                      sourceLang={sourceLang}
+                                      targetLang={targetLang}
+                                      packageSlug={courseResult.packageSlug}
+                                      lessonIndex={i}
+                                      scriptIndex={j}
+                                      sessionId={courseResult.sessionId}
+                                    />
+                                  </motion.div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t border-slate-50">
+                          <div className="space-y-3">
+                            <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
+                              <Sparkles className="w-3 h-3 text-amber-500" /> Vocabulary Tokens
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {lesson.vocabulary_focus.map((v, k: number) => (
+                                <div key={k} className="bg-slate-100 px-3 py-1.5 rounded-lg text-sm font-bold text-slate-700">
+                                  {v.token} <span className="opacity-40 font-normal ml-1">({v.meaning})</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Quick toggle at bottom too for convenience */}
+                  <div className="flex justify-center pt-4">
+                    <button
+                      onClick={() => {
+                        setCourseResult(null);
+                        if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 transition-all font-black uppercase text-xs tracking-widest"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      {tr(uiLang, 'library')}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <CourseHistory
+                  uiLang={uiLang}
+                  refreshKey={courseHistoryKey}
+                  onLoad={(course) => {
+                    setCourseResult(course as typeof courseResult);
+                    if (course.domain_context) {
+                      const domainKey = (DOMAIN_KEYS as readonly string[]).includes(course.domain_context)
+                        ? (course.domain_context as DomainKey)
+                        : findDomainKey(course.domain_context);
+                      if (domainKey) handleDomainChange(domainKey);
+                    }
+                    if (course.age_group) {
+                      const key = (AGE_KEYS as readonly string[]).includes(course.age_group)
+                        ? (course.age_group as AgeKey)
+                        : findAgeKey(course.age_group);
+                      if (key) handleAgeChange(key);
+                    }
+                    if (course.sourceLang) handleSourceLangChange(course.sourceLang as SupportedLang);
+                    if (course.targetLang) handleTargetLangChange(course.targetLang as SupportedLang);
+                    setFetchError(null);
+                    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                />
+              )}
+            </div>
           )}
         </div>
       </div>

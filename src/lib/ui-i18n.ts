@@ -32,7 +32,7 @@ type DictKey =
   | 'tagline' | 'tabTransform' | 'tabCourse' | 'tabRoleplay' | 'tabStats'
   | 'uiLangLabel'
   // History panel
-  | 'historyTransformsHeader' | 'historyRoleplayHeader' | 'historyCoursesHeader'
+  | 'library' | 'historyTransformsHeader' | 'historyRoleplayHeader' | 'historyCoursesHeader'
   | 'historyEmpty'
   | 'historyError' | 'historyMessageCount' | 'historyInputLabel' | 'historyResultLabel'
   | 'historyContextLabel' | 'historyExpand' | 'historyCollapse'
@@ -99,6 +99,7 @@ const en: Dict = {
   uiLangLabel: 'Interface',
   historyTransformsHeader: 'Transform History',
   historyRoleplayHeader: 'Roleplay Sessions',
+  library: 'Library',
   historyCoursesHeader: 'Course Library',
   historyEmpty: 'Nothing yet — your activity will appear here.',
   historyError: 'Could not load history. Please refresh.',
@@ -207,6 +208,7 @@ const zh: Dict = {
   uiLangLabel: '界面语言',
   historyTransformsHeader: '转换历史',
   historyRoleplayHeader: '角色扮演会话',
+  library: '课程库',
   historyCoursesHeader: '课程库',
   historyEmpty: '暂无记录 —— 你的活动将在这里出现。',
   historyError: '无法加载历史记录，请刷新。',
@@ -316,6 +318,7 @@ const ja: Dict = {
   uiLangLabel: '表示言語',
   historyTransformsHeader: '変換履歴',
   historyRoleplayHeader: 'ロールプレイのセッション',
+  library: 'ライブラリ',
   historyCoursesHeader: 'コースライブラリ',
   historyEmpty: 'まだ記録がありません — 履歴がここに表示されます。',
   historyError: '履歴を読み込めませんでした。再読み込みしてください。',
@@ -424,6 +427,7 @@ const ko: Dict = {
   uiLangLabel: '인터페이스',
   historyTransformsHeader: '변환 기록',
   historyRoleplayHeader: '역할극 세션',
+  library: '라이브러리',
   historyCoursesHeader: '코스 라이브러리',
   historyEmpty: '아직 기록이 없습니다 — 활동 내역이 여기에 표시됩니다.',
   historyError: '기록을 불러올 수 없습니다. 새로고침 해주세요.',
@@ -532,6 +536,7 @@ const vi: Dict = {
   uiLangLabel: 'Giao diện',
   historyTransformsHeader: 'Lịch sử chuyển đổi',
   historyRoleplayHeader: 'Phiên đóng vai',
+  library: 'Thư viện',
   historyCoursesHeader: 'Thư viện khóa học',
   historyEmpty: 'Chưa có gì — các hoạt động sẽ hiện ở đây.',
   historyMore: 'Xem thêm',
