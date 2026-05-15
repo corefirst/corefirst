@@ -4,6 +4,7 @@ import type { ImageOverride } from '@/src/lib/ai/settings-config';
 import { VisualProvider } from './interface';
 import { AISDKImageProvider } from './imagen-provider';
 import { QwenVisualProvider } from './qwen-provider';
+import { OllamaImageProvider } from './ollama-provider';
 
 export class VisualFactory {
   static getProvider(override?: ImageOverride): VisualProvider {
@@ -13,6 +14,11 @@ export class VisualFactory {
       const effectiveApiKey = override.apiKey || r.apiKey;
       if (override.provider === 'qwen') {
         return new QwenVisualProvider(effectiveApiKey, override.model);
+      }
+      if (override.provider === 'ollama') {
+        const raw = (override.baseUrl || r.baseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/+$/, '');
+        const baseURL = /\/v1$/.test(raw) ? raw : `${raw}/v1`;
+        return new OllamaImageProvider(baseURL, override.model || r.model, effectiveApiKey);
       }
       const model = buildImageModelWith({ 
         provider: override.provider, 
@@ -27,6 +33,12 @@ export class VisualFactory {
     
     if (r.provider === 'qwen') {
       return new QwenVisualProvider(r.apiKey, r.model);
+    }
+
+    if (r.provider === 'ollama') {
+      const raw = (r.baseUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434').replace(/\/+$/, '');
+      const baseURL = /\/v1$/.test(raw) ? raw : `${raw}/v1`;
+      return new OllamaImageProvider(baseURL, r.model, r.apiKey);
     }
 
     // All other supported image providers (google, openai, openrouter) go through

@@ -11,7 +11,6 @@ export function openaiTtsModel(model: string, baseUrl?: string, apiKey?: string)
   const provider = createOpenAI({
     baseURL: baseUrl,
     apiKey: apiKey ?? 'no-api-key-required',
-    compatibility: 'compatible',
   });
   return provider.speech(model as Parameters<typeof provider.speech>[0]);
 }

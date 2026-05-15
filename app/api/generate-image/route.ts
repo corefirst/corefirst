@@ -10,7 +10,7 @@ const MAX_PROMPT_LEN = 1024;
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { prompt } = body;
+    const { prompt, size } = body;
     if (!prompt || typeof prompt !== 'string') {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const hash = contentHash(prompt);
+    const hash = contentHash(`${prompt}:${size || '1024x1024'}`);
     const filename = `${hash}.webp`;
     const poolFile = sharedMediaPath(filename);
     const publicUrl = `/api/media/${filename}`;
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       await ensureDataDirs();
       const imageOverride = resolveImageOverride(extractSettings(request));
       const provider = VisualFactory.getProvider(imageOverride ?? undefined);
-      const dataUrl = await provider.generateImage(prompt);
+      const dataUrl = await provider.generateImage(prompt, { size });
 
       // 3. Save to pool
       const base64Data = dataUrl.replace(/^data:image\/\w+;base64,/, "");

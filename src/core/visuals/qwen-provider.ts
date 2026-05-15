@@ -12,7 +12,21 @@ export class QwenVisualProvider implements VisualProvider {
     private model: string = 'wanx-v1'
   ) {}
 
-  async generateImage(prompt: string): Promise<string> {
+  private normalizeSize(requested: string | undefined): string {
+    if (!requested) return '1024*1024';
+    const s = requested.replace('x', '*');
+    // DashScope Wanx-v1 supported sizes: 1024*1024, 1280*720, 720*1280, 768*1024, 1024*768
+    const supported = ['1024*1024', '1280*720', '720*1280', '768*1024', '1024*768'];
+    if (supported.includes(s)) return s;
+
+    // Mapping for common requested sizes to closest supported
+    if (s === '896*512') return '1024*768'; // Closest landscape
+    if (s === '768*512') return '1024*768';
+    
+    return '1024*1024';
+  }
+
+  async generateImage(prompt: string, options?: { size?: string }): Promise<string> {
     const styledPrompt = `A clean, educational illustration for a language learning app. Style: modern, flat vector, soft colors. Subject: ${prompt}`;
 
     const body = {
@@ -22,7 +36,7 @@ export class QwenVisualProvider implements VisualProvider {
       },
       parameters: {
         style: '<flat illustration>', 
-        size: '1024*1024',
+        size: this.normalizeSize(options?.size),
         n: 1
       }
     };

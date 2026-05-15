@@ -17,6 +17,19 @@ export function registerImageModelBuilder(provider: string, builder: ImageModelB
 // ── Built-in providers ────────────────────────────────────────────────────────
 registerImageModelBuilder('google',     (r, k) => googleImagenModel(r.model, k ?? r.apiKey));
 registerImageModelBuilder('openai',     (r, k) => openaiImageModel(r.model, r.baseUrl, k ?? r.apiKey));
+registerImageModelBuilder('ollama',     (r, _k) => {
+  // Ollama's experimental image generation returns NDJSON which AI-SDK 
+  // doesn't handle well. It is served by OllamaImageProvider in 
+  // src/core/visuals — register a stub here.
+  return new Proxy({}, {
+    get() {
+      throw new Error(
+        '[ai/imageGen] Ollama image generation is served outside the AI-SDK path; ' +
+        'use VisualFactory.getProvider() instead.'
+      );
+    },
+  }) as ImageModel;
+});
 registerImageModelBuilder('qwen',       (r, k) => openaiImageModel(r.model, getProviderBaseUrl('qwen'), k ?? r.apiKey));
 registerImageModelBuilder('openrouter', (r, k) => openaiImageModel(r.model, getProviderBaseUrl('openrouter'), k ?? r.apiKey));
 
@@ -31,7 +44,7 @@ export function buildImageModel(): ImageModel {
       },
     }) as ImageModel;
   }
-  console.log(`[ai/imageGen] provider=${r.provider} model=${r.model}`);
+  console.log(`[ai/imageGen] provider=${r.provider} model=${r.model} baseUrl=${r.baseUrl ?? '(default)'}`);
   const builder = registry.get(r.provider);
   if (!builder) throw new InvalidProviderError(r.provider, 'text-to-image');
   return builder(r);
@@ -54,8 +67,8 @@ export function buildImageModelWith(overrides: { provider?: string; apiKey?: str
   const effectiveR = {
     ...r,
     model: resolvedModel,
-    ...(overrides.baseUrl ? { baseUrl: overrides.baseUrl } : {}),
+    baseUrl: overrides.baseUrl || r.baseUrl,
   };
-  console.log(`[ai/imageGen] request: provider=${provider} model=${effectiveR.model}`);
+  console.log(`[ai/imageGen] request: provider=${provider} model=${effectiveR.model} baseUrl=${effectiveR.baseUrl ?? '(default)'}`);
   return builder(effectiveR, overrides.apiKey);
 }

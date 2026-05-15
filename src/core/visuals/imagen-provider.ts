@@ -14,14 +14,14 @@ export class AISDKImageProvider implements VisualProvider {
   private model: ImageModel;
   constructor(model?: ImageModel) { this.model = model ?? imageGenModel; }
 
-  async generateImage(prompt: string): Promise<string> {
+  async generateImage(prompt: string, options?: { size?: string }): Promise<string> {
     const styledPrompt = `A clean, educational illustration for a language learning app. Style: modern, flat vector, soft colors. Subject: ${prompt}`;
 
     try {
       const { image } = await generateImage({
         model: this.model,
         prompt: styledPrompt,
-        aspectRatio: '1:1',
+        size: options?.size as any || '1024x1024',
       });
 
       // image is a GeneratedFile with base64 + mediaType. Inline as data URL.

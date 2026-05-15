@@ -21,6 +21,12 @@ export function registerTranscriptionModelBuilder(
 // It is served by GoogleGeminiSTTProvider in src/core/stt — stub keeps the
 // module-level `sttModel` singleton valid; callers must use STTFactory.getProvider().
 registerTranscriptionModelBuilder('openai',     (r) => openaiSttModel(r.model, r.baseUrl, r.apiKey));
+registerTranscriptionModelBuilder('ollama',     (r) => {
+  // Normalize base URL for Ollama's OpenAI-compatible endpoint.
+  const raw = (r.baseUrl ?? process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434').replace(/\/+$/, '');
+  const baseURL = /\/v1$/.test(raw) ? raw : `${raw}/v1`;
+  return openaiSttModel(r.model, baseURL, r.apiKey);
+});
 registerTranscriptionModelBuilder('google',     (_r) => nonAiSdkStub());
 registerTranscriptionModelBuilder('qwen',       (r) => openaiSttModel(r.model, getProviderBaseUrl('qwen'), r.apiKey));
 registerTranscriptionModelBuilder('openrouter', (r) => openaiSttModel(r.model, getProviderBaseUrl('openrouter'), r.apiKey));
