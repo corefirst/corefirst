@@ -53,7 +53,7 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
   openrouter: {
     text: 'google/gemini-2.5-flash',
     'text-to-image': 'black-forest-labs/flux-schnell',
-    'text-to-speech': 'openai/tts-1',
+    'text-to-speech': 'openai/gpt-4o-mini-tts-2025-12-15',
     'speech-to-text': 'openai/whisper-1',
   },
   'cli/claude': { text: 'claude' },

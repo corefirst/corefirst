@@ -42,6 +42,7 @@ export class OpenAITTSProvider implements TTSProvider {
         model: this.model,
         text: cleanText,
         voice,
+        abortSignal: AbortSignal.timeout(30_000),
       });
       return audio.uint8Array;
     } catch (e) {

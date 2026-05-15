@@ -20,7 +20,7 @@ export function registerTTSProvider(provider: string, creator: TTSCreator): void
 // ── Built-in providers ────────────────────────────────────────────────────────
 registerTTSProvider('openai',     (r) => new OpenAITTSProvider(undefined, r.voice));
 registerTTSProvider('qwen',       (r) => new QwenTTSProvider(r.apiKey || process.env.QWEN_API_KEY || '', r.model, r.voice));
-registerTTSProvider('openrouter', (r) => new OpenAITTSProvider());
+registerTTSProvider('openrouter', (r) => new OpenAITTSProvider(undefined, r.voice));
 registerTTSProvider('google',     () => new GoogleGeminiTTSProvider());
 
 export class TTSFactory {

@@ -54,7 +54,7 @@ describe('TTSFactory.getProvider routing', () => {
 
   it('routes openrouter to OpenAITTSProvider', async () => {
     process.env.TTS_PROVIDER = 'openrouter';
-    process.env.TTS_MODEL = 'openai/tts-1';
+    process.env.TTS_MODEL = 'openai/gpt-4o-mini-tts-2025-12-15';
     process.env.OPENROUTER_API_KEY = 'sk-or-test';
     const { TTSFactory } = await import('@/src/core/tts/factory');
     const { OpenAITTSProvider } = await import('@/src/core/tts/openai-provider');

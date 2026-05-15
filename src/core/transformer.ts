@@ -43,6 +43,7 @@ export class CFLTTransformer {
         schema: AuditResultSchema,
         system,
         prompt: standard_l2,
+        maxTokens: 2048,
       });
       return object;
     } catch (e) {
@@ -81,6 +82,7 @@ export class CFLTTransformer {
         schema: CFLTResponseGenerationSchema,
         system: dynamicPrompt,
         prompt: userInput,
+        maxTokens: 2048,
       });
 
       return object as CFLTResponse;
