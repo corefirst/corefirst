@@ -36,6 +36,12 @@ const DOMAIN_GUIDANCE: Record<string, string> = {
   'Logistics / Operations':   'Process verbs (ship, track, schedule, coordinate, optimise); settings: warehouses, dispatch, supply-chain planning.',
 };
 
+/** Valid age groups accepted by the course generator. Single source of truth for CLI + UI. */
+export const AGE_GROUPS = Object.keys(AGE_GROUP_GUIDANCE) as readonly string[];
+
+/** Valid domain contexts accepted by the course generator. Single source of truth for CLI + UI. */
+export const DOMAINS = Object.keys(DOMAIN_GUIDANCE) as readonly string[];
+
 function resolveGuidance(map: Record<string, string>, key: string, fallback: string): string {
   return map[key] ?? `${fallback}: ${key}`;
 }

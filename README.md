@@ -78,6 +78,19 @@ Once a learner habitually sequences thoughts this way — regardless of language
 
 ---
 
+## Platforms
+
+CoreFirst ships on four platforms from a single codebase.
+
+| Platform | How to get it | Status |
+|----------|--------------|--------|
+| **Web** | Self-host or [corefirst.world](https://corefirst.world) | Production |
+| **CLI** | `npm install -g corefirst` | Production |
+| **Desktop (Mac/Win/Linux)** | `pnpm electron:build` or [Releases](https://github.com/corefirst/corefirst/releases) | Beta |
+| **Mobile (PWA)** | Visit the web app → "Add to Home Screen" | Production |
+
+---
+
 ## Architecture at a Glance
 
 - **Frontend:** Next.js 16 + React 19 + Tailwind v4
@@ -104,7 +117,18 @@ Once a learner habitually sequences thoughts this way — regardless of language
 
 ## Quick Start
 
-Three supported run modes — pick whichever matches your environment.
+Four ways to run CoreFirst — pick whichever fits.
+
+### Mode 0: CLI only (fastest, no server needed)
+
+```bash
+npm install -g corefirst
+corefirst config init          # set your API key once
+corefirst transform "I didn't go out because it rained"
+corefirst gen --topic "Coffee Shop" --from English --to Spanish
+```
+
+Full CLI reference: [`docs/cli.md`](docs/cli.md)
 
 ### Mode A: Hybrid (recommended for daily Mac dev)
 
@@ -309,12 +333,45 @@ Today, industry context flows through the free-text `industry_context` field on 
 
 ---
 
+## Build scripts
+
+| Script | What it does |
+|--------|-------------|
+| `pnpm dev` | Next.js dev server with hot reload (`localhost:3000`) |
+| `pnpm build` | Next.js production build (standalone output for Docker + Electron) |
+| `pnpm start` | Start the production Next.js server |
+| `pnpm build:cli` | Compile CLI + Electron to `dist/cli/` and `electron/` via tsup |
+| `pnpm electron:dev` | Open Electron desktop app (requires `pnpm build` first) |
+| `pnpm electron:build` | Package Electron app for current platform → `release/` |
+| `pnpm test` | Run Vitest suite (203 tests) |
+| `pnpm lint` | ESLint |
+
+### Build the desktop app
+
+```bash
+# 1. Build Next.js (Electron embeds the standalone server)
+pnpm build
+
+# 2. Build Electron JS (compiles electron/main.ts)
+pnpm build:cli
+
+# 3. Package for your platform
+pnpm electron:build        # current platform
+npx electron-builder --mac    # .dmg (arm64 + x64)
+npx electron-builder --win    # .exe NSIS installer
+npx electron-builder --linux  # .AppImage
+```
+
+Output lands in `release/`. See [`docs/cli.md`](docs/cli.md) for prerequisites per platform.
+
+---
+
 ## Testing
 
 ```bash
-pnpm test           # full vitest suite (29 tests)
+pnpm test                                         # vitest suite (203 tests)
 pnpm exec tsc --noEmit --ignoreDeprecations 6.0   # type check
-pnpm build          # next standalone build (used by Docker image)
+pnpm build                                        # next standalone build
 ```
 
 Test vectors for CFLT correctness are in `tests/core/test_vectors.md`. All five canonical Chinese↔English transformation cases must pass.
@@ -325,6 +382,7 @@ Test vectors for CFLT correctness are in `tests/core/test_vectors.md`. All five 
 
 | Document | Description |
 |----------|-------------|
+| [`docs/cli.md`](docs/cli.md) | CLI reference — all commands, config keys, build & publish |
 | [`docs/prd.md`](docs/prd.md) | Product Requirements Document |
 | [`docs/tech-design.md`](docs/tech-design.md) | Technical architecture, env vars, module breakdown |
 | [`docs/learning-architecture.md`](docs/learning-architecture.md) | Three-mode learning system + cross-mode integration phases |

@@ -1,16 +1,30 @@
 {
   "name": "corefirst",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Open-source AI-driven bilingual learning platform implementing Core-First Language Theory (CFLT).",
   "homepage": "https://corefirst.world",
   "repository": {
     "type": "git",
-    "url": "https://github.com/corefirst/corefirst.git"
+    "url": "git+https://github.com/corefirst/corefirst.git"
   },
   "bugs": {
     "url": "https://github.com/corefirst/corefirst/issues"
   },
   "main": "index.js",
+  "bin": {
+    "corefirst": "dist/cli/index.js"
+  },
+  "files": [
+    "dist/",
+    "src/core/",
+    "src/generator/",
+    "src/lib/",
+    "src/prompts/",
+    "src/types/",
+    "public/",
+    "package.json",
+    "README.md"
+  ],
   "directories": {
     "doc": "docs",
     "test": "tests"
@@ -21,7 +35,11 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest run",
-    "test:e2e": "vitest run --config vitest.config.e2e.ts"
+    "test:e2e": "vitest run --config vitest.config.e2e.ts",
+    "build:cli": "tsup",
+    "electron:dev": "electron electron/main.js",
+    "electron:build": "next build && electron-builder",
+    "prepublishOnly": "pnpm build:cli"
   },
   "keywords": [
     "language-learning",
@@ -49,11 +67,14 @@
     "@types/pouchdb": "^6.4.2",
     "ai": "^6.0.175",
     "canvas-confetti": "^1.9.4",
+    "commander": "^14.0.3",
     "fflate": "^0.8.2",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.14.0",
     "next": "^16.2.4",
     "ollama-ai-provider-v2": "^3.5.0",
+    "ora": "^9.4.0",
+    "picocolors": "^1.1.1",
     "pouchdb": "^9.0.0",
     "pouchdb-adapter-leveldb": "^9.0.0",
     "react": "^19.2.5",
@@ -68,9 +89,12 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.5.0",
     "dotenv": "^17.4.2",
+    "electron": "^42.1.0",
+    "electron-builder": "^26.8.1",
     "postcss": "^8.5.14",
     "pouchdb-node": "^9.0.0",
     "tailwindcss": "^4.2.4",
+    "tsup": "^8.5.1",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.5"

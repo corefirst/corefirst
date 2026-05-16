@@ -8,7 +8,9 @@ const cache = new Map<string, string>();
 const PLACEHOLDER_RE = /\{\{([A-Za-z_][A-Za-z0-9_]*)\}\}/g;
 
 function resolveSafe(relativePath: string): string {
-  const root = process.cwd();
+  // COREFIRST_ROOT lets the CLI binary resolve prompts from the npm package
+  // installation directory instead of the user's cwd.
+  const root = process.env.COREFIRST_ROOT ?? process.cwd();
   const resolved = path.resolve(root, relativePath);
   const rel = path.relative(root, resolved);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
