@@ -260,7 +260,7 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
     let cancelled = false;
     (async () => {
       try {
-        const res = await fetch('/api/history/roleplay');
+        const res = await fetch('/api/history/roleplay', { signal: AbortSignal.timeout(10_000) });
         if (!res.ok) throw new Error('Failed');
         const payload: HistoryPayload = await res.json();
         if (!cancelled) setSessions(payload.roleplaySessions);

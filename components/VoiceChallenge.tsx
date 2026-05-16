@@ -6,6 +6,7 @@ import { useSettings } from '@/hooks/useSettings';
 import { Mic, Square, Loader2, Award, Info, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { CFLTResponse } from '@/src/types/cflt';
+import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
 interface VoiceChallengeProps {
   expectedText: string;

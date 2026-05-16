@@ -1,5 +1,6 @@
-import { app, BrowserWindow, shell } from 'electron';
+import { app, BrowserWindow, shell, dialog } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import * as http from 'http';
 import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
@@ -23,12 +24,24 @@ function findFreePort(start: number, limit = start + 50): Promise<number> {
   });
 }
 
+/** Returns true if something is already listening and responding on the port. */
+function checkPortResponding(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = http.get(`http://127.0.0.1:${port}`, { timeout: 800 }, (res) => {
+      res.resume();
+      resolve(res.statusCode !== undefined);
+    });
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+    req.on('error', () => resolve(false));
+  });
+}
+
 function waitForServer(port: number, retries = 30): Promise<void> {
   return new Promise((resolve, reject) => {
     let attempts = 0;
     const check = () => {
       const req = http.get(`http://127.0.0.1:${port}`, { timeout: 1000 }, (res) => {
-        res.resume(); // drain response body
+        res.resume();
         if (res.statusCode && res.statusCode < 500) resolve();
         else retry();
       });
@@ -49,22 +62,62 @@ async function startServer(): Promise<void> {
     ? path.join(process.resourcesPath, 'app')
     : path.join(__dirname, '..');
 
+  const standaloneScript = path.join(appRoot, '.next', 'standalone', 'server.js');
+
+  // ── A: attach to an already-running server ─────────────────────────────────
+  if (!app.isPackaged && await checkPortResponding(3000)) {
+    serverPort = 3000;
+    console.log('[electron] Attaching to existing server on port 3000');
+    return;
+  }
+
   serverPort = await findFreePort(3000);
 
-  const serverScript = path.join(appRoot, '.next', 'standalone', 'server.js');
-  const env = {
-    ...process.env,
-    PORT: String(serverPort),
-    HOSTNAME: '127.0.0.1',
-    NODE_ENV: 'production',
+  // Electron keeps its own data directory so it never conflicts with a
+  // concurrently-running `pnpm dev` web server sharing the same LevelDB path.
+  const electronDataDir = path.join(app.getPath('userData'), 'data');
+  const serverEnvBase = {
+    COREFIRST_DATA_DIR: electronDataDir,
   };
 
-  serverProcess = spawn(process.execPath, [serverScript], {
-    env,
-    cwd: appRoot,
+  // ── B: start pre-built standalone server (after `pnpm build`) ─────────────
+  if (fs.existsSync(standaloneScript)) {
+    spawnServer(process.execPath, [standaloneScript], appRoot, {
+      ...serverEnvBase,
+      PORT: String(serverPort),
+      HOSTNAME: '127.0.0.1',
+      NODE_ENV: 'production',
+    });
+    await waitForServer(serverPort);
+    return;
+  }
+
+  // ── C: start Next.js dev server automatically ──────────────────────────────
+  const nextBin = path.join(
+    appRoot, 'node_modules', '.bin',
+    process.platform === 'win32' ? 'next.cmd' : 'next',
+  );
+  if (!fs.existsSync(nextBin)) {
+    throw new Error(`next binary not found at ${nextBin}.\nRun pnpm install first.`);
+  }
+  console.log('[electron] Starting Next.js dev server (first start may take ~15 s)…');
+  console.log(`[electron] Data directory: ${electronDataDir}`);
+  spawnServer(nextBin, ['dev', '--port', String(serverPort)], appRoot, serverEnvBase);
+  // Dev server is slower to boot — allow up to 60 retries
+  await waitForServer(serverPort, 60);
+}
+
+function spawnServer(
+  cmd: string,
+  args: string[],
+  cwd: string,
+  extraEnv: Record<string, string>,
+): void {
+  serverProcess = spawn(cmd, args, {
+    env: { ...process.env, ...extraEnv },
+    cwd,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-
   serverProcess.stdout?.on('data', (d: Buffer) => process.stdout.write(d));
   serverProcess.stderr?.on('data', (d: Buffer) => process.stderr.write(d));
   serverProcess.on('error', (err) => {
@@ -72,13 +125,11 @@ async function startServer(): Promise<void> {
     app.quit();
   });
   serverProcess.on('exit', (code) => {
-    if (code !== 0) {
+    if (code !== 0 && code !== null) {
       console.error(`[electron] server exited with code ${code}`);
       app.quit();
     }
   });
-
-  await waitForServer(serverPort);
 }
 
 async function createWindow(): Promise<void> {
@@ -115,7 +166,7 @@ async function createWindow(): Promise<void> {
     return { action: 'deny' };
   });
 
-  await mainWindow.loadURL(`http://127.0.0.1:${serverPort}`);
+  await mainWindow.loadURL(`http://localhost:${serverPort}`);
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
@@ -124,7 +175,10 @@ app.whenReady().then(async () => {
     await startServer();
     await createWindow();
   } catch (err) {
-    console.error('[electron] startup failed:', err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[electron] startup failed:', message);
+    // Show a native dialog so the error is visible even without a terminal
+    dialog.showErrorBox('CoreFirst — startup error', message);
     app.quit();
   }
 });

@@ -122,7 +122,7 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
     setHasError(false);
     (async () => {
       try {
-        const res = await fetch('/api/history/courses');
+        const res = await fetch('/api/history/courses', { signal: AbortSignal.timeout(10_000) });
         if (!res.ok) throw new Error('Failed to load course history');
         const payload: HistoryPayload = await res.json();
         if (!cancelled) setItems(payload.courses);

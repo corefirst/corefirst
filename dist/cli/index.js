@@ -23758,7 +23758,8 @@ var require_package = __commonJS({
         "test:e2e": "vitest run --config vitest.config.e2e.ts",
         "build:cli": "tsup",
         "electron:dev": "electron electron/main.js",
-        "electron:build": "next build && electron-builder",
+        "electron:full": "pnpm build && pnpm build:cli && electron electron/main.js",
+        "electron:build": "pnpm build && pnpm build:cli && electron-builder",
         prepublishOnly: "pnpm build:cli"
       },
       keywords: [

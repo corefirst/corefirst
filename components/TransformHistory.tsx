@@ -90,7 +90,9 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
     setHasError(false);
     (async () => {
       try {
-        const res = await fetch('/api/history/transforms');
+        const res = await fetch('/api/history/transforms', {
+          signal: AbortSignal.timeout(10_000),
+        });
         if (!res.ok) throw new Error('Failed to load history');
         const payload: HistoryPayload = await res.json();
         if (!cancelled) {

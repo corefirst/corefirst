@@ -25,6 +25,7 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 // electron/main.ts
 var import_electron = require("electron");
 var path = __toESM(require("path"));
+var fs = __toESM(require("fs"));
 var http = __toESM(require("http"));
 var import_child_process = require("child_process");
 var net = __toESM(require("net"));
@@ -43,6 +44,19 @@ function findFreePort(start, limit = start + 50) {
       server.close(() => resolve(port));
     });
     server.on("error", () => resolve(findFreePort(start + 1, limit)));
+  });
+}
+function checkPortResponding(port) {
+  return new Promise((resolve) => {
+    const req = http.get(`http://127.0.0.1:${port}`, { timeout: 800 }, (res) => {
+      res.resume();
+      resolve(res.statusCode !== void 0);
+    });
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(false);
+    });
+    req.on("error", () => resolve(false));
   });
 }
 function waitForServer(port, retries = 30) {
@@ -70,17 +84,46 @@ function waitForServer(port, retries = 30) {
 }
 async function startServer() {
   const appRoot = import_electron.app.isPackaged ? path.join(process.resourcesPath, "app") : path.join(__dirname, "..");
+  const standaloneScript = path.join(appRoot, ".next", "standalone", "server.js");
+  if (!import_electron.app.isPackaged && await checkPortResponding(3e3)) {
+    serverPort = 3e3;
+    console.log("[electron] Attaching to existing server on port 3000");
+    return;
+  }
   serverPort = await findFreePort(3e3);
-  const serverScript = path.join(appRoot, ".next", "standalone", "server.js");
-  const env = {
-    ...process.env,
-    PORT: String(serverPort),
-    HOSTNAME: "127.0.0.1",
-    NODE_ENV: "production"
+  const electronDataDir = path.join(import_electron.app.getPath("userData"), "data");
+  const serverEnvBase = {
+    COREFIRST_DATA_DIR: electronDataDir
   };
-  serverProcess = (0, import_child_process.spawn)(process.execPath, [serverScript], {
-    env,
-    cwd: appRoot,
+  if (fs.existsSync(standaloneScript)) {
+    spawnServer(process.execPath, [standaloneScript], appRoot, {
+      ...serverEnvBase,
+      PORT: String(serverPort),
+      HOSTNAME: "127.0.0.1",
+      NODE_ENV: "production"
+    });
+    await waitForServer(serverPort);
+    return;
+  }
+  const nextBin = path.join(
+    appRoot,
+    "node_modules",
+    ".bin",
+    process.platform === "win32" ? "next.cmd" : "next"
+  );
+  if (!fs.existsSync(nextBin)) {
+    throw new Error(`next binary not found at ${nextBin}.
+Run pnpm install first.`);
+  }
+  console.log("[electron] Starting Next.js dev server (first start may take ~15 s)\u2026");
+  console.log(`[electron] Data directory: ${electronDataDir}`);
+  spawnServer(nextBin, ["dev", "--port", String(serverPort)], appRoot, serverEnvBase);
+  await waitForServer(serverPort, 60);
+}
+function spawnServer(cmd, args, cwd, extraEnv) {
+  serverProcess = (0, import_child_process.spawn)(cmd, args, {
+    env: { ...process.env, ...extraEnv },
+    cwd,
     stdio: ["ignore", "pipe", "pipe"]
   });
   serverProcess.stdout?.on("data", (d) => process.stdout.write(d));
@@ -90,12 +133,11 @@ async function startServer() {
     import_electron.app.quit();
   });
   serverProcess.on("exit", (code) => {
-    if (code !== 0) {
+    if (code !== 0 && code !== null) {
       console.error(`[electron] server exited with code ${code}`);
       import_electron.app.quit();
     }
   });
-  await waitForServer(serverPort);
 }
 async function createWindow() {
   mainWindow = new import_electron.BrowserWindow({
@@ -126,7 +168,7 @@ async function createWindow() {
     import_electron.shell.openExternal(url);
     return { action: "deny" };
   });
-  await mainWindow.loadURL(`http://127.0.0.1:${serverPort}`);
+  await mainWindow.loadURL(`http://localhost:${serverPort}`);
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -136,7 +178,9 @@ import_electron.app.whenReady().then(async () => {
     await startServer();
     await createWindow();
   } catch (err) {
-    console.error("[electron] startup failed:", err);
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[electron] startup failed:", message);
+    import_electron.dialog.showErrorBox("CoreFirst \u2014 startup error", message);
     import_electron.app.quit();
   }
 });

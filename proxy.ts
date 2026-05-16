@@ -9,7 +9,7 @@ import { USER_ID_COOKIE } from '@/src/lib/constants';
 // SHA-256 hash ID derived from the profile name, not a random UUID.
 const COOKIE_NAME = USER_ID_COOKIE;
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest): NextResponse {
   const response = NextResponse.next();
   if (!request.cookies.get(COOKIE_NAME)) {
     response.cookies.set(COOKIE_NAME, 'local', {

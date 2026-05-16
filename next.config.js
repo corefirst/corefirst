@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Allow Electron (127.0.0.1) to access the Next.js dev server.
+  // Without this, Next.js 16 treats 127.0.0.1 → localhost as cross-origin
+  // and blocks HMR and some API requests.
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
+
   // Produce a self-contained server bundle under `.next/standalone/`.
   // Required for the Docker image — see Dockerfile.
   output: 'standalone',
