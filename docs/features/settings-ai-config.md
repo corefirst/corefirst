@@ -1,6 +1,6 @@
 # Settings & AI Configuration
 
-> Status: Shipped | Updated: 2026-05-13  
+> Status: Shipped | Updated: 2026-05-16  
 > PRD: F-15 UI-Configurable AI Provider, F-16 BYOK Error Handling  
 > Source spec: `docs/prd.md` F-15/F-16
 
@@ -11,6 +11,8 @@
 Users configure AI providers, API keys, and local server URLs entirely from the browser UI — no `.env` editing required. Settings are stored in `localStorage` per profile, delivered to the server as `x-cf-*` request headers, and applied per-request without touching any server-side config.
 
 Existing `.env`-based configuration continues to work unchanged. Browser settings override env vars for that request only.
+
+CLI-configured settings (via `corefirst config set …`) are persisted to `~/.corefirst/config.json` and loaded as env vars at process start, so the same provider/key choices apply to both the web server and CLI commands.
 
 ---
 
@@ -24,18 +26,19 @@ Two-tab modal, opened via the ⚙ icon in the header.
 
 | Group | Providers |
 |-------|-----------|
-| Cloud | OpenRouter · Groq · Google AI · OpenAI · Anthropic |
+| Cloud | OpenRouter · Groq · Google AI · OpenAI · Anthropic · Qwen |
 | Local | Ollama · Claude CLI · Gemini CLI |
 
 Auth input adapts to provider type:
-- **Cloud:** API key (password field) + [Verify] button + optional model override + "Get one free →" link
+- **Cloud (API key providers):** API key (password field) + [Verify] button + optional model override + preset chips + "Get one free →" link
+- **Qwen:** `DASHSCOPE_API_KEY` + optional model; presets include `qwen3-235b-a22b`, `qwen3-30b-a3b`, etc.
 - **Ollama:** Base URL (default `http://localhost:11434`) + required model field + quick-pick tags (llama3.2, qwen2.5, mistral, deepseek-r1, gemma3)
 - **CLI:** No auth needed; optional command path override; [Check CLI] verify button
 
 Three collapsible sections for auxiliary capabilities:
-- **TTS:** Provider (openai-compatible) + Base URL (blank = openai.com) + Model. Local examples: Kokoro-FastAPI, Piper, Orpheus-FastAPI
-- **STT:** Provider (openai-compatible) + Base URL. Local examples: faster-whisper-server, whisper.cpp
-- **Image Gen:** Provider (google / openai) + API Key
+- **TTS:** Provider (`openai` / `google` / `qwen`) + Base URL (openai-compat only) + Model. Local examples: Kokoro-FastAPI, Piper, Orpheus-FastAPI
+- **STT:** Provider (`openai` / `google` / `qwen`) + Base URL (openai-compat only). Local examples: faster-whisper-server, whisper.cpp
+- **Image Gen:** Provider (`google` / `openai` / `qwen` / `ollama`) + API Key
 
 ### Tab 2: Profile
 

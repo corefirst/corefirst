@@ -1,6 +1,6 @@
 # Provider & Storage Architecture
 
-> Software version: 0.3.1 | Status: Implemented | Last Updated: 2026-05-13
+> Software version: 0.6.0 | Status: Implemented | Last Updated: 2026-05-16
 > Companion documents: `docs/prd.md`, `docs/tech-design.md`, `docs/storage-design.md`, `docs/package-format.md`, `docs/learning-architecture.md`
 
 ---
@@ -45,8 +45,10 @@ The table below contrasts the system before the refactor with the architecture a
 |---|---|---|
 | AI module | Single `src/lib/ai.ts` exporting pre-built `llmModel` / `llmModelPro` / `imageModel` / `speechModel` / `transcriptionModel` from one file | `src/lib/ai/` package, split per capability: `text/`, `text-to-image/`, `text-to-speech/`, `speech-to-text/`, plus three video stubs. Each capability has its own factory; each *feature* (transform/courseGen/roleplay/speechEval/imageGen/tts/stt) has its own configuration knob. |
 | Provider switch | Single `LLM_PROVIDER` env var | Per-capability defaults (`TEXT_PROVIDER`, `TEXT_TO_IMAGE_PROVIDER`, `TEXT_TO_SPEECH_PROVIDER`, `SPEECH_TO_TEXT_PROVIDER`) plus per-feature overrides (`TRANSFORM_PROVIDER`, `ROLEPLAY_PROVIDER`, …). Legacy `LLM_*` vars are not retained — pre-1.0 OSS, clean cut. |
-| Text providers | `google`, `openai`, `anthropic`, `ollama`, `openrouter` | All of the above + `cli/claude`, `cli/gemini` (subscription-CLI subprocess; **text-only**) |
-| Image / TTS / STT providers | Hardcoded to Google Imagen / OpenAI TTS / OpenAI STT | Pluggable via per-modality factories. Defaults match today; CLI providers explicitly **not** offered for these — capability matrix enforced at module load. |
+| Text providers | `google`, `openai`, `anthropic`, `ollama`, `openrouter` | All of the above + `groq`, `qwen`, `deepseek`, `cli/claude`, `cli/gemini` (subscription-CLI subprocess; **text-only**) |
+| Image providers | Hardcoded to Google Imagen | Pluggable: `google` (Imagen), `openai` (DALL-E 3 / gpt-image-1), `qwen` (Wanx, async-poll), `ollama` (local, OpenAI-compat with native fallback) |
+| TTS providers | Hardcoded to OpenAI TTS | Pluggable: `openai` (+ any OpenAI-compat local server via `TTS_BASE_URL`), `google` (Gemini TTS, multi-voice), `qwen` (CosyVoice, `qwen3-tts-flash`) |
+| STT providers | Hardcoded to OpenAI STT | Pluggable: `openai` (+ any OpenAI-compat local server via `STT_BASE_URL`), `google` (Gemini STT), `qwen` (Paraformer / SenseVoice, async-poll) |
 | Structured output for CLI | N/A | Custom `LanguageModelV2.doGenerate` injects schema into system prompt, parses CLI's stream-json transcript, returns text; AI SDK handles JSON repair |
 | Storage backend | Prisma + libSQL (`Session`, `Attempt`, `Vocabulary`) | File-based: `.corefirst` (ZIP) + `.cfrecord` (JSON), per `docs/storage-design.md` |
 | Storage module | `src/lib/db.ts` (`prisma` singleton) | `src/lib/storage/`: `package.ts` (read/write `.corefirst`), `record.ts` (read/write `.cfrecord`), `paths.ts` |
@@ -134,6 +136,25 @@ src/lib/ai/
     factory.ts                 # buildTranscriptionModel() — registry; registerTranscriptionModelBuilder()
     sdk/openai-stt.ts
 
+src/core/tts/                  # TTS provider façade (used by API routes directly)
+  factory.ts                   # registerTTSProvider(); buildTTS(provider, opts)
+  openai-provider.ts
+  google-provider.ts           # Gemini TTS — multi-voice support
+  qwen-provider.ts             # CosyVoice via DashScope; model qwen3-tts-flash; async single-response
+
+src/core/stt/                  # STT provider façade
+  factory.ts                   # registerSTTProvider(); buildSTT(provider, opts)
+  openai-provider.ts
+  google-provider.ts
+  qwen-provider.ts             # Paraformer / SenseVoice via DashScope; async-poll architecture
+
+src/core/visuals/              # Image-generation provider façade
+  factory.ts
+  imagen-provider.ts           # Google Imagen
+  openai-provider.ts           # DALL-E 3 / gpt-image-1
+  qwen-provider.ts             # Wanx v1; async job polling (2 s interval, 30 retries)
+  ollama-provider.ts           # Local offline; OpenAI-compat /v1 with native /api/generate fallback
+
   text-to-video/               # stub
     factory.ts                 # buildTextToVideoModel() — throws NotImplementedError
   image-to-video/              # stub
@@ -216,9 +237,9 @@ Each feature resolves provider + model via this precedence:
 | Capability | Providers |
 |---|---|
 | `text` | `google`, `openai`, `anthropic`, `ollama`, `groq`, `openrouter`, `qwen`, `deepseek`, **`cli/claude`**, **`cli/gemini`** |
-| `text-to-image` | `google` (Imagen), `openai` (DALL-E 3), `qwen` (Wanx), `openrouter` |
-| `text-to-speech` | `openai` (+ OpenAI-compat local servers via `TTS_BASE_URL`), `google` (Gemini TTS), `qwen` (CosyVoice), `openrouter` |
-| `speech-to-text` | `openai` (+ OpenAI-compat local servers via `STT_BASE_URL`), `google` (Gemini STT), `qwen` (Paraformer), `openrouter` |
+| `text-to-image` | `google` (Imagen), `openai` (DALL-E 3 / gpt-image-1), `qwen` (Wanx v1 — async poll), `ollama` (local — OpenAI-compat + native fallback) |
+| `text-to-speech` | `openai` (+ OpenAI-compat local servers via `TTS_BASE_URL`), `google` (Gemini TTS, multi-voice), `qwen` (CosyVoice, `qwen3-tts-flash`) |
+| `speech-to-text` | `openai` (+ OpenAI-compat local servers via `STT_BASE_URL`), `google` (Gemini STT), `qwen` (Paraformer / SenseVoice — async poll) |
 | `text-to-video` | (none — stub) |
 | `image-to-video` | (none — stub) |
 | `multimodal-to-video` | (none — stub) |

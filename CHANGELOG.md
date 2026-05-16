@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-05-16
+### Added
+- **Desktop App (F-22):** Cross-platform Electron-based desktop application with a bundled Next.js server, dev server support, and service worker registration.
+- **Internationalization (F-23):** Full i18n support across all UI components and user-facing messages.
+- **Ollama Visual Provider:** Local image generation via Ollama, adding an offline-capable visual provider option.
+- **AI Provider Test CLI:** New `test-provider` CLI command for validating LLM, TTS, STT, and image provider connectivity end-to-end.
+- **Footer Component:** Added site footer with copyright information and project links.
+
+### Changed
+- Migrated OpenRouter provider from a custom adapter to `@ai-sdk/openai` for better compatibility and timeout support.
+- Replaced compact `ProfileSwitcher` inline with a reorganized dashboard header layout.
+- SRS due-date calculations are now timezone-safe.
+- Implemented strict Zod schemas for OpenAI Structured Outputs; updated default model identifiers for TTS and STT.
+- Standardized image size parsing and aspect-ratio normalization into shared utility functions.
+- Renamed `GOOGLE_API_KEY` to `GOOGLE_GENERATIVE_AI_API_KEY` and added provider-availability checks at startup.
+- Improved Electron server initialization: graceful shutdown, request timeouts on history fetches, and first-run open-browser behavior.
+- Extracted course lesson rendering into a dedicated `CourseHistory` component.
+
+## [0.5.0] - 2026-05-14
+### Added
+- **Qwen Provider Suite:** Qwen TTS, Qwen native STT, and Qwen Wanx image generation (with async polling and fallback API key resolution).
+- **Google Gemini TTS Voices:** Added multi-voice support to the Google Gemini TTS provider.
+- **Model Selection UI:** Persistent AI configuration with per-provider model presets; settings are saved to local disk and reloaded on restart.
+- **ComboBox Component:** Replaced native `<datalist>` elements with a searchable ComboBox for domain and scenario selection.
+- **History Pagination:** Load-more pagination for Transform, Roleplay, and Course history lists.
+- **Young Learner Safeguards:** Age and domain-specific guidance injected into courseware generation; lightweight script audit flags content unsuitable for young learners.
+
+### Changed
+- Renamed "industry" to "domain" across the entire codebase; added a one-time migration utility for existing learner records.
+- Externalized AI provider configuration into hot-reloadable dynamic modules with a `/api/config/refresh` endpoint.
+- Standardized all AI service factories under a unified request-context pattern; improved header propagation for TTS, STT, and transcription services.
+- Implemented language-code mapping in the speech evaluator so transcription requests target the correct locale.
+- Hardened Roleplay API with strict slot-level Zod validation, flexible multi-format slot parsing, and a JSON salvage path for malformed model responses.
+
 ## [0.4.0] - 2026-05-13
 ### Added
 - **Progress Analytics & SRS (F-04):** Implemented SM-2 algorithm for spaced repetition and vocabulary mastery tracking.

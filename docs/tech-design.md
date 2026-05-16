@@ -1,7 +1,40 @@
 # Technical Design — CoreFirst
 
-> Software version: 0.3.1 | Status: Active | Last Updated: 2026-05-13  
+> Software version: 0.6.0 | Status: Active | Last Updated: 2026-05-16  
 > Companion document to: `docs/prd.md`
+
+### Changelog — v0.6.0 (2026-05-16)
+
+| Area | Change |
+|---|---|
+| **Desktop App** | Electron wrapper (`electron/main.ts`) bundles the Next.js standalone server. Launched via `corefirst app`. Three startup modes: attach to existing dev server, load pre-built standalone, or spawn `next dev` on first run. Window: 1280×820 px, dark theme, per-process `COREFIRST_DATA_DIR` to avoid conflicts with concurrent web servers. |
+| **i18n** | `src/lib/ui-i18n.ts` — 130+ key dictionary covering 8 UI languages (English, Chinese, Japanese, Korean, Vietnamese, Spanish, French, German). `tr(uiLang, key, ...args)` wrapper used across all components. LLM rationales localized via `{{UI_LANG}}` injected into system prompts. |
+| **Ollama visual provider** | `src/core/visuals/ollama-provider.ts` — local offline image generation. Dual-path: OpenAI-compatible `/v1/images/generations` with native `/api/generate` fallback. Default model: `x/z-image-turbo:latest`. |
+| **AI provider test CLI** | `src/cli/test-ai.ts` — validates LLM / TTS / STT / image connectivity end-to-end; saves generated artifacts to `data/tmp/`. |
+| **Provider check** | `hasProvider()` in `src/cli/utils/config-store.ts` — gates CLI commands; fails fast if no provider key or `GLOBAL_PROVIDER` is configured. |
+| **OpenRouter migration** | OpenRouter provider migrated from custom adapter to `@ai-sdk/openai`; TTS requests gain an explicit timeout; transformer `maxTokens` cap added. |
+| **Strict Zod schemas** | OpenAI text routes use OpenAI Structured Outputs (strict mode). Default TTS and STT model identifiers updated. |
+| **Image size normalization** | `parseSize()` utility extracts width/height from any size string; used by Qwen Wanx and Ollama providers for consistent aspect-ratio handling. |
+| **Google key rename** | `GOOGLE_API_KEY` renamed to `GOOGLE_GENERATIVE_AI_API_KEY`; legacy name kept as fallback. CLI config key `google.key` maps to the new name. |
+| **Footer component** | Semantic `<footer>` with copyright, website link (`corefirst.world`), and GitHub link. |
+| **ProfileSwitcher** | Compact inline header layout replaces previous modal-based switcher. SRS due-date calculations are timezone-safe. |
+| **CourseHistory** | Course lesson rendering extracted from `app/page.tsx` into a dedicated `CourseHistory` component. |
+
+### Changelog — v0.5.0 (2026-05-14)
+
+| Area | Change |
+|---|---|
+| **Qwen provider suite** | Qwen TTS (`src/core/tts/qwen-provider.ts`, model `qwen3-tts-flash`, voice `Cherry`); Qwen STT (`src/core/stt/qwen-provider.ts`, Paraformer/SenseVoice, async-poll architecture); Qwen Wanx image (`src/core/visuals/qwen-provider.ts`, `wanx-v1`, async job polling). All use `DASHSCOPE_API_KEY`. |
+| **Google Gemini TTS voices** | Multi-voice support added to the Google Gemini TTS provider. |
+| **Model selection UI + disk persistence** | Settings panel gains per-provider model presets and a free-text model override. Config is persisted to `~/.corefirst/config.json` via the CLI config store and reloaded at next start. |
+| **ComboBox component** | `components/ComboBox.tsx` — searchable, keyboard-navigable dropdown replacing `<datalist>` for domain and scenario inputs. Supports custom free-text values; ARIA-compliant. |
+| **History pagination** | Load-more pagination for Transform, Roleplay, and Course history lists. |
+| **Domain rename** | `industry` / `industry_context` renamed to `domain` / `domain_context` everywhere. One-time migration utility converts existing learner records. |
+| **AI config externalization** | Provider configuration moved to hot-reloadable dynamic modules; `/api/config/refresh` endpoint forces reload without restart. |
+| **Young learner safeguards** | `AGE_GROUP_GUIDANCE` + `DOMAIN_GUIDANCE` injected into courseware prompts; `auditScript` (permissive) used instead of strict CFLT correction for "Young Child" age group. |
+| **Language code mapping** | Speech evaluator maps UI language names to BCP-47 locale codes so transcription targets the correct locale. |
+| **Roleplay robustness** | Strict slot-level Zod validation + flexible multi-format slot parsing + JSON salvage path for malformed model responses. |
+| **Standardized AI factories** | All AI service factories share a unified request-context pattern; `getHeaders` included in effect dependency arrays for audio playback and transcription. |
 
 ### Changelog — v0.3.1 (2026-05-13)
 
@@ -118,9 +151,9 @@ To support the vision of a 100% private, BYOK (Bring Your Own Key) ecosystem acr
 | File | Responsibility |
 |------|---------------|
 | `transformer.ts` | CFLT transformation logic: loads system prompt, calls `generateObject` against `CFLTResponseSchema`, returns parsed object |
-| `system_prompt.md` | Language-agnostic system prompt with `{{SOURCE_LANG}}` / `{{TARGET_LANG}}` placeholders |
-| `tts/` | TTS provider interface + factory + OpenAI implementation |
-| `visuals/` | Image-generation provider interface + factory + Imagen implementation |
+| `system_prompt.md` | Language-agnostic system prompt with `{{SOURCE_LANG}}` / `{{TARGET_LANG}}` / `{{UI_LANG}}` placeholders |
+| `tts/` | TTS provider interface + factory + OpenAI, Google Gemini, and Qwen (CosyVoice) implementations |
+| `visuals/` | Image-generation provider interface + factory + Imagen, OpenAI, Qwen Wanx, and Ollama implementations |
 
 The shared model registry lives in `src/lib/ai/`, split per *capability* (text, text-to-image, text-to-speech, speech-to-text, plus three video stubs). Consumers import the pre-built model for the specific *feature* they implement: `transformModel`, `courseGenModel`, `roleplayModel`, `speechEvalModel`, `imageGenModel`, `ttsModel`, `sttModel`. There is no separate `client.ts` wrapper — the Vercel AI SDK is the abstraction. Subscription CLIs (Claude / Gemini) plug in as a custom `LanguageModelV3` so call sites are oblivious to whether text comes from a SaaS API or a local subprocess.
 
@@ -179,12 +212,17 @@ Every route that consumes a `[slug]` URL param validates it against `/^[a-z0-9-]
 | `TransformHistory.tsx` | Transform event list + per-entry delete |
 | `RoleplayHistory.tsx` | Roleplay session list + session rename/delete + per-message delete |
 | `CourseHistory.tsx` | Course list + per-row open/rename/delete |
+| `ComboBox.tsx` | Searchable, keyboard-navigable dropdown (ARIA combobox) for domain and scenario inputs; supports free-text custom values |
+| `Settings.tsx` | Two-tab settings modal: AI provider/key/model config + profile management; settings persisted to `~/.corefirst/config.json` |
+
+UI strings are externalized via `src/lib/ui-i18n.ts` (`tr(uiLang, key)` calls). Components receive `uiLang: SupportedLang` as a prop; the dictionary covers 8 languages (English, Chinese, Japanese, Korean, Vietnamese, Spanish, French, German).
 
 ### 2.5 Hooks (`hooks/`)
 
 | Hook | Purpose |
 |------|---------|
 | `useRecorder.ts` | MediaRecorder wrapper; exposes `start()`, `stop()`, returns audio `Blob` |
+| `useSettings.ts` | Reads/writes `cf_settings_{uuid}` in localStorage; provides `getHeaders()` for BYOK fetch calls |
 
 ---
 
@@ -336,21 +374,24 @@ The AI provider layer is organized along two axes — **capabilities** (kinds of
 
 | Capability | Providers (env value) | Notes |
 |---|---|---|
-| `text` | `google`, `openai`, `anthropic`, `ollama`, `openrouter`, `cli/claude`, `cli/gemini` | CLI providers wrap the local subprocess as a custom `LanguageModelV3`; `<FEATURE>_MODEL` for CLI is a command-path override |
-| `text-to-image` | `google` (Imagen), `openai` (`gpt-image-1`) | No CLI option |
-| `text-to-speech` | `openai` (`gpt-4o-mini-tts`) — also covers any OpenAI-compatible local server (Kokoro-FastAPI / Orpheus-FastAPI / Piper / Coqui XTTS) via `TTS_BASE_URL` | No CLI option |
-| `speech-to-text` | `openai` (`gpt-4o-mini-transcribe`) | No CLI option |
+| `text` | `google`, `openai`, `anthropic`, `ollama`, `groq`, `openrouter`, `qwen`, `deepseek`, `cli/claude`, `cli/gemini` | CLI providers wrap the local subprocess as a custom `LanguageModelV3`; `<FEATURE>_MODEL` for CLI is a command-path override |
+| `text-to-image` | `google` (Imagen), `openai` (`gpt-image-1`), `qwen` (Wanx), `ollama` | `qwen` uses async job polling; `ollama` tries OpenAI-compat endpoint first with native API fallback |
+| `text-to-speech` | `openai` (`gpt-4o-mini-tts`; also covers OpenAI-compat local servers via `TTS_BASE_URL`), `google` (Gemini TTS, multi-voice), `qwen` (CosyVoice, `qwen3-tts-flash`) | No CLI option |
+| `speech-to-text` | `openai` (`gpt-4o-mini-transcribe`; also OpenAI-compat via `STT_BASE_URL`), `google` (Gemini STT), `qwen` (Paraformer / SenseVoice, async-poll) | No CLI option |
 | `text-to-video` / `image-to-video` / `multimodal-to-video` | (none — stubs) | Throw `NotImplementedError` on use |
 
 #### Capability matrix (provider × capability)
 
 | Provider | text | text-to-image | text-to-speech | speech-to-text |
 |---|:-:|:-:|:-:|:-:|
-| `google` | ✅ | ✅ | — | — |
+| `google` | ✅ | ✅ | ✅ | ✅ |
 | `openai` | ✅ | ✅ | ✅ | ✅ |
 | `anthropic` | ✅ | — | — | — |
-| `ollama` | ✅ | — | — | — |
-| `openrouter` | ✅ | — | — | — |
+| `ollama` | ✅ | ✅ | — | — |
+| `groq` | ✅ | — | — | — |
+| `openrouter` | ✅ | ✅ | ✅ | ✅ |
+| `qwen` | ✅ | ✅ | ✅ | ✅ |
+| `deepseek` | ✅ | — | — | — |
 | `cli/claude` | ✅ | — | — | — |
 | `cli/gemini` | ✅ | — | — | — |
 
@@ -419,11 +460,11 @@ pnpm dev               # → http://localhost:3000
 |---|---|---|
 | `TEXT_PROVIDER` | No | Default text provider for all 4 text features. Values: `google` (default), `openai`, `anthropic`, `ollama`, `openrouter`, `cli/claude`, `cli/gemini` |
 | `TEXT_MODEL` | No | Default text model for all 4 text features. Useful when every text feature should use the same model (e.g. one OpenRouter model). Leave unset to use the per-feature baked-in defaults (Pro for transform/courseGen, Flash for roleplay/speechEval) |
-| `TEXT_TO_IMAGE_PROVIDER` | No | Default image provider for `imageGen`. Values: `google` (default), `openai` |
+| `TEXT_TO_IMAGE_PROVIDER` | No | Default image provider for `imageGen`. Values: `google` (default), `openai`, `qwen`, `ollama` |
 | `TEXT_TO_IMAGE_MODEL` | No | Default image model for `imageGen` |
-| `TEXT_TO_SPEECH_PROVIDER` | No | Default TTS provider. Values: `openai` (default) |
+| `TEXT_TO_SPEECH_PROVIDER` | No | Default TTS provider. Values: `openai` (default), `google`, `qwen` |
 | `TEXT_TO_SPEECH_MODEL` | No | Default TTS model |
-| `SPEECH_TO_TEXT_PROVIDER` | No | Default STT provider. Values: `openai` (default) |
+| `SPEECH_TO_TEXT_PROVIDER` | No | Default STT provider. Values: `openai` (default), `google`, `qwen` |
 | `SPEECH_TO_TEXT_MODEL` | No | Default STT model |
 
 #### Per-feature overrides (most specific)
@@ -451,6 +492,9 @@ For CLI providers, `<FEATURE>_MODEL` is a **command path** (`claude`, `/usr/loca
 | `OPENAI_API_KEY` | Conditional | Required when any feature resolves to provider `openai` |
 | `ANTHROPIC_API_KEY` | Conditional | Required when any feature resolves to provider `anthropic` |
 | `OPENROUTER_API_KEY` | Conditional | Required when any feature resolves to provider `openrouter` |
+| `GROQ_API_KEY` | Conditional | Required when any feature resolves to provider `groq` |
+| `DEEPSEEK_API_KEY` | Conditional | Required when any feature resolves to provider `deepseek` |
+| `DASHSCOPE_API_KEY` | Conditional | Required when any feature resolves to provider `qwen` (text, TTS, STT, or Wanx image) |
 | `OLLAMA_BASE_URL` | No | Default `http://localhost:11434` (Ollama's native API root, **not** the OpenAI-compatible `/v1` endpoint) |
 | `<FEATURE>_BASE_URL` / `<CAPABILITY>_BASE_URL` | No | Override the OpenAI HTTP base URL for one feature (e.g. `TTS_BASE_URL=http://localhost:8880/v1` for local Kokoro-FastAPI). Only consumed by the `openai` provider |
 | `<FEATURE>_API_KEY` / `<CAPABILITY>_API_KEY` | No | Override the API key sent by the `openai` provider for one feature. Useful when a local server requires no auth (set any non-empty placeholder) or when one feature should bill to a different OpenAI account |

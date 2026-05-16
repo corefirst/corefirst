@@ -89,7 +89,7 @@ corefirst config unset text.provider
 | `text.provider` | `TEXT_PROVIDER` | Override for text generation |
 | `text.model` | `TEXT_MODEL` | Override for text model |
 | `openai.key` | `OPENAI_API_KEY` | |
-| `google.key` | `GOOGLE_API_KEY` | |
+| `google.key` | `GOOGLE_GENERATIVE_AI_API_KEY` | (legacy `GOOGLE_API_KEY` accepted as fallback) |
 | `anthropic.key` | `ANTHROPIC_API_KEY` | |
 | `openrouter.key` | `OPENROUTER_API_KEY` | |
 | `groq.key` | `GROQ_API_KEY` | |
@@ -104,6 +104,8 @@ corefirst config unset text.provider
 | `dataDir` | `COREFIRST_DATA_DIR` | |
 
 **Priority order:** existing `process.env` > `.env` in cwd > `~/.corefirst/config.json`.
+
+**Provider check:** `transform`, `generate-course`, and `serve` commands call `hasProvider()` at startup and exit with a clear error if no provider key or `GLOBAL_PROVIDER` is configured. Run `corefirst config init` to set one up interactively.
 
 ---
 
@@ -201,7 +203,19 @@ Launch the CoreFirst desktop app (Electron).
 corefirst app
 ```
 
-Requires Electron to be installed and `electron/main.js` to exist in cwd. Run from the project root after `pnpm install`.
+Requires Electron to be installed. Run from the project root after `pnpm install`.
+
+The Electron main process (`electron/main.ts`) detects the runtime state and starts accordingly:
+
+| Situation | Behavior |
+|-----------|----------|
+| Pre-built `.next/standalone/` exists | Spawns the standalone server on a free port, opens window |
+| `.next/standalone/` absent, `next dev` available | Auto-starts `next dev` (first-run, ~15 s startup) |
+| Port 3000 already listening (dev session) | Attaches to the existing server without spawning another |
+
+The desktop app uses a separate `COREFIRST_DATA_DIR` (Electron app-data path) so its data does not conflict with a concurrently running `pnpm dev` session.
+
+Window defaults: 1280 × 820 px, minimum 900 × 600 px, dark background (`#0f0f23`).
 
 ```bash
 # From project directory:

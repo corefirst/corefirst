@@ -1,22 +1,24 @@
 # Feature Overview
 
 > Feature spec index for CoreFirst.
-> Updated: 2026-05-12
+> Updated: 2026-05-16
 
 ## Features
 
 | Feature | Description | Dependencies | Status |
 |---------|-------------|--------------|--------|
 | [User Identity](./user-identity.md) | UUID-based user identity, middleware auto-assignment, household profile switcher | none | shipped |
-| [Settings & AI Config](./settings-ai-config.md) | In-app provider/key/URL configuration, BYOK, per-request model overrides for all AI routes | user-identity | shipped |
+| [Settings & AI Config](./settings-ai-config.md) | In-app provider/key/URL configuration, BYOK, per-request model overrides for all AI routes; config persisted to disk | user-identity | shipped |
 | [Logic Transformer](./logic-transformer.md) | Core AI engine for CFLT restructuring | none | shipped |
 | [History & Storage](./history-storage.md) | Per-user PouchDB partitioning & sync-safe event storage | user-identity | shipped |
 | [Voice Challenge](./voice-challenge.md) | Audio recording & CFLT-aware speech evaluation; BYOK headers; 401 key-error surface | none | shipped |
 | [Transform Mode](./transform-mode.md) | Ad-hoc restructuring + Cover & Recall self-test + Phonetic Bridge + post-result CTAs | logic-transformer, voice-challenge | shipped |
-| [Courseware Generator](./courseware-generator.md) | AI lesson generation with SSE real-time progress streaming | logic-transformer | shipped |
+| [Courseware Generator](./courseware-generator.md) | AI lesson generation with SSE real-time progress streaming; age-group safeguards for young learners | logic-transformer | shipped |
 | [Course Mode](./course-mode.md) | Learn/Practice/Voice flow with server-persisted progress state; Course Import/Export via `.corefirst` ZIP | courseware-generator, voice-challenge | shipped |
 | [Roleplay Coach](./roleplay-coach.md) | Multi-turn AI coach with CFLT Build Mode pre-production scaffold | voice-challenge | shipped |
 | [Progress Analytics](./progress-analytics.md) | Dashboard + SRS Vocabulary Review modal + Cross-Tab usage analytics | history-storage | shipped |
+| Desktop App (F-22) | Cross-platform Electron wrapper for the Next.js app; `corefirst app` CLI command; supports dev, standalone, and first-run modes | none | shipped |
+| Internationalization (F-23) | Full UI i18n across 8 languages via `src/lib/ui-i18n.ts`; LLM rationales localized via `{{UI_LANG}}` prompt injection | none | shipped |
 
 ## Execution Order
 
