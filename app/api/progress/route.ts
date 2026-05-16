@@ -247,7 +247,9 @@ const totalCourses = records.filter(
       vocabulary,
     };
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: { 'Cache-Control': 'no-store' },
+    });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[progress] Error:', msg);

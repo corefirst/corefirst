@@ -69,7 +69,7 @@ async function loadPersistedConfig() {
       }
     }
   } catch (e) {
-    // Fail silently in terms of UI impact
+    console.warn('[config] Failed to load persisted config:', e);
   }
 }
 

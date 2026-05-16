@@ -5,7 +5,7 @@ import { useProfile, type Profile } from '@/hooks/useProfile';
 
 import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
-export function ProfileSwitcher({ uiLang }: { uiLang: SupportedLang }) {
+export function ProfileSwitcher({ uiLang, compact }: { uiLang: SupportedLang; compact?: boolean }) {
   const { profiles, currentId, currentProfile, addProfile, renameProfile, switchProfile } = useProfile();
   const [open, setOpen] = useState(false);
   const [addingNew, setAddingNew] = useState(false);
@@ -61,11 +61,13 @@ export function ProfileSwitcher({ uiLang }: { uiLang: SupportedLang }) {
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`Switch profile — current: ${displayName(currentProfile)}`}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors"
+        className={compact
+          ? "flex items-center gap-1 px-2 py-1 rounded-lg text-xs text-gray-600 hover:bg-gray-100 transition-colors"
+          : "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 transition-colors"}
       >
-        <User size={15} />
-        <span className="max-w-[100px] truncate">{displayName(currentProfile)}</span>
-        <ChevronDown size={13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
+        <User size={compact ? 12 : 15} />
+        <span className="max-w-[80px] truncate">{displayName(currentProfile)}</span>
+        <ChevronDown size={compact ? 11 : 13} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (

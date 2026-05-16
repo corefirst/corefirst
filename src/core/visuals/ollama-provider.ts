@@ -28,6 +28,7 @@ export class OllamaImageProvider implements VisualProvider {
       const result = await this.tryV1Endpoint(styledPrompt, options?.size);
       if (result) return result;
     } catch (e) {
+      if ((e as Error).message?.includes('Empty response')) throw e;
       console.warn(`[visuals/ollama] /v1 endpoint failed, trying fallback: ${(e as Error).message}`);
     }
 

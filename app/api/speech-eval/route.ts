@@ -5,6 +5,7 @@ import { speechEvalModel } from '@/src/lib/ai';
 import { STTFactory } from '@/src/core/stt/factory';
 import { extractSettings, resolveFeatureFromSettings, resolveSTTOverride } from '@/src/lib/ai/settings-config';
 import { loadSkill } from '@/src/lib/skills';
+import { LANG_MAP } from '@/src/lib/constants';
 import {
   appendAttempt,
   readPackageManifest,
@@ -17,17 +18,6 @@ const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_AUDIO_TYPES = new Set([
   'audio/webm', 'audio/mp4', 'audio/wav', 'audio/mpeg', 'audio/ogg',
 ]);
-
-const LANG_MAP: Record<string, string> = {
-  'English': 'en',
-  'Chinese': 'zh',
-  'Japanese': 'ja',
-  'Korean': 'ko',
-  'Vietnamese': 'vi',
-  'Spanish': 'es',
-  'French': 'fr',
-  'German': 'de',
-};
 
 const SpeechEvalSchema = z.object({
   score: z.number(),
@@ -72,6 +62,7 @@ export async function POST(request: Request) {
     const lessonIndexRaw = formData.get('lessonIndex');
     const scriptIndexRaw = formData.get('scriptIndex');
 
+    const mimeType = audioFile.type || 'audio/webm';
     const audioBytes = new Uint8Array(await audioFile.arrayBuffer());
     const languageCode = targetLang ? (LANG_MAP[targetLang] ?? undefined) : undefined;
 

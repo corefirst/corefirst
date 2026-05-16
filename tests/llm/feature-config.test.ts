@@ -127,7 +127,7 @@ describe('resolveFeature — precedence', () => {
     expect(resolveFeature('speechEval').model).toBe('capability-shared-model');
     // Image / TTS / STT are different capabilities and should NOT pick up TEXT_MODEL.
     expect(resolveFeature('imageGen').model).toBe('imagen-4.0-generate-001');
-    expect(resolveFeature('tts').model).toBe('gpt-4o-mini-tts');
+    expect(resolveFeature('tts').model).toBe('tts-1');
   });
 
   it('feature-level model wins over capability-level model', async () => {
@@ -194,7 +194,7 @@ describe('resolveFeature — GLOBAL_PROVIDER and Mix-and-Match', () => {
     });
     expect(resolveFeature('imageGen')).toMatchObject({
       provider: 'openai',
-      model: 'dall-e-3',
+      model: 'gpt-image-2',
     });
     expect(resolveFeature('tts')).toMatchObject({
       provider: 'openai',

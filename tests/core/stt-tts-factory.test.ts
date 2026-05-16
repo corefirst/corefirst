@@ -43,13 +43,13 @@ describe('TTSFactory.getProvider routing', () => {
     expect(TTSFactory.getProvider()).toBeInstanceOf(OpenAITTSProvider);
   });
 
-  it('routes qwen to OpenAITTSProvider (DashScope compat)', async () => {
+  it('routes qwen to QwenTTSProvider (native DashScope API)', async () => {
     process.env.TTS_PROVIDER = 'qwen';
     process.env.TTS_MODEL = 'cosyvoice-v1';
     process.env.QWEN_API_KEY = 'sk-qwen';
     const { TTSFactory } = await import('@/src/core/tts/factory');
-    const { OpenAITTSProvider } = await import('@/src/core/tts/openai-provider');
-    expect(TTSFactory.getProvider()).toBeInstanceOf(OpenAITTSProvider);
+    const { QwenTTSProvider } = await import('@/src/core/tts/qwen-provider');
+    expect(TTSFactory.getProvider()).toBeInstanceOf(QwenTTSProvider);
   });
 
   it('routes openrouter to OpenAITTSProvider', async () => {
@@ -94,13 +94,13 @@ describe('STTFactory.getProvider routing', () => {
     expect(STTFactory.getProvider()).toBeInstanceOf(OpenAISTTProvider);
   });
 
-  it('routes qwen to OpenAISTTProvider (DashScope compat)', async () => {
+  it('routes qwen to QwenSTTProvider (native DashScope API)', async () => {
     process.env.STT_PROVIDER = 'qwen';
     process.env.STT_MODEL = 'paraformer-realtime-v2';
     process.env.QWEN_API_KEY = 'sk-qwen';
     const { STTFactory } = await import('@/src/core/stt/factory');
-    const { OpenAISTTProvider } = await import('@/src/core/stt/openai-provider');
-    expect(STTFactory.getProvider()).toBeInstanceOf(OpenAISTTProvider);
+    const { QwenSTTProvider } = await import('@/src/core/stt/qwen-provider');
+    expect(STTFactory.getProvider()).toBeInstanceOf(QwenSTTProvider);
   });
 
   it('routes openrouter to OpenAISTTProvider', async () => {

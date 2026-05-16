@@ -1,19 +1,9 @@
 import { NextResponse } from 'next/server';
 import { STTFactory } from '@/src/core/stt/factory';
 import { extractSettings, resolveSTTOverride } from '@/src/lib/ai/settings-config';
+import { LANG_MAP } from '@/src/lib/constants';
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
-
-const LANG_MAP: Record<string, string> = {
-  'English': 'en',
-  'Chinese': 'zh',
-  'Japanese': 'ja',
-  'Korean': 'ko',
-  'Vietnamese': 'vi',
-  'Spanish': 'es',
-  'French': 'fr',
-  'German': 'de',
-};
 
 export async function POST(request: Request) {
   try {
@@ -48,6 +38,6 @@ export async function POST(request: Request) {
       const extra = JSON.stringify(error, Object.getOwnPropertyNames(error));
       if (extra !== '{}') console.error('[transcribe] Details:', extra);
     }
-    return NextResponse.json({ error: 'Transcription failed', detail: msg }, { status: 500 });
+    return NextResponse.json({ error: 'Transcription failed' }, { status: 500 });
   }
 }

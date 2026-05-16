@@ -5,8 +5,8 @@ export const LessonScriptSchema = z.object({
   cflt_l1: z.string(),
   cflt_l2: z.string(),
   standard_l2: z.string(),
-  standard_l1: z.string(),
-  ssml: z.string(),
+  standard_l1: z.string().default(''),
+  ssml: z.string().default(''),
   audioUrl: z.string().optional(),
 });
 

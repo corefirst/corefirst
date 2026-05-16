@@ -62,7 +62,7 @@ export function calculateNextReview(
   if (easeFactor < 1.3) easeFactor = 1.3;
 
   const nextReviewAt = new Date();
-  nextReviewAt.setDate(nextReviewAt.getDate() + interval);
+  nextReviewAt.setUTCDate(nextReviewAt.getUTCDate() + interval);
 
   return {
     interval,

@@ -40,7 +40,7 @@ describe('normalize — legacy localStorage migration', () => {
 
   it('fills in missing global fields with empty strings', () => {
     const result = normalize({ mode: 'standard' });
-    expect(result.global).toEqual({ provider: '', apiKey: '', model: '' });
+    expect(result.global).toEqual({ provider: '', apiKey: '', model: '', ttsModel: '', sttModel: '', imageModel: '' });
   });
 
   it('preserves existing global fields', () => {
