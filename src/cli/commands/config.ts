@@ -79,7 +79,7 @@ export function makeConfigCommand(): Command {
         ['text.provider',      'TEXT_PROVIDER — override for text generation'],
         ['text.model',         'TEXT_MODEL — override for text model'],
         ['openai.key',         'OPENAI_API_KEY'],
-        ['google.key',         'GOOGLE_API_KEY'],
+        ['google.key',         'GOOGLE_GENERATIVE_AI_API_KEY'],
         ['anthropic.key',      'ANTHROPIC_API_KEY'],
         ['openrouter.key',     'OPENROUTER_API_KEY'],
         ['groq.key',           'GROQ_API_KEY'],
@@ -91,7 +91,7 @@ export function makeConfigCommand(): Command {
         ['stt.provider',       'STT_PROVIDER'],
         ['image.provider',     'IMAGE_GEN_PROVIDER'],
         ['image.model',        'IMAGE_GEN_MODEL'],
-        ['dataDir',            'COREFIRST_DATA_DIR — where data files are stored'],
+        ['dataDir',            'COREFIRST_DATA_DIR — where data files are stored (default: ~/.corefirst/data)'],
       ];
       for (const [key, desc] of rows) {
         console.log(`  ${pc.cyan(key.padEnd(20))} ${pc.dim(desc)}`);
@@ -109,29 +109,39 @@ export function makeConfigCommand(): Command {
       // Ensure readline is always closed, even on Ctrl+C
       process.once('SIGINT', () => { rl.close(); process.exit(0); });
 
+      const INIT_PROVIDERS: Array<{ id: string; label: string; keyLabel: string; placeholder: string; signupUrl: string }> = [
+        { id: 'openai',      label: 'OpenAI',      keyLabel: 'OpenAI API key',      placeholder: 'sk-…',     signupUrl: 'https://platform.openai.com/api-keys' },
+        { id: 'google',      label: 'Google AI',   keyLabel: 'Google API key',      placeholder: 'AIza…',    signupUrl: 'https://aistudio.google.com/apikey' },
+        { id: 'qwen',        label: 'Qwen',        keyLabel: 'DashScope API key',   placeholder: 'sk-…',     signupUrl: 'https://dashscope.console.aliyun.com/' },
+        { id: 'openrouter',  label: 'OpenRouter',  keyLabel: 'OpenRouter API key',  placeholder: 'sk-or-…',  signupUrl: 'https://openrouter.ai/keys' },
+      ];
+
       console.log(pc.bold('CoreFirst CLI Setup'));
-      console.log(pc.dim('Press Enter to skip any field.\n'));
+      console.log(pc.dim('Choose a provider and enter your API key. Press Enter to skip optional fields.\n'));
+
+      const providerList = INIT_PROVIDERS.map((p, i) => `${i + 1}) ${p.label}`).join('  ');
+      console.log('Providers: ' + pc.cyan(providerList));
 
       try {
-        const providerInput = await ask(`AI provider [openai/google/anthropic/ollama] (default: openai): `);
-        const provider = providerInput.trim() || 'openai';
-        set('provider', provider);
+        const providerInput = await ask(`Provider [1-4 or name] (default: 1 · OpenAI): `);
+        const input = providerInput.trim().toLowerCase();
+        const byIdx = parseInt(input, 10);
+        const def =
+          (!input)                                             ? INIT_PROVIDERS[0] :
+          (!isNaN(byIdx) && byIdx >= 1 && byIdx <= 4)         ? INIT_PROVIDERS[byIdx - 1] :
+          INIT_PROVIDERS.find(p => p.id === input || p.label.toLowerCase() === input)
+            ?? INIT_PROVIDERS[0];
+        set('provider', def.id);
+        console.log(`provider: ${pc.cyan(def.label)}  ${pc.dim(def.signupUrl)}`);
 
-        if (provider === 'openai') {
-          const key = await ask('OpenAI API key: ');
-          if (key.trim()) set('openai.key', key.trim());
-        } else if (provider === 'google') {
-          const key = await ask('Google API key: ');
-          if (key.trim()) set('google.key', key.trim());
-        } else if (provider === 'anthropic') {
-          const key = await ask('Anthropic API key: ');
-          if (key.trim()) set('anthropic.key', key.trim());
-        } else if (provider === 'ollama') {
-          const url = await ask('Ollama base URL (default: http://localhost:11434): ');
-          set('ollama.url', url.trim() || 'http://localhost:11434');
+        const key = await ask(`${def.keyLabel} (${pc.dim(def.placeholder)}): `);
+        if (key.trim()) {
+          set(`${def.id}.key`, key.trim());
+        } else {
+          console.log(pc.yellow('  ⚠ No key entered — you can set it later with: ') + pc.cyan(`corefirst config set ${def.id}.key <key>`));
         }
 
-        const dataDir = await ask('Data directory (default: ~/.corefirst/data): ');
+        const dataDir = await ask('\nData directory (default: ~/.corefirst/data): ');
         if (dataDir.trim()) set('dataDir', dataDir.trim());
 
         console.log();

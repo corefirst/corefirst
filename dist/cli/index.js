@@ -23840,6 +23840,7 @@ var import_commander6 = require("commander");
 init_cjs_shims();
 var import_commander = require("commander");
 var import_ora = __toESM(require("ora"));
+var import_picocolors2 = __toESM(require("picocolors"));
 
 // src/cli/utils/config-store.ts
 init_cjs_shims();
@@ -23854,7 +23855,7 @@ var KEY_TO_ENV = {
   "text.provider": "TEXT_PROVIDER",
   "text.model": "TEXT_MODEL",
   "openai.key": "OPENAI_API_KEY",
-  "google.key": "GOOGLE_API_KEY",
+  "google.key": "GOOGLE_GENERATIVE_AI_API_KEY",
   "anthropic.key": "ANTHROPIC_API_KEY",
   "openrouter.key": "OPENROUTER_API_KEY",
   "groq.key": "GROQ_API_KEY",
@@ -23865,13 +23866,20 @@ var KEY_TO_ENV = {
   "tts.model": "TTS_MODEL",
   "stt.provider": "STT_PROVIDER",
   "image.provider": "IMAGE_GEN_PROVIDER",
-  "image.model": "IMAGE_GEN_MODEL"
+  "image.model": "IMAGE_GEN_MODEL",
+  dataDir: "COREFIRST_DATA_DIR"
 };
 var VALID_KEYS = Object.keys(KEY_TO_ENV);
 function load() {
   if (!fs.existsSync(CONFIG_FILE)) return {};
   try {
-    return JSON.parse(fs.readFileSync(CONFIG_FILE, "utf-8"));
+    const raw = JSON.parse(fs.readFileSync(CONFIG_FILE, "utf-8"));
+    if (raw.dataDir && !raw.env?.["dataDir"]) {
+      raw.env = { ...raw.env, dataDir: raw.dataDir };
+      delete raw.dataDir;
+      save(raw);
+    }
+    return raw;
   } catch (err) {
     process.stderr.write(
       `Warning: config file corrupted at ${CONFIG_FILE} \u2014 ${err instanceof Error ? err.message : String(err)}
@@ -23899,26 +23907,18 @@ function validateValue(key, value) {
   }
 }
 function set(key, value) {
-  if (!KEY_TO_ENV[key] && key !== "dataDir") {
-    throw new Error(`Unknown config key "${key}". Valid keys: ${VALID_KEYS.join(", ")}, dataDir`);
+  if (!KEY_TO_ENV[key]) {
+    throw new Error(`Unknown config key "${key}". Valid keys: ${VALID_KEYS.join(", ")}`);
   }
   validateValue(key, value);
   const config = load();
-  if (key === "dataDir") {
-    config.dataDir = value;
-  } else {
-    config.env = config.env ?? {};
-    config.env[key] = value;
-  }
+  config.env = config.env ?? {};
+  config.env[key] = value;
   save(config);
 }
 function unset(key) {
   const config = load();
-  if (key === "dataDir") {
-    delete config.dataDir;
-  } else {
-    delete config.env?.[key];
-  }
+  delete config.env?.[key];
   save(config);
 }
 function applyToEnv() {
@@ -23929,21 +23929,29 @@ function applyToEnv() {
       process.env[envVar] = value;
     }
   }
-  if (config.dataDir && !process.env.COREFIRST_DATA_DIR) {
-    process.env.COREFIRST_DATA_DIR = config.dataDir;
-  }
+}
+function hasProvider() {
+  applyToEnv();
+  const apiKeyVars = [
+    "OPENAI_API_KEY",
+    "GOOGLE_GENERATIVE_AI_API_KEY",
+    "GOOGLE_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "OPENROUTER_API_KEY",
+    "GROQ_API_KEY",
+    "DEEPSEEK_API_KEY",
+    "DASHSCOPE_API_KEY",
+    "GLOBAL_PROVIDER"
+  ];
+  return apiKeyVars.some((v) => !!process.env[v]);
 }
 function listAll() {
   const config = load();
-  const result = [];
-  for (const [key, value] of Object.entries(config.env ?? {})) {
-    const envVar = KEY_TO_ENV[key] ?? key;
-    result.push({ key, value: maskKey(key, value), envVar });
-  }
-  if (config.dataDir) {
-    result.push({ key: "dataDir", value: config.dataDir, envVar: "COREFIRST_DATA_DIR" });
-  }
-  return result;
+  return Object.entries(config.env ?? {}).map(([key, value]) => ({
+    key,
+    value: maskKey(key, value),
+    envVar: KEY_TO_ENV[key] ?? key
+  }));
 }
 function maskKey(key, value) {
   if (key.endsWith(".key") && value.length > 8) {
@@ -24033,6 +24041,13 @@ function printInfo(message) {
 function makeTransformCommand() {
   return new import_commander.Command("transform").description("Transform a sentence into CFLT order").argument("<text>", "The sentence to transform").option("--from <lang>", "Source language", "English").option("--to <lang>", "Target language", "Chinese").option("--ui <lang>", "UI / explanation language (defaults to --from)").option("--json", "Output raw JSON instead of formatted text").action(async (text, opts) => {
     applyToEnv();
+    if (!hasProvider()) {
+      printError("No AI provider configured.");
+      console.log();
+      console.log("Run " + import_picocolors2.default.cyan("corefirst config init") + " to set up your provider and API key.");
+      console.log("Or set an environment variable directly, e.g. " + import_picocolors2.default.dim("OPENAI_API_KEY=sk-..."));
+      process.exit(1);
+    }
     const spinner = (0, import_ora.default)("Transforming\u2026").start();
     try {
       const { CFLTTransformer: CFLTTransformer2 } = await Promise.resolve().then(() => (init_transformer(), transformer_exports));
@@ -24060,6 +24075,7 @@ function makeTransformCommand() {
 init_cjs_shims();
 var import_commander2 = require("commander");
 var import_ora2 = __toESM(require("ora"));
+var import_picocolors3 = __toESM(require("picocolors"));
 init_orchestrator();
 function makeGenerateCommand() {
   return new import_commander2.Command("generate-course").alias("gen").description("Generate a bilingual CFLT course package").option("--topic <topic>", "Course topic", "At the Zoo").option("--from <lang>", "Source / L1 language", "English").option("--to <lang>", "Target / L2 language", "Chinese").option(`--age <group>`, `Age group (${AGE_GROUPS.join(" | ")})`, "Young Learner (Age 12+)").option(`--domain <domain>`, `Domain context (${DOMAINS.slice(0, 3).join(" | ")} \u2026)`, "General / Life").option("--json", "Output raw JSON instead of formatted summary").option("--list-ages", "Print valid age groups and exit").option("--list-domains", "Print valid domains and exit").action(async (opts) => {
@@ -24084,6 +24100,13 @@ ${DOMAINS.map((d) => `  ${d}`).join("\n")}`);
       process.exit(1);
     }
     applyToEnv();
+    if (!hasProvider()) {
+      printError("No AI provider configured.");
+      console.log();
+      console.log("Run " + import_picocolors3.default.cyan("corefirst config init") + " to set up your provider and API key.");
+      console.log("Or set an environment variable directly, e.g. " + import_picocolors3.default.dim("OPENAI_API_KEY=sk-..."));
+      process.exit(1);
+    }
     const spinner = (0, import_ora2.default)(`Generating course: "${opts.topic}"\u2026`).start();
     try {
       const { CoursewareOrchestrator: CoursewareOrchestrator2 } = await Promise.resolve().then(() => (init_orchestrator(), orchestrator_exports));
@@ -24124,7 +24147,7 @@ var import_commander3 = require("commander");
 var path7 = __toESM(require("path"));
 var fs4 = __toESM(require("fs"));
 var import_child_process2 = require("child_process");
-var import_picocolors2 = __toESM(require("picocolors"));
+var import_picocolors4 = __toESM(require("picocolors"));
 function makeServeCommand() {
   return new import_commander3.Command("serve").description("Start the CoreFirst web server").option("-p, --port <port>", "Port to listen on", "3000").option("--host <host>", "Host to bind", "localhost").action(async (opts) => {
     applyToEnv();
@@ -24146,14 +24169,14 @@ function makeServeCommand() {
     };
     const standalonePath = path7.join(cwd, ".next", "standalone", "server.js");
     if (fs4.existsSync(standalonePath)) {
-      console.log(import_picocolors2.default.bold("CoreFirst") + " \u2192 " + import_picocolors2.default.cyan(`http://${opts.host}:${port}`));
+      console.log(import_picocolors4.default.bold("CoreFirst") + " \u2192 " + import_picocolors4.default.cyan(`http://${opts.host}:${port}`));
       printInfo("Using pre-built standalone server");
       attachShutdown((0, import_child_process2.spawn)(process.execPath, [standalonePath], { env, stdio: "inherit", cwd }));
       return;
     }
     const nextDir = path7.join(cwd, ".next");
     if (fs4.existsSync(nextDir)) {
-      console.log(import_picocolors2.default.bold("CoreFirst") + " \u2192 " + import_picocolors2.default.cyan(`http://${opts.host}:${port}`));
+      console.log(import_picocolors4.default.bold("CoreFirst") + " \u2192 " + import_picocolors4.default.cyan(`http://${opts.host}:${port}`));
       printInfo("Using next start");
       const npx = process.platform === "win32" ? "npx.cmd" : "npx";
       attachShutdown((0, import_child_process2.spawn)(npx, ["next", "start", "--port", String(port), "--hostname", opts.host], {
@@ -24166,8 +24189,8 @@ function makeServeCommand() {
     printError("No built app found in current directory.");
     console.log();
     console.log("Run one of the following from your corefirst project directory:");
-    console.log("  " + import_picocolors2.default.cyan("pnpm build") + "  (or npm run build)");
-    console.log("Then retry: " + import_picocolors2.default.cyan(`corefirst serve --port ${port}`));
+    console.log("  " + import_picocolors4.default.cyan("pnpm build") + "  (or npm run build)");
+    console.log("Then retry: " + import_picocolors4.default.cyan(`corefirst serve --port ${port}`));
     process.exit(1);
   });
 }
@@ -24176,13 +24199,13 @@ function makeServeCommand() {
 init_cjs_shims();
 var import_commander4 = require("commander");
 var readline = __toESM(require("readline"));
-var import_picocolors3 = __toESM(require("picocolors"));
+var import_picocolors5 = __toESM(require("picocolors"));
 function makeConfigCommand() {
   const cmd = new import_commander4.Command("config").description("Manage CoreFirst CLI configuration");
   cmd.command("set <key> <value>").description("Set a configuration value").action((key, value) => {
     try {
       set(key, value);
-      printSuccess(`Set ${import_picocolors3.default.bold(key)}`);
+      printSuccess(`Set ${import_picocolors5.default.bold(key)}`);
     } catch (err) {
       printError(err instanceof Error ? err.message : String(err));
       process.exit(1);
@@ -24191,32 +24214,32 @@ function makeConfigCommand() {
   cmd.command("get <key>").description("Get a configuration value").action((key) => {
     const value = get(key);
     if (value === void 0) {
-      console.log(import_picocolors3.default.dim(`(not set)`));
+      console.log(import_picocolors5.default.dim(`(not set)`));
     } else {
       console.log(value);
     }
   });
   cmd.command("unset <key>").description("Remove a configuration value").action((key) => {
     unset(key);
-    printSuccess(`Unset ${import_picocolors3.default.bold(key)}`);
+    printSuccess(`Unset ${import_picocolors5.default.bold(key)}`);
   });
   cmd.command("list").alias("ls").description("List all configured values").action(() => {
     const entries = listAll();
     if (entries.length === 0) {
-      console.log(import_picocolors3.default.dim("No configuration set."));
-      console.log(import_picocolors3.default.dim(`Config file: ${CONFIG_FILE}`));
+      console.log(import_picocolors5.default.dim("No configuration set."));
+      console.log(import_picocolors5.default.dim(`Config file: ${CONFIG_FILE}`));
       console.log();
-      console.log("Run " + import_picocolors3.default.cyan("corefirst config init") + " to set up interactively.");
+      console.log("Run " + import_picocolors5.default.cyan("corefirst config init") + " to set up interactively.");
       return;
     }
-    console.log(import_picocolors3.default.bold(`Config (${CONFIG_FILE}):`));
+    console.log(import_picocolors5.default.bold(`Config (${CONFIG_FILE}):`));
     console.log();
     for (const { key, value, envVar } of entries) {
-      console.log(`  ${import_picocolors3.default.cyan(key.padEnd(20))} ${value}  ${import_picocolors3.default.dim(`(${envVar})`)}`);
+      console.log(`  ${import_picocolors5.default.cyan(key.padEnd(20))} ${value}  ${import_picocolors5.default.dim(`(${envVar})`)}`);
     }
   });
   cmd.command("keys").description("Show all available config keys").action(() => {
-    console.log(import_picocolors3.default.bold("Available config keys:"));
+    console.log(import_picocolors5.default.bold("Available config keys:"));
     console.log();
     const rows = [
       ["provider", "GLOBAL_PROVIDER \u2014 default AI provider (openai, google, anthropic, ollama\u2026)"],
@@ -24224,7 +24247,7 @@ function makeConfigCommand() {
       ["text.provider", "TEXT_PROVIDER \u2014 override for text generation"],
       ["text.model", "TEXT_MODEL \u2014 override for text model"],
       ["openai.key", "OPENAI_API_KEY"],
-      ["google.key", "GOOGLE_API_KEY"],
+      ["google.key", "GOOGLE_GENERATIVE_AI_API_KEY"],
       ["anthropic.key", "ANTHROPIC_API_KEY"],
       ["openrouter.key", "OPENROUTER_API_KEY"],
       ["groq.key", "GROQ_API_KEY"],
@@ -24236,10 +24259,10 @@ function makeConfigCommand() {
       ["stt.provider", "STT_PROVIDER"],
       ["image.provider", "IMAGE_GEN_PROVIDER"],
       ["image.model", "IMAGE_GEN_MODEL"],
-      ["dataDir", "COREFIRST_DATA_DIR \u2014 where data files are stored"]
+      ["dataDir", "COREFIRST_DATA_DIR \u2014 where data files are stored (default: ~/.corefirst/data)"]
     ];
     for (const [key, desc] of rows) {
-      console.log(`  ${import_picocolors3.default.cyan(key.padEnd(20))} ${import_picocolors3.default.dim(desc)}`);
+      console.log(`  ${import_picocolors5.default.cyan(key.padEnd(20))} ${import_picocolors5.default.dim(desc)}`);
     }
   });
   cmd.command("init").description("Interactive setup wizard").action(async () => {
@@ -24249,29 +24272,33 @@ function makeConfigCommand() {
       rl.close();
       process.exit(0);
     });
-    console.log(import_picocolors3.default.bold("CoreFirst CLI Setup"));
-    console.log(import_picocolors3.default.dim("Press Enter to skip any field.\n"));
+    const INIT_PROVIDERS = [
+      { id: "openai", label: "OpenAI", keyLabel: "OpenAI API key", placeholder: "sk-\u2026", signupUrl: "https://platform.openai.com/api-keys" },
+      { id: "google", label: "Google AI", keyLabel: "Google API key", placeholder: "AIza\u2026", signupUrl: "https://aistudio.google.com/apikey" },
+      { id: "qwen", label: "Qwen", keyLabel: "DashScope API key", placeholder: "sk-\u2026", signupUrl: "https://dashscope.console.aliyun.com/" },
+      { id: "openrouter", label: "OpenRouter", keyLabel: "OpenRouter API key", placeholder: "sk-or-\u2026", signupUrl: "https://openrouter.ai/keys" }
+    ];
+    console.log(import_picocolors5.default.bold("CoreFirst CLI Setup"));
+    console.log(import_picocolors5.default.dim("Choose a provider and enter your API key. Press Enter to skip optional fields.\n"));
+    const providerList = INIT_PROVIDERS.map((p, i) => `${i + 1}) ${p.label}`).join("  ");
+    console.log("Providers: " + import_picocolors5.default.cyan(providerList));
     try {
-      const providerInput = await ask(`AI provider [openai/google/anthropic/ollama] (default: openai): `);
-      const provider = providerInput.trim() || "openai";
-      set("provider", provider);
-      if (provider === "openai") {
-        const key = await ask("OpenAI API key: ");
-        if (key.trim()) set("openai.key", key.trim());
-      } else if (provider === "google") {
-        const key = await ask("Google API key: ");
-        if (key.trim()) set("google.key", key.trim());
-      } else if (provider === "anthropic") {
-        const key = await ask("Anthropic API key: ");
-        if (key.trim()) set("anthropic.key", key.trim());
-      } else if (provider === "ollama") {
-        const url = await ask("Ollama base URL (default: http://localhost:11434): ");
-        set("ollama.url", url.trim() || "http://localhost:11434");
+      const providerInput = await ask(`Provider [1-4 or name] (default: 1 \xB7 OpenAI): `);
+      const input = providerInput.trim().toLowerCase();
+      const byIdx = parseInt(input, 10);
+      const def = !input ? INIT_PROVIDERS[0] : !isNaN(byIdx) && byIdx >= 1 && byIdx <= 4 ? INIT_PROVIDERS[byIdx - 1] : INIT_PROVIDERS.find((p) => p.id === input || p.label.toLowerCase() === input) ?? INIT_PROVIDERS[0];
+      set("provider", def.id);
+      console.log(`provider: ${import_picocolors5.default.cyan(def.label)}  ${import_picocolors5.default.dim(def.signupUrl)}`);
+      const key = await ask(`${def.keyLabel} (${import_picocolors5.default.dim(def.placeholder)}): `);
+      if (key.trim()) {
+        set(`${def.id}.key`, key.trim());
+      } else {
+        console.log(import_picocolors5.default.yellow("  \u26A0 No key entered \u2014 you can set it later with: ") + import_picocolors5.default.cyan(`corefirst config set ${def.id}.key <key>`));
       }
-      const dataDir = await ask("Data directory (default: ~/.corefirst/data): ");
+      const dataDir = await ask("\nData directory (default: ~/.corefirst/data): ");
       if (dataDir.trim()) set("dataDir", dataDir.trim());
       console.log();
-      printSuccess("Configuration saved! Run " + import_picocolors3.default.cyan("corefirst config list") + " to review.");
+      printSuccess("Configuration saved! Run " + import_picocolors5.default.cyan("corefirst config list") + " to review.");
     } catch (err) {
       printError(err instanceof Error ? err.message : String(err));
       process.exitCode = 1;
@@ -24288,7 +24315,7 @@ var import_commander5 = require("commander");
 var path8 = __toESM(require("path"));
 var fs5 = __toESM(require("fs"));
 var import_child_process3 = require("child_process");
-var import_picocolors4 = __toESM(require("picocolors"));
+var import_picocolors6 = __toESM(require("picocolors"));
 function makeAppCommand() {
   return new import_commander5.Command("app").description("Launch the CoreFirst desktop app (Electron)").action(() => {
     const cwd = process.cwd();
@@ -24315,15 +24342,15 @@ function makeAppCommand() {
       child.unref();
       return;
     }
-    console.log(import_picocolors4.default.bold("CoreFirst Desktop App"));
+    console.log(import_picocolors6.default.bold("CoreFirst Desktop App"));
     console.log();
     console.log("To use the desktop app, either:");
     console.log();
     console.log("  1. Run from the project directory after installing Electron:");
-    console.log("     " + import_picocolors4.default.cyan("pnpm add -D electron && corefirst app"));
+    console.log("     " + import_picocolors6.default.cyan("pnpm add -D electron && corefirst app"));
     console.log();
     console.log("  2. Download a pre-built release from:");
-    console.log("     " + import_picocolors4.default.cyan("https://github.com/corefirst/corefirst/releases"));
+    console.log("     " + import_picocolors6.default.cyan("https://github.com/corefirst/corefirst/releases"));
     printError("electron/main.js not found in current directory.");
     process.exit(1);
   });
@@ -24350,7 +24377,10 @@ if (fs6.existsSync(localEnv)) {
 }
 var { version: version2, description } = require_package();
 var program = new import_commander6.Command();
-program.name("corefirst").description(description).version(version2, "-v, --version");
+program.name("corefirst").description(description).version(version2, "-v, --version").addHelpText("after", `
+First time? Run: corefirst config init
+View all config keys: corefirst config keys
+Full docs: https://github.com/corefirst/corefirst/blob/main/docs/cli.md`);
 program.addCommand(makeTransformCommand());
 program.addCommand(makeGenerateCommand());
 program.addCommand(makeServeCommand());

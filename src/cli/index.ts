@@ -52,7 +52,11 @@ const program = new Command();
 program
   .name('corefirst')
   .description(description)
-  .version(version, '-v, --version');
+  .version(version, '-v, --version')
+  .addHelpText('after', `
+First time? Run: corefirst config init
+View all config keys: corefirst config keys
+Full docs: https://github.com/corefirst/corefirst/blob/main/docs/cli.md`);
 
 program.addCommand(makeTransformCommand());
 program.addCommand(makeGenerateCommand());

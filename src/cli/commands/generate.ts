@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import ora from 'ora';
-import { applyToEnv } from '../utils/config-store';
+import pc from 'picocolors';
+import { applyToEnv, hasProvider } from '../utils/config-store';
 import { printCourse, printError, printInfo } from '../utils/output';
 import { AGE_GROUPS, DOMAINS } from '../../generator/orchestrator';
 
@@ -45,6 +46,14 @@ export function makeGenerateCommand(): Command {
       }
 
       applyToEnv();
+
+      if (!hasProvider()) {
+        printError('No AI provider configured.');
+        console.log();
+        console.log('Run ' + pc.cyan('corefirst config init') + ' to set up your provider and API key.');
+        console.log('Or set an environment variable directly, e.g. ' + pc.dim('OPENAI_API_KEY=sk-...'));
+        process.exit(1);
+      }
 
       const spinner = ora(`Generating course: "${opts.topic}"…`).start();
       try {

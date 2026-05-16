@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import ora from 'ora';
-import { applyToEnv } from '../utils/config-store';
+import pc from 'picocolors';
+import { applyToEnv, hasProvider } from '../utils/config-store';
 import { printCFLT, printError } from '../utils/output';
 
 export function makeTransformCommand(): Command {
@@ -13,6 +14,14 @@ export function makeTransformCommand(): Command {
     .option('--json', 'Output raw JSON instead of formatted text')
     .action(async (text: string, opts: { from: string; to: string; ui?: string; json?: boolean }) => {
       applyToEnv();
+
+      if (!hasProvider()) {
+        printError('No AI provider configured.');
+        console.log();
+        console.log('Run ' + pc.cyan('corefirst config init') + ' to set up your provider and API key.');
+        console.log('Or set an environment variable directly, e.g. ' + pc.dim('OPENAI_API_KEY=sk-...'));
+        process.exit(1);
+      }
 
       const spinner = ora('Transforming…').start();
       try {
