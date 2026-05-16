@@ -3,15 +3,17 @@
 import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
 interface CFLTVisualProps {
   prompt: string;
+  uiLang: SupportedLang;
   /** Optional pre-rendered image URL (e.g. /api/courses/:slug/image/:lesson).
    *  When present, used directly — skips the image-generation round trip. */
   imageUrl?: string;
 }
 
-export const CFLTVisual: React.FC<CFLTVisualProps> = ({ prompt, imageUrl }) => {
+export const CFLTVisual: React.FC<CFLTVisualProps> = ({ prompt, uiLang, imageUrl }) => {
   const [url, setUrl] = useState<string | null>(imageUrl ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -73,7 +75,7 @@ export const CFLTVisual: React.FC<CFLTVisualProps> = ({ prompt, imageUrl }) => {
           >
             <Loader2 className="w-10 h-10 text-blue-500 animate-spin" />
             <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest animate-pulse">
-              AI is painting the scenario...
+              {tr(uiLang, 'visualPainting')}
             </p>
           </motion.div>
         ) : url ? (
@@ -88,7 +90,7 @@ export const CFLTVisual: React.FC<CFLTVisualProps> = ({ prompt, imageUrl }) => {
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-300">
             <ImageIcon className="w-16 h-16 mb-2 opacity-20" />
-            <p className="text-xs font-bold">{error ? "Failed to load image" : "No image generated"}</p>
+            <p className="text-xs font-bold">{error ? tr(uiLang, 'errVisualFailed') : tr(uiLang, 'visualNone')}</p>
           </div>
         )}
       </AnimatePresence>
@@ -99,7 +101,7 @@ export const CFLTVisual: React.FC<CFLTVisualProps> = ({ prompt, imageUrl }) => {
       {/* Prompt Badge */}
       <div className="absolute bottom-4 left-6 right-6">
         <p className="text-[10px] text-white/80 font-medium line-clamp-1 italic bg-black/20 backdrop-blur-sm p-2 rounded-lg inline-block">
-          Concept: {prompt}
+          {tr(uiLang, 'visualConcept', prompt)}
         </p>
       </div>
     </div>

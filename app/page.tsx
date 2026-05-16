@@ -352,7 +352,7 @@ export default function Home() {
     setLoading(true);
     setFetchError(null);
     setKeyError(null);
-    setCourseGenStep('Designing lessons…');
+    setCourseGenStep(tr(uiLang, 'courseGenStepDesigning'));
     try {
       const response = await fetch('/api/generate-course', {
         method: 'POST',
@@ -448,7 +448,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
-      {showSettings && <Settings onClose={() => setShowSettings(false)} />}
+      {showSettings && <Settings uiLang={uiLang} onClose={() => setShowSettings(false)} />}
 
       {showVocabReview && <VocabReview targetLang={targetLang} uiLang={uiLang} onClose={() => setShowVocabReview(false)} />}
 
@@ -508,11 +508,11 @@ export default function Home() {
               </select>
             </label>
 
-            <ProfileSwitcher />
+            <ProfileSwitcher uiLang={uiLang} />
             <button
               onClick={() => setShowSettings(true)}
               className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              title="Settings"
+              title={tr(uiLang, 'settings')}
             >
               <SettingsIcon size={18} />
             </button>
@@ -586,6 +586,7 @@ export default function Home() {
                     <Globe className="w-3 h-3" /> {tr(uiLang, 'domainLabel')}
                   </label>
                   <ComboBox
+                    uiLang={uiLang}
                     id="domain"
                     options={AGE_DOMAINS[ageGroup].map(key => ({
                       value: tr('English', key),
@@ -602,7 +603,7 @@ export default function Home() {
                         setDomainText(val);
                       }
                     }}
-                    placeholder={tr(uiLang, 'domainLabel')}
+                    placeholder={tr(uiLang, 'comboSearchPlaceholder')}
                     className="w-full"
                     inputClassName="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
                   />
@@ -648,7 +649,7 @@ export default function Home() {
                     onChange={(e) => setGenerateAudio(e.target.checked)}
                     className="w-4 h-4 rounded accent-blue-600"
                   />
-                  <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors uppercase tracking-wide">Audio</span>
+                  <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors uppercase tracking-wide">{tr(uiLang, 'audio')}</span>
                 </label>
                 <label className="flex items-center gap-2 cursor-pointer select-none group">
                   <input
@@ -657,12 +658,12 @@ export default function Home() {
                     onChange={(e) => setGenerateImages(e.target.checked)}
                     className="w-4 h-4 rounded accent-blue-600"
                   />
-                  <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors uppercase tracking-wide">Images</span>
+                  <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors uppercase tracking-wide">{tr(uiLang, 'images')}</span>
                 </label>
               </div>
             )}
 
-            <p className="text-xs text-slate-400 -mt-2">{loading && mode === 'course' ? 'This usually takes 20–30 seconds.' : tr(uiLang, 'submitHint')}</p>
+            <p className="text-xs text-slate-400 -mt-2">{loading && mode === 'course' ? tr(uiLang, 'courseGenWait') : tr(uiLang, 'submitHint')}</p>
 
             {fetchError && (
               <p className="text-sm text-red-600 font-medium flex items-center gap-2">
@@ -674,14 +675,14 @@ export default function Home() {
               <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
                 <span className="text-amber-800">
                   {keyError === 'API_KEY_REQUIRED'
-                    ? 'No API key configured. Set up your own key to get started.'
-                    : 'API key invalid or expired. Please check your key and try again.'}
+                    ? tr(uiLang, 'errNoApiKey')
+                    : tr(uiLang, 'errApiKeyInvalid')}
                 </span>
                 <button
                   onClick={() => { setKeyError(null); setShowSettings(true); }}
                   className="shrink-0 text-amber-700 font-medium hover:text-amber-900 underline underline-offset-2 transition-colors"
                 >
-                  {keyError === 'API_KEY_REQUIRED' ? 'Open Settings →' : 'Update in Settings →'}
+                  {keyError === 'API_KEY_REQUIRED' ? tr(uiLang, 'openSettings') : tr(uiLang, 'updateInSettings')}
                 </button>
               </div>
             )}
@@ -692,9 +693,9 @@ export default function Home() {
         {mode === 'transform' && !transformResult && !loading && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { step: '1', tab: 'transform' as const, icon: Sparkles, title: 'Transform', desc: 'Paste any sentence. Watch it restructure into the CFLT [Core → Reason → Space → Time] pattern.' },
-              { step: '2', tab: 'course' as const, icon: BookOpen, title: 'Course', desc: 'Generate a full lesson pack on any topic. Learn, reconstruct, and practice with voice.' },
-              { step: '3', tab: 'roleplay' as const, icon: MessageSquare, title: 'Roleplay', desc: 'Chat with an AI coach. Get real-time CFLT analysis on everything you say.' },
+              { step: '1', tab: 'transform' as const, icon: Sparkles, title: tr(uiLang, 'guideTransformTitle'), desc: tr(uiLang, 'guideTransformDesc') },
+              { step: '2', tab: 'course' as const, icon: BookOpen, title: tr(uiLang, 'guideCourseTitle'), desc: tr(uiLang, 'guideCourseDesc') },
+              { step: '3', tab: 'roleplay' as const, icon: MessageSquare, title: tr(uiLang, 'guideRoleplayTitle'), desc: tr(uiLang, 'guideRoleplayDesc') },
             ].map(({ step, tab, icon: Icon, title, desc }) => (
               <button
                 key={step}
@@ -768,12 +769,12 @@ export default function Home() {
                   /* T2: Cover & Recall — hide answer, user attempts from memory */
                   <div className="bg-slate-800 p-8 rounded-3xl text-white space-y-4">
                     <p className="text-xs font-bold opacity-60 uppercase tracking-widest text-center">
-                      How do you say this in {targetLang}?
+                      {tr(uiLang, 'howToSayIn', targetLang)}
                     </p>
                     <textarea
                       value={recallAttempt}
                       onChange={e => setRecallAttempt(e.target.value)}
-                      placeholder={`Type the ${targetLang} sentence from the structure above…`}
+                      placeholder={tr(uiLang, 'typeSentenceFromStructure', targetLang)}
                       className="w-full bg-white/10 border border-white/20 rounded-2xl p-4 text-white placeholder-white/40 resize-none focus:outline-none focus:ring-2 focus:ring-white/40 text-lg font-medium"
                       rows={3}
                       autoFocus
@@ -783,13 +784,13 @@ export default function Home() {
                         onClick={() => setRecallRevealed(true)}
                         className="px-6 py-2.5 bg-white text-slate-900 rounded-xl font-bold text-sm hover:bg-slate-100 transition-colors"
                       >
-                        Reveal Answer
+                        {tr(uiLang, 'btnRevealAnswer')}
                       </button>
                       <button
                         onClick={() => { setRecallMode(false); setRecallAttempt(''); }}
                         className="px-6 py-2.5 bg-white/10 text-white rounded-xl font-bold text-sm hover:bg-white/20 transition-colors"
                       >
-                        Cancel
+                        {tr(uiLang, 'cancel')}
                       </button>
                     </div>
                   </div>
@@ -798,14 +799,14 @@ export default function Home() {
                   <div className="space-y-3">
                     {recallAttempt && (
                       <div className="bg-slate-100 p-5 rounded-2xl">
-                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Your attempt</p>
+                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">{tr(uiLang, 'yourAttempt')}</p>
                         <p className="text-xl font-bold text-slate-700 italic">"{recallAttempt}"</p>
                       </div>
                     )}
                     <div className="bg-blue-600 p-8 rounded-3xl text-white shadow-2xl shadow-blue-200">
                       <div className="flex items-center justify-center gap-2 mb-2">
                         <p className="text-xs font-bold opacity-60 uppercase tracking-widest text-center">
-                          {tr(uiLang, 'standardResultHeader', targetLang)} — Correct answer
+                          {tr(uiLang, 'standardCorrectAnswer', targetLang)}
                         </p>
                         {refining && <Loader2 className="w-3 h-3 animate-spin opacity-60" />}
                       </div>
@@ -822,7 +823,7 @@ export default function Home() {
                       onClick={() => { setRecallMode(false); setRecallAttempt(''); setRecallRevealed(false); }}
                       className="w-full py-2 text-sm text-slate-400 hover:text-slate-600 transition-colors font-medium"
                     >
-                      Done
+                      {tr(uiLang, 'btnDone')}
                     </button>
                   </div>
                 ) : (
@@ -837,29 +838,28 @@ export default function Home() {
                       <button
                         onClick={() => playAudio(refinedStandard?.standard_l2 ?? transformResult.standard_l2, 'transform-result')}
                         disabled={audioLoading === 'transform-result' || refining}
-                        aria-label="Play sentence"
-                        className="text-white/60 hover:text-white transition-colors disabled:text-white/20"
+                        aria-label={tr(uiLang, 'ariaPlaySentence')}                        className="text-white/60 hover:text-white transition-colors disabled:text-white/20"
                       >
                         {audioLoading === 'transform-result' ? <Loader2 className="w-8 h-8 animate-spin" /> : <PlayCircle className="w-8 h-8" />}
                       </button>
                       <button
                         onClick={() => { setRecallMode(true); setRecallAttempt(''); setRecallRevealed(false); }}
                         className="text-xs font-bold uppercase tracking-wider text-white/70 hover:text-white border border-white/30 hover:border-white/60 px-3 py-1.5 rounded-lg transition-colors"
-                        title="Hide the answer and test yourself"
+                        title={tr(uiLang, 'btnTestYourselfHint')}
                       >
-                        Test Yourself
-                      </button>
-                    </div>
+                        {tr(uiLang, 'btnTestYourself')}
+                      </button>                    </div>
                   </div>
                 )}
               </div>
               <VoiceChallenge
+                uiLang={uiLang}
                 expectedText={refinedStandard?.standard_l2 ?? transformResult.standard_l2}
                 sourceLang={sourceLang}
                 targetLang={targetLang}
               />
               {/* T8: Phonetic Bridge — shown for Chinese → English learners */}
-              <PhoneticBridge sourceLang={sourceLang} />
+              <PhoneticBridge uiLang={uiLang} sourceLang={sourceLang} />
             </div>
           )}
 
@@ -871,16 +871,15 @@ export default function Home() {
                 className="flex items-center gap-2 text-sm text-slate-500 font-bold hover:text-slate-700 transition-colors"
               >
                 <BookOpen className="w-4 h-4" />
-                Build a course on this →
+                {tr(uiLang, 'btnBuildCourse')}
               </button>
               <button
                 onClick={() => setMode('roleplay')}
                 className="flex items-center gap-2 text-sm text-blue-600 font-bold hover:text-blue-800 transition-colors"
               >
                 <MessageSquare className="w-4 h-4" />
-                Practice in Roleplay →
-              </button>
-            </div>
+                {tr(uiLang, 'btnPracticeRoleplay')}
+              </button>            </div>
           )}
 
           {mode === 'transform' && <TransformHistory uiLang={uiLang} refreshKey={transformHistoryKey} />}
@@ -918,6 +917,7 @@ export default function Home() {
                         {(lesson.imageUrl || lesson.visual_generation_prompts?.[0]) && (
                           <CFLTVisual
                             prompt={lesson.visual_generation_prompts?.[0] ?? ''}
+                            uiLang={uiLang}
                             imageUrl={lesson.imageUrl}
                           />
                         )}
@@ -930,7 +930,7 @@ export default function Home() {
                             <h2 className="text-2xl font-black text-slate-800">{lesson.title}</h2>
                           </div>
                           <div className="bg-slate-100 px-4 py-1 rounded-full text-[10px] font-black uppercase text-slate-400 tracking-wider">
-                            Lesson Scenario
+                            {tr(uiLang, 'labelLessonScenario')}
                           </div>
                         </div>
 
@@ -988,6 +988,7 @@ export default function Home() {
                                       />
                                     ) : (
                                       <CFLTBuilder
+                                        uiLang={uiLang}
                                         cfltString={script.cflt_l1}
                                         cfltL2={script.cflt_l2}
                                         onSuccess={() => markPuzzleComplete(puzzleId, i, j)}
@@ -1041,6 +1042,7 @@ export default function Home() {
                                     </div>
 
                                     <VoiceChallenge
+                                      uiLang={uiLang}
                                       expectedText={script.standard_l2}
                                       sourceLang={sourceLang}
                                       targetLang={targetLang}
@@ -1059,7 +1061,7 @@ export default function Home() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t border-slate-50">
                           <div className="space-y-3">
                             <h4 className="text-[10px] font-black uppercase text-slate-400 tracking-widest flex items-center gap-2">
-                              <Sparkles className="w-3 h-3 text-amber-500" /> Vocabulary Tokens
+                              <Sparkles className="w-3 h-3 text-amber-500" /> {tr(uiLang, 'labelVocabTokens')}
                             </h4>
                             <div className="flex flex-wrap gap-2">
                               {lesson.vocabulary_focus.map((v, k: number) => (

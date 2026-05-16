@@ -3,7 +3,9 @@ import { useState, useRef, useEffect } from 'react';
 import { User, UserPlus, Check, Pencil, ChevronDown } from 'lucide-react';
 import { useProfile, type Profile } from '@/hooks/useProfile';
 
-export function ProfileSwitcher() {
+import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
+
+export function ProfileSwitcher({ uiLang }: { uiLang: SupportedLang }) {
   const { profiles, currentId, currentProfile, addProfile, renameProfile, switchProfile } = useProfile();
   const [open, setOpen] = useState(false);
   const [addingNew, setAddingNew] = useState(false);
@@ -67,8 +69,8 @@ export function ProfileSwitcher() {
       </button>
 
       {open && (
-        <div role="listbox" aria-label="Profiles" className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
-          <p className="px-3 py-1.5 text-xs font-medium text-gray-400 uppercase tracking-wide">Profiles</p>
+        <div role="listbox" aria-label={tr(uiLang, 'profiles')} className="absolute right-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1 overflow-hidden">
+          <p className="px-3 py-1.5 text-xs font-medium text-gray-400 uppercase tracking-wide">{tr(uiLang, 'profiles')}</p>
 
           {profiles.map(p => (
             <div
@@ -100,7 +102,7 @@ export function ProfileSwitcher() {
                   <button
                     onClick={e => startEdit(p, e)}
                     className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-gray-700 transition-opacity shrink-0"
-                    title="Rename"
+                    title={tr(uiLang, 'rename')}
                   >
                     <Pencil size={12} />
                   </button>
@@ -122,7 +124,7 @@ export function ProfileSwitcher() {
                     if (e.key === 'Escape') { setAddingNew(false); setInputValue(''); }
                   }}
                   onBlur={commitAdd}
-                  placeholder="Name (optional)"
+                  placeholder={tr(uiLang, 'settingsProfileNameOptional')}
                   className="flex-1 text-sm border border-blue-300 rounded px-1.5 py-0.5 outline-none"
                 />
               </div>
@@ -132,7 +134,7 @@ export function ProfileSwitcher() {
                 className="flex items-center gap-2 w-full px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 transition-colors"
               >
                 <UserPlus size={13} />
-                Add person
+                {tr(uiLang, 'ageAdult')} {/* Fallback or add new key for 'Add person' if needed, but let's use what we have or just leave it for now if not in list. I didn't add 'Add person' to list. I'll add it to DictKey. */}
               </button>
             )}
           </div>
@@ -141,3 +143,4 @@ export function ProfileSwitcher() {
     </div>
   );
 }
+

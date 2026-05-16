@@ -75,7 +75,7 @@ export function VocabReview({ targetLang, uiLang, onClose }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Brain size={18} className="text-violet-500" />
-            <h2 id="vocab-review-title" className="font-semibold text-gray-900">Vocabulary Review</h2>
+            <h2 id="vocab-review-title" className="font-semibold text-gray-900">{tr(uiLang, 'statsVocabulary')}</h2>
             {!loading && !done && (
               <span className="text-xs text-gray-400 font-medium">{index + 1} / {items.length}</span>
             )}
@@ -89,7 +89,7 @@ export function VocabReview({ targetLang, uiLang, onClose }: Props) {
           {loading && (
             <div className="flex flex-col items-center gap-3 py-10">
               <Loader2 size={28} className="animate-spin text-violet-400" />
-              <p className="text-sm text-gray-400">Loading due vocabulary…</p>
+              <p className="text-sm text-gray-400">{tr(uiLang, 'vocabLoading')}</p>
             </div>
           )}
 
@@ -97,11 +97,11 @@ export function VocabReview({ targetLang, uiLang, onClose }: Props) {
             <div className="flex flex-col items-center gap-4 py-10 text-center">
               <CheckCircle size={40} className="text-emerald-400" />
               <div>
-                <p className="font-semibold text-gray-800">All caught up!</p>
-                <p className="text-sm text-gray-500 mt-1">No vocabulary due for review right now.</p>
+                <p className="font-semibold text-gray-800">{tr(uiLang, 'vocabAllCaughtUp')}</p>
+                <p className="text-sm text-gray-500 mt-1">{tr(uiLang, 'vocabNoDue')}</p>
               </div>
               <button onClick={onClose} className="px-5 py-2 bg-gray-100 text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-200 transition-colors">
-                Close
+                {tr(uiLang, 'btnClose')}
               </button>
             </div>
           )}
@@ -123,17 +123,17 @@ export function VocabReview({ targetLang, uiLang, onClose }: Props) {
               >
                 {!flipped ? (
                   <>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-400">Meaning</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-violet-400">{tr(uiLang, 'vocabMeaning')}</p>
                     <p className="text-2xl font-black text-gray-900 text-center">{current.meaning}</p>
-                    <p className="text-xs text-violet-400 mt-2">Tap to reveal the {current.targetLang} word</p>
+                    <p className="text-xs text-violet-400 mt-2">{tr(uiLang, 'vocabTapToReveal', current.targetLang)}</p>
                   </>
                 ) : (
                   <>
                     <p className="text-xs font-semibold uppercase tracking-wider text-blue-400">
-                      {current.targetLang} word
+                      {tr(uiLang, 'targetLangWord', current.targetLang)}
                     </p>
                     <p className="text-3xl font-black text-gray-900 text-center">{current.token}</p>
-                    <p className="text-sm text-gray-500 mt-1 text-center">Did you know it?</p>
+                    <p className="text-sm text-gray-500 mt-1 text-center">{tr(uiLang, 'vocabDidYouKnow')}</p>
                   </>
                 )}
               </div>
@@ -146,14 +146,14 @@ export function VocabReview({ targetLang, uiLang, onClose }: Props) {
                     disabled={submitting}
                     className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-200 text-red-600 font-bold hover:bg-red-50 disabled:opacity-50 transition-colors"
                   >
-                    <XCircle size={18} /> Didn't know
+                    <XCircle size={18} /> {tr(uiLang, 'vocabMissed')}
                   </button>
                   <button
                     onClick={() => handleAnswer(true)}
                     disabled={submitting}
                     className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-50 disabled:opacity-50 transition-colors"
                   >
-                    <CheckCircle size={18} /> Knew it!
+                    <CheckCircle size={18} /> {tr(uiLang, 'vocabKnew')}
                   </button>
                 </div>
               ) : (
@@ -161,7 +161,7 @@ export function VocabReview({ targetLang, uiLang, onClose }: Props) {
                   onClick={() => setFlipped(true)}
                   className="w-full py-3 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-700 transition-colors"
                 >
-                  Flip to reveal
+                  {tr(uiLang, 'vocabFlipToReveal')}
                 </button>
               )}
             </div>
@@ -172,26 +172,26 @@ export function VocabReview({ targetLang, uiLang, onClose }: Props) {
               <div className="flex items-center justify-center gap-3">
                 <div className="text-center">
                   <p className="text-4xl font-black text-emerald-600">{knewCount}</p>
-                  <p className="text-xs text-gray-400 font-medium mt-1">Knew</p>
+                  <p className="text-xs text-gray-400 font-medium mt-1">{tr(uiLang, 'vocabKnew')}</p>
                 </div>
                 <div className="text-2xl text-gray-200 font-light">/</div>
                 <div className="text-center">
                   <p className="text-4xl font-black text-red-400">{didntCount}</p>
-                  <p className="text-xs text-gray-400 font-medium mt-1">Missed</p>
+                  <p className="text-xs text-gray-400 font-medium mt-1">{tr(uiLang, 'vocabMissed')}</p>
                 </div>
               </div>
               <p className="text-sm text-gray-500">
-                {knewCount === items.length ? 'Perfect session! 🎉' : 'SRS updated — missed words scheduled for sooner review.'}
+                {knewCount === items.length ? tr(uiLang, 'vocabSessionPerfect') : tr(uiLang, 'vocabSessionDone')}
               </p>
               <div className="flex gap-3">
                 <button
                   onClick={() => { setIndex(0); setFlipped(false); setResults([]); setDone(false); setItems(prev => [...prev].sort(() => Math.random() - 0.5)); }}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors"
                 >
-                  <RotateCcw size={14} /> Review again
+                  <RotateCcw size={14} /> {tr(uiLang, 'btnReviewAgain')}
                 </button>
                 <button onClick={onClose} className="flex-1 py-2.5 bg-violet-600 text-white rounded-xl text-sm font-bold hover:bg-violet-700 transition-colors">
-                  Done
+                  {tr(uiLang, 'btnDone')}
                 </button>
               </div>
             </div>

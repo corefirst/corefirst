@@ -3,7 +3,10 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, Search, AlertTriangle } from 'lucide-react';
 import { PINYIN_IPA_GROUPS, searchPinyin, type PhonemeEntry } from '@/src/lib/phonetics/pinyin-ipa';
 
+import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
+
 interface Props {
+  uiLang: SupportedLang;
   sourceLang?: string; // only show for Chinese speakers
 }
 
@@ -18,7 +21,7 @@ function PhonemeRow({ entry }: { entry: PhonemeEntry }) {
   );
 }
 
-export function PhoneticBridge({ sourceLang }: Props) {
+export function PhoneticBridge({ uiLang, sourceLang }: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set(['Common Mistake Pairs']));
@@ -43,8 +46,8 @@ export function PhoneticBridge({ sourceLang }: Props) {
         className="w-full flex items-center justify-between px-5 py-3 bg-white hover:bg-slate-50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-black text-slate-700 tracking-tight">Pinyin → IPA Reference</span>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">Phonetic Bridge</span>
+          <span className="text-sm font-black text-slate-700 tracking-tight">{tr(uiLang, 'pinyinIpaReference')}</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full border border-violet-200">{tr(uiLang, 'phoneticBridge')}</span>
         </div>
         {open ? <ChevronDown size={15} className="text-slate-400" /> : <ChevronRight size={15} className="text-slate-400" />}
       </button>
@@ -58,7 +61,7 @@ export function PhoneticBridge({ sourceLang }: Props) {
               type="text"
               value={query}
               onChange={e => setQuery(e.target.value)}
-              placeholder="Search pinyin, IPA, or English…"
+              placeholder={tr(uiLang, 'searchPhonetic')}
               className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-violet-400"
             />
           </div>
@@ -66,21 +69,21 @@ export function PhoneticBridge({ sourceLang }: Props) {
           {/* Legend */}
           <div className="flex items-center gap-4 text-[11px] text-slate-400 font-medium">
             <div className="grid grid-cols-[60px_80px_1fr_100px] gap-2 flex-1">
-              <span className="font-black text-slate-500">PINYIN</span>
-              <span className="font-black text-slate-500">IPA</span>
-              <span className="font-black text-slate-500">ENGLISH APPROX</span>
-              <span className="font-black text-slate-500">EXAMPLE</span>
+              <span className="font-black text-slate-500">{tr(uiLang, 'pinyin')}</span>
+              <span className="font-black text-slate-500">{tr(uiLang, 'ipa')}</span>
+              <span className="font-black text-slate-500">{tr(uiLang, 'englishApprox')}</span>
+              <span className="font-black text-slate-500">{tr(uiLang, 'example')}</span>
             </div>
             <div className="flex items-center gap-1 shrink-0">
               <span className="w-3 h-3 rounded bg-amber-100 border border-amber-200 inline-block" />
-              <span>Tricky sound</span>
+              <span>{tr(uiLang, 'trickySound')}</span>
             </div>
           </div>
 
           {/* Search results */}
           {searchResults !== null ? (
             searchResults.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-4">No results for "{query}"</p>
+              <p className="text-sm text-slate-400 text-center py-4">{tr(uiLang, 'comboNoResults', query)}</p>
             ) : (
               <div className="space-y-1">
                 {searchResults.map((e, i) => <PhonemeRow key={i} entry={e} />)}

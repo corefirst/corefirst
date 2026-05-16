@@ -68,8 +68,8 @@ export const CFLTBlock: React.FC<CFLTBlockProps> = ({
         <button
           onClick={() => onUserFill?.({ l1: '', l2: '', source: 'typed' })}
           className="absolute -bottom-2 -right-2 bg-white text-slate-600 hover:text-slate-900 rounded-full p-1 shadow-md opacity-0 group-hover:opacity-100 transition-opacity"
-          aria-label="Clear fill"
-          title="Clear and choose again"
+          aria-label={t(sourceLang, 'ariaClearFill')}
+          title={t(sourceLang, 'titleClearFill')}
         >
           <Pencil className="w-3 h-3" />
         </button>

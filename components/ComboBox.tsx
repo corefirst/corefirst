@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
 
+import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
+
 interface ComboBoxOption {
   value: string;
   label: string;
@@ -17,6 +19,7 @@ interface ComboBoxProps {
   id?: string;
   className?: string;
   inputClassName?: string;
+  uiLang?: SupportedLang;
 }
 
 export const ComboBox = ({
@@ -28,6 +31,7 @@ export const ComboBox = ({
   id,
   className = '',
   inputClassName = '',
+  uiLang = 'English',
 }: ComboBoxProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
@@ -216,32 +220,36 @@ export const ComboBox = ({
         </button>
       </div>
 
-      {isOpen && filtered.length > 0 && (
-        <ul
-          ref={listRef}
-          role="listbox"
-          className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl bg-white border border-slate-200 shadow-lg py-1"
-        >
-          {filtered.map((option, idx) => (
-            <li
-              key={option.value}
-              role="option"
-              aria-selected={idx === highlightIndex}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                selectOption(option.value);
-              }}
-              onMouseEnter={() => setHighlightIndex(idx)}
-              className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
-                idx === highlightIndex
-                  ? 'bg-blue-50 text-blue-700 font-medium'
-                  : 'text-slate-700 hover:bg-slate-50'
-              }`}
-            >
-              {option.label}
-            </li>
-          ))}
-        </ul>
+      {isOpen && (
+        <div className="absolute z-50 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-xl bg-white border border-slate-200 shadow-lg py-1">
+          {filtered.length > 0 ? (
+            <ul ref={listRef} role="listbox">
+              {filtered.map((option, idx) => (
+                <li
+                  key={option.value}
+                  role="option"
+                  aria-selected={idx === highlightIndex}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    selectOption(option.value);
+                  }}
+                  onMouseEnter={() => setHighlightIndex(idx)}
+                  className={`px-3 py-2 text-sm cursor-pointer transition-colors ${
+                    idx === highlightIndex
+                      ? 'bg-blue-50 text-blue-700 font-medium'
+                      : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {option.label}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="px-3 py-4 text-center text-sm text-slate-400 italic">
+              {tr(uiLang, 'comboNoResults', filterText || value)}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );

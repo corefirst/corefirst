@@ -17,6 +17,27 @@ export function isFeatureSlot(s: string): s is FeatureSlot {
   return s in FEATURE_SLOTS;
 }
 
+export type SkillCategory = 'core' | 'practice' | 'courseware';
+export type SkillLevel = 'basic' | 'advanced';
+
+export interface SlotMetadata {
+  slot: FeatureSlot;
+  category: SkillCategory;
+  level: SkillLevel;
+}
+
+export const SLOT_METADATA: Record<FeatureSlot, SlotMetadata> = {
+  'roleplay-coach':       { slot: 'roleplay-coach',       category: 'practice',   level: 'basic' },
+  'speech-eval':          { slot: 'speech-eval',          category: 'practice',   level: 'basic' },
+  'sentence-refine':      { slot: 'sentence-refine',      category: 'core',       level: 'basic' },
+  'cflt-transformer':     { slot: 'cflt-transformer',     category: 'core',       level: 'advanced' },
+  'courseware-gen':       { slot: 'courseware-gen',       category: 'courseware', level: 'advanced' },
+  'courseware-repair':    { slot: 'courseware-repair',    category: 'courseware', level: 'advanced' },
+  'roleplay-analysis':    { slot: 'roleplay-analysis',    category: 'practice',   level: 'advanced' },
+  'speech-eval-user':     { slot: 'speech-eval-user',     category: 'practice',   level: 'advanced' },
+  'sentence-refine-user': { slot: 'sentence-refine-user', category: 'core',       level: 'advanced' },
+};
+
 /** Human-readable label for display in the skills UI. */
 export const SLOT_LABELS: Record<FeatureSlot, string> = {
   'cflt-transformer':     'CFLT Transformer (System)',

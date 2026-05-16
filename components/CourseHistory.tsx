@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Loader2, AlertCircle, BookOpen, Clock, FolderOpen, Trash2, Pencil, Check, X, Download, ChevronDown } from 'lucide-react';
-import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
+import { t as tr, type SupportedLang, localizeLang, findAgeKey, findDomainKey } from '../src/lib/ui-i18n';
 import type { CoursewareManifest } from '../src/types/courseware';
 import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 
@@ -195,7 +195,7 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
               className="border border-slate-100 rounded-2xl p-5 hover:border-amber-200 hover:shadow-md hover:shadow-amber-50 transition-all"
             >
               <div className="flex items-center justify-between gap-3 mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                <span>{course.sourceLang} → {course.targetLang}</span>
+                <span>{localizeLang(course.sourceLang, uiLang)} → {localizeLang(course.targetLang, uiLang)}</span>
                 <span>{formatTimestamp(course.createdAt, uiLang)}</span>
               </div>
               <div className="flex items-start justify-between gap-4">
@@ -227,7 +227,13 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
                     <p className="text-slate-900 font-black truncate">{course.topic}</p>
                   )}
                   <p className="text-xs text-slate-500 mt-1 truncate">
-                    {course.domain} · {course.ageGroup}
+                    {(() => {
+                      const dKey = findDomainKey(course.domain);
+                      const aKey = findAgeKey(course.ageGroup);
+                      const dLabel = dKey ? tr(uiLang, dKey) : course.domain;
+                      const aLabel = aKey ? tr(uiLang, aKey) : course.ageGroup;
+                      return `${dLabel} · ${aLabel}`;
+                    })()}
                   </p>
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider mt-2">
                     {tr(uiLang, 'historyLessonCount', String(course.lessonCount))}
@@ -247,8 +253,8 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
                     type="button"
                     onClick={() => handleExport(course.slug)}
                     disabled={exportingSlug === course.slug}
-                    aria-label="Export course"
-                    title="Export .corefirst"
+                    aria-label={tr(uiLang, 'btnExport')}
+                    title={tr(uiLang, 'btnExport')}
                     className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50"
                   >
                     {exportingSlug === course.slug

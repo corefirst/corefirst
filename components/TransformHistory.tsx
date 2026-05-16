@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronRight, Clock, PlayCircle, Trash2 } from 'lucide-react';
 import { CFLTBlock, type CFLTBlockType } from './CFLTBlock';
-import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
+import { t as tr, type SupportedLang, localizeLang } from '../src/lib/ui-i18n';
 import { useSettings } from '../hooks/useSettings';
 import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 
@@ -195,7 +195,7 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
                   aria-expanded={isOpen}
                 >
                   <div className="flex items-center justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400 pr-14">
-                    <span>{item.sourceLang} → {item.targetLang}</span>
+                    <span>{localizeLang(item.sourceLang, uiLang)} → {localizeLang(item.targetLang, uiLang)}</span>
                     <span>{formatTimestamp(item.createdAt, uiLang)}</span>
                   </div>
                   <div className="flex items-start justify-between gap-3">

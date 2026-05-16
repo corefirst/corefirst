@@ -11,6 +11,7 @@ interface VoiceChallengeProps {
   expectedText: string;
   sourceLang: string;
   targetLang: string;
+  uiLang: SupportedLang;
   sessionId?: string;
   packageSlug?: string | null;
   lessonIndex?: number;
@@ -26,7 +27,7 @@ interface EvaluationResult {
 }
 
 export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
-  expectedText, sourceLang, targetLang, sessionId, packageSlug, lessonIndex, scriptIndex
+  expectedText, sourceLang, targetLang, uiLang, sessionId, packageSlug, lessonIndex, scriptIndex
 }) => {
   const { isRecording, audioBlob, recorderError, startRecording, stopRecording } = useRecorder();
   const { getHeaders } = useSettings();
@@ -61,7 +62,7 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
       setEvaluation(data);
     } catch (err) {
       console.error(err);
-      setEvalError('Could not evaluate speech. Please try again.');
+      setEvalError(tr(uiLang, 'errVoiceEval'));
     } finally {
       setEvaluating(false);
     }
@@ -79,12 +80,12 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
     <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">
-          Voice Challenge
+          {tr(uiLang, 'voiceChallengeLabel')}
         </span>
         {evaluation && (
           <div className="flex items-center gap-2 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-bold">
             <Award className="w-3 h-3" />
-            Score: {evaluation.score}
+            {tr(uiLang, 'voiceScore', String(evaluation.score))}
           </div>
         )}
       </div>
@@ -111,19 +112,19 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
         {evaluating && (
           <div className="flex items-center gap-2 text-slate-500 text-xs font-bold animate-pulse">
             <Loader2 className="w-4 h-4 animate-spin" />
-            Analyzing your logic stress...
+            {tr(uiLang, 'voiceAnalyzing')}
           </div>
         )}
 
         {!evaluating && !isRecording && !evaluation && !recorderError && !evalError && (
-          <p className="text-xs text-slate-400 font-medium">Click to record and practice your Core First prosody.</p>
+          <p className="text-xs text-slate-400 font-medium">{tr(uiLang, 'voiceChallengeHint')}</p>
         )}
       </div>
 
       {keyError && (
         <div className="flex items-center gap-2 text-amber-600 text-xs font-bold">
           <AlertCircle className="w-4 h-4 flex-shrink-0" />
-          No API key configured for speech evaluation. Open Settings to add one.
+          {tr(uiLang, 'errNoApiKeyRoleplay')}
         </div>
       )}
       {(recorderError || evalError) && (
@@ -140,7 +141,7 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
           className="grid grid-cols-2 gap-3"
         >
           <div className="bg-white p-3 rounded-xl border border-slate-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Pronunciation</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">{tr(uiLang, 'pronunciation')}</p>
             <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2">
               <div
                 className="bg-blue-500 h-full rounded-full transition-all duration-1000"
@@ -149,7 +150,7 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
             </div>
           </div>
           <div className="bg-white p-3 rounded-xl border border-slate-100">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">Logic Stress</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">{tr(uiLang, 'logicStress')}</p>
             <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2">
               <div
                 className="bg-emerald-500 h-full rounded-full transition-all duration-1000"

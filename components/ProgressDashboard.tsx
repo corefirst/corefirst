@@ -12,7 +12,7 @@ import {
   Link2, CheckCircle2, Circle,
 } from 'lucide-react';
 import type { VocabUsageItem, VocabUsageResponse } from '../app/api/progress/vocab-usage/route';
-import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
+import { t as tr, type SupportedLang, localizeLang } from '../src/lib/ui-i18n';
 
 interface DailyActivity {
   date: string;
@@ -304,7 +304,7 @@ const AbilitySection: React.FC<{ data: ProgressResponse; uiLang: SupportedLang }
           <p className="text-sm text-slate-400 text-center py-12">
             {formattedCurve.length === 0
               ? tr(uiLang, 'statsLearningCurveEmpty')
-              : `Complete ${3 - formattedCurve.length} more voice challenge${3 - formattedCurve.length === 1 ? '' : 's'} to see your progress curve.`}
+              : tr(uiLang, 'statsCurveWait', String(3 - formattedCurve.length))}
           </p>
         ) : (
           <div className="h-[280px] w-full">
@@ -404,7 +404,7 @@ const AbilitySection: React.FC<{ data: ProgressResponse; uiLang: SupportedLang }
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-bold text-slate-700 flex items-center gap-2">
                         <Languages className="w-3.5 h-3.5 text-slate-400" />
-                        {lp.source} → {lp.target}
+                        {localizeLang(lp.source, uiLang)} → {localizeLang(lp.target, uiLang)}
                       </span>
                       <span className="font-black tabular-nums text-slate-500">{lp.count}</span>
                     </div>
@@ -446,7 +446,7 @@ const MemorySection: React.FC<{ data: ProgressResponse; uiLang: SupportedLang; o
             className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-100 text-violet-700 rounded-lg text-xs font-bold hover:bg-violet-200 transition-colors"
           >
             <Brain className="w-3 h-3" />
-            Review {vocabulary.due} due →
+            {tr(uiLang, 'statsReviewDue', String(vocabulary.due))}
           </button>
         )}
       </div>
@@ -512,7 +512,7 @@ const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
     <section className="space-y-4">
       <SectionHeader
         icon={<Link2 className="w-4 h-4" />}
-        title="Vocabulary in Practice"
+        title={tr(uiLang, 'statsVocabInPractice')}
         accent="text-teal-600"
       />
 
@@ -522,7 +522,7 @@ const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
         <div className="flex items-center gap-4">
           <div className="flex-1 space-y-1.5">
             <div className="flex justify-between text-xs font-bold text-slate-500">
-              <span>{data.usedCount} of {data.total} vocabulary words used in Roleplay</span>
+              <span>{tr(uiLang, 'statsVocabUsedInRoleplay', String(data.usedCount), String(data.total))}</span>
               <span className="text-teal-600">{usedPct}%</span>
             </div>
             <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
@@ -540,10 +540,10 @@ const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
           {/* Used in conversation */}
           <div className="space-y-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-teal-600 flex items-center gap-1.5">
-              <CheckCircle2 className="w-3 h-3" /> Used in conversation
+              <CheckCircle2 className="w-3 h-3" /> {tr(uiLang, 'vocabUsed')}
             </p>
             {topUsed.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">None yet — start a Roleplay session!</p>
+              <p className="text-xs text-slate-400 italic">{tr(uiLang, 'historyEmpty')}</p>
             ) : (
               <div className="space-y-1.5">
                 {topUsed.map(item => (
@@ -564,10 +564,10 @@ const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
           {/* Not yet used */}
           <div className="space-y-2">
             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1.5">
-              <Circle className="w-3 h-3" /> Try using these
+              <Circle className="w-3 h-3" /> {tr(uiLang, 'vocabTryUsing')}
             </p>
             {neverUsed.length === 0 ? (
-              <p className="text-xs text-slate-400 italic">You've used all your vocabulary words! 🎉</p>
+              <p className="text-xs text-slate-400 italic">{tr(uiLang, 'vocabAllCaughtUp')}</p>
             ) : (
               <div className="space-y-1.5">
                 {neverUsed.map(item => (
@@ -576,7 +576,9 @@ const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
                       <span className="text-sm font-bold text-slate-600 truncate block">{item.token}</span>
                       <span className="text-[11px] text-slate-400 truncate block">{item.meaning}</span>
                     </div>
-                    <span className="shrink-0 text-[11px] text-slate-300 font-bold">unused</span>
+                    <span className="shrink-0 text-[11px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded ml-1 align-middle uppercase tracking-widest">
+                      {tr(uiLang, 'unused')}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -590,7 +592,7 @@ const CrossTabSection: React.FC<{ uiLang: SupportedLang }> = ({ uiLang }) => {
             onClick={() => setExpanded(e => !e)}
             className="w-full text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors py-1"
           >
-            {expanded ? '▲ Show less' : `▼ Show all ${data.total} words`}
+            {expanded ? tr(uiLang, 'statsShowLess') : tr(uiLang, 'statsShowAll', String(data.total))}
           </button>
         )}
 

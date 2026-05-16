@@ -17,7 +17,7 @@ import {
   X,
   RefreshCw,
 } from 'lucide-react';
-import { t as tr, type SupportedLang } from '../src/lib/ui-i18n';
+import { t as tr, type SupportedLang, localizeLang } from '../src/lib/ui-i18n';
 import { useSettings } from '../hooks/useSettings';
 import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 
@@ -59,11 +59,11 @@ const SLOT_META = {
   time: { bg: 'bg-cflt-time', letter: 'T' },
 } as const;
 
-const ERROR_LABEL: Record<ErrorItem['type'], string> = {
-  spelling: '拼写',
-  grammar: '语法',
-  word_choice: '用词',
-  word_order: '语序',
+const ERROR_LABEL_KEYS: Record<ErrorItem['type'], any> = {
+  spelling: 'errSpelling',
+  grammar: 'errGrammar',
+  word_choice: 'errWordChoice',
+  word_order: 'errWordOrder',
 };
 
 const CrstStrip: React.FC<{ crst: Crst, uiLang: SupportedLang }> = ({ crst, uiLang }) => (
@@ -302,7 +302,7 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
                   aria-expanded={isOpen}
                 >
                   <div className="flex items-center justify-between mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    <span>{session.sourceLang} → {session.targetLang}</span>
+                    <span>{localizeLang(session.sourceLang, uiLang)} → {localizeLang(session.targetLang, uiLang)}</span>
                     <span>{formatTimestamp(session.lastMessageAt, uiLang)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-3">
@@ -379,8 +379,8 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
                                   <button
                                     onClick={() => retranscribe(session.sessionId, m, session.sourceLang)}
                                     disabled={retranscribing === m.eventId}
-                                    aria-label="重新识别"
-                                    title="重新识别录音文字"
+                                    aria-label={tr(uiLang, 'btnRetranscribe')}
+                                    title={tr(uiLang, 'btnRetranscribeHint')}
                                     className="text-slate-300 hover:text-blue-500 transition-colors disabled:opacity-50"
                                   >
                                     {retranscribing === m.eventId ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
@@ -403,26 +403,26 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
                             {m.role === 'user' && m.userAnalysis && (
                               <div className="bg-white/70 rounded-lg p-2.5 space-y-2 border border-blue-100">
                                 {m.userAnalysis.corrected && m.userAnalysis.corrected !== m.content && (
-                                  <div><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mr-1.5 align-middle">改正</span><span className="font-bold">{m.userAnalysis.corrected}</span>
-                                    <button onClick={() => playAudio(m.userAnalysis!.corrected, `corrected-${audioId}`, m.correctedAudioFile)} className="ml-2 text-blue-400 hover:text-blue-600 align-middle"><PlayCircle className="w-3.5 h-3.5" /></button>
+                                  <div><span className="text-[10px] font-black uppercase text-slate-400 tracking-widest mr-1.5 align-middle">{tr(uiLang, 'roleplayCorrectionLabel')}</span><span className="font-bold">{m.userAnalysis.corrected}</span>
+                                    <button onClick={() => playAudio(m.userAnalysis!.corrected, `corrected-${audioId}`, m.correctedAudioFile)} title={tr(uiLang, 'btnPlayCorrected')} className="ml-2 text-blue-400 hover:text-blue-600 align-middle"><PlayCircle className="w-3.5 h-3.5" /></button>
                                   </div>
                                 )}
                                 {m.userAnalysis.errors.length > 0 && (
                                   <div className="space-y-1">
                                     {m.userAnalysis.errors.map((err, k) => (
-                                      <div key={k} className="text-xs leading-snug"><span className="font-black text-red-500 uppercase mr-1">{ERROR_LABEL[err.type] ?? err.type}</span><span className="line-through text-slate-400">{err.original}</span><span className="mx-1">→</span><span className="font-bold text-emerald-600">{err.correction}</span>{err.note && <span className="ml-1 text-slate-500 italic">— {err.note}</span>}</div>
+                                      <div key={k} className="text-xs leading-snug"><span className="font-black text-red-500 uppercase mr-1">{tr(uiLang, ERROR_LABEL_KEYS[err.type])}</span><span className="line-through text-slate-400">{err.original}</span><span className="mx-1">→</span><span className="font-bold text-emerald-600">{err.correction}</span>{err.note && <span className="ml-1 text-slate-500 italic">— {err.note}</span>}</div>
                                     ))}
                                   </div>
                                 )}
-                                <div className="pt-1"><div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Core / Reason / Space / Time 分解</div><CrstStrip crst={m.userAnalysis.crst} uiLang={uiLang} /></div>
+                                <div className="pt-1"><div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">{tr(uiLang, 'roleplayAnalysisLabel')}</div><CrstStrip crst={m.userAnalysis.crst} uiLang={uiLang} /></div>
                               </div>
                             )}
                             {m.role === 'assistant' && m.coachAnalysis && (
                               <div className="bg-white/70 rounded-lg p-2.5 space-y-2 border border-slate-100">
-                                <div><div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Core / Reason / Space / Time 分解</div><CrstStrip crst={m.coachAnalysis.crst} uiLang={uiLang} /></div>
+                                <div><div className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">{tr(uiLang, 'roleplayAnalysisLabel')}</div><CrstStrip crst={m.coachAnalysis.crst} uiLang={uiLang} /></div>
                               </div>
                             )}
-                            {m.role === 'assistant' && m.feedback && (<div className="bg-amber-50 rounded-lg p-2 text-xs leading-snug text-amber-700 font-bold"><span className="text-[10px] uppercase tracking-widest mr-1.5">教练点评</span>{m.feedback}</div>)}
+                            {m.role === 'assistant' && m.feedback && (<div className="bg-amber-50 rounded-lg p-2 text-xs leading-snug text-amber-700 font-bold"><span className="text-[10px] uppercase tracking-widest mr-1.5">{tr(uiLang, 'roleplayCoachLabel')}</span>{m.feedback}</div>)}
                           </div>
                         );
                       })}

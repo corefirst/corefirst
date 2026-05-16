@@ -8,8 +8,9 @@ import { SkillsContent } from '@/components/SkillsPanel';
 import { useSettings, type UserSettings, type SettingsMode } from '@/hooks/useSettings';
 import { useProfile } from '@/hooks/useProfile';
 import { isFullStackProvider, PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
+import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
-interface Props { onClose: () => void; }
+interface Props { onClose: () => void; uiLang: SupportedLang; }
 
 type Tab = 'providers' | 'skills' | 'profile';
 type VerifyState = 'idle' | 'loading' | 'ok' | 'error';
@@ -94,7 +95,7 @@ function ModelSelect({ value, onChange, provider, capability, placeholder }: {
 
 // === Component ============================================================
 
-export function Settings({ onClose }: Props) {
+export function Settings({ onClose, uiLang }: Props) {
   const { settings, save, verifyKey } = useSettings();
   const { currentProfile, renameProfile, currentId } = useProfile();
 
@@ -217,7 +218,7 @@ export function Settings({ onClose }: Props) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-2">
             <SettingsIcon size={18} className="text-gray-500" />
-            <h2 id="settings-title" className="font-semibold text-gray-900">Settings</h2>
+            <h2 id="settings-title" className="font-semibold text-gray-900">{tr(uiLang, 'settings')}</h2>
           </div>
           <button onClick={onClose} aria-label="Close settings" className="text-gray-400 hover:text-gray-600 transition-colors">
             <X size={18} />
@@ -225,7 +226,7 @@ export function Settings({ onClose }: Props) {
         </div>
 
         <div role="tablist" className="flex border-b border-gray-100 px-6 shrink-0">
-          {([['providers', Cpu, 'AI Providers'], ['skills', Zap, 'Skills'], ['profile', User, 'Profile']] as const).map(([id, Icon, label]) => (
+          {([['providers', Cpu, tr(uiLang, 'providers')], ['skills', Zap, tr(uiLang, 'skills')], ['profile', User, tr(uiLang, 'profile')]] as const).map(([id, Icon, label]) => (
             <button
               key={id}
               role="tab"
@@ -243,23 +244,23 @@ export function Settings({ onClose }: Props) {
 
           {tab === 'providers' && (
             <>
-              <ModeToggle mode={mode} onChange={setMode} />
+              <ModeToggle uiLang={uiLang} mode={mode} onChange={setMode} />
 
               <div>
                 {mode === 'standard' ? (
                   <>
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                      Pick a provider
+                      {tr(uiLang, 'settingsPickProvider')}
                     </p>
-                    <p className="text-xs text-gray-400 mb-3">
-                      One key powers text, image, speech, and transcription.
+                    <p className="text-xs text-gray-500 mt-1">
+                      {tr(uiLang, 'fullStackSub')}
                     </p>
                     <select
                       value={draft.global.provider}
                       onChange={e => handleProviderSelect(e.target.value)}
                       className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
                     >
-                      <option value="">— select a provider —</option>
+                      <option value="">{tr(uiLang, 'settingsSelectProvider')}</option>
                       {STANDARD_PROVIDERS.map(p => (
                         <option key={p.id} value={p.id}>{p.label} — {p.fullStackTagline ?? p.tagline}</option>
                       ))}
@@ -268,17 +269,17 @@ export function Settings({ onClose }: Props) {
                 ) : (
                   <>
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">
-                      Text AI <span className="font-normal normal-case text-gray-400">— Transform · Roleplay · Course</span>
+                      {tr(uiLang, 'textAi')} <span className="font-normal normal-case text-gray-400">— {tr(uiLang, 'textAiSubtitle')}</span>
                     </p>
 
-                    <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">Cloud</p>
+                    <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">{tr(uiLang, 'cloud')}</p>
                     <div className="grid grid-cols-3 gap-1.5 mb-3">
                       {cloudProviders.map(p => (
                         <ProviderCard key={p.id} p={p} selected={draft.global.provider === p.id} onSelect={handleProviderSelect} />
                       ))}
                     </div>
 
-                    <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">Local</p>
+                    <p className="text-[11px] text-gray-400 font-medium uppercase tracking-wider mb-1.5">{tr(uiLang, 'local')}</p>
                     <div className="grid grid-cols-3 gap-1.5 mb-4">
                       {localProviders.map(p => (
                         <ProviderCard key={p.id} p={p} selected={draft.global.provider === p.id} onSelect={handleProviderSelect} />
@@ -292,7 +293,7 @@ export function Settings({ onClose }: Props) {
 
                     {selectedProvider.authType === 'key' && (
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">{tr(uiLang, 'apiKey')}</label>
                         <div className="flex gap-2">
                           <input
                             type="password"
@@ -301,13 +302,13 @@ export function Settings({ onClose }: Props) {
                             placeholder={selectedProvider.keyPlaceholder}
                             className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
-                          <VerifyButton state={verifyState} disabled={!draft.global.apiKey} onClick={handleVerify} />
+                          <VerifyButton state={verifyState} disabled={!draft.global.apiKey} onClick={handleVerify} label={tr(uiLang, 'btnVerify')} />
                         </div>
                         {selectedProvider.signupUrl && (
                           <p className="text-xs text-gray-400 mt-1">
-                            No key?{' '}
+                            {tr(uiLang, 'settingsNoKey')}{' '}
                             <a href={selectedProvider.signupUrl} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline">
-                              Get one free →
+                              {tr(uiLang, 'settingsGetOneFree')}
                             </a>
                           </p>
                         )}
@@ -317,7 +318,7 @@ export function Settings({ onClose }: Props) {
                     {selectedProvider.authType === 'url' && (
                       <>
                         <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Base URL</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">{tr(uiLang, 'baseUrl')}</label>
                           <input
                             type="text"
                             value={draft.advanced.ollama?.baseUrl ?? selectedProvider.urlDefault ?? ''}
@@ -328,7 +329,7 @@ export function Settings({ onClose }: Props) {
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Model <span className="text-red-400">*</span>
+                            {tr(uiLang, 'model')} <span className="text-red-400">*</span>
                           </label>
                           <input
                             type="text"
@@ -352,18 +353,18 @@ export function Settings({ onClose }: Props) {
                             ))}
                           </div>
                         </div>
-                        <VerifyButton state={verifyState} disabled={!draft.global.model} onClick={handleVerify} label="Test Connection" />
+                        <VerifyButton state={verifyState} disabled={!draft.global.model} onClick={handleVerify} label={tr(uiLang, 'btnTestConnection')} />
                       </>
                     )}
 
                     {selectedProvider.authType === 'none' && (
                       <div className="space-y-2">
                         <p className="text-sm text-gray-600">
-                          No API key needed — uses your local <code className="bg-gray-200 px-1 rounded text-xs">{selectedProvider.id.split('/')[1]}</code> CLI.
+                          {tr(uiLang, 'labelNoApiKeyNeeded', selectedProvider.id.split('/')[1])}
                         </p>
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-1">
-                            Command path <span className="font-normal text-gray-400">(optional, default: uses PATH)</span>
+                            {tr(uiLang, 'commandPath')} <span className="font-normal text-gray-400">(optional, default: uses PATH)</span>
                           </label>
                           <input
                             type="text"
@@ -373,24 +374,24 @@ export function Settings({ onClose }: Props) {
                             className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
-                        <VerifyButton state={verifyState} disabled={false} onClick={handleVerify} label="Check CLI" />
+                        <VerifyButton state={verifyState} disabled={false} onClick={handleVerify} label={tr(uiLang, 'btnCheckCli')} />
                       </div>
                     )}
 
                     {selectedProvider.authType === 'key' && (
                       <div>
                         <label className="block text-xs font-medium text-gray-500 mb-2">
-                          Model overrides <span className="font-normal text-gray-400">(blank = provider default)</span>
+                          {tr(uiLang, 'labelModelOverrides')} <span className="font-normal text-gray-400">({tr(uiLang, 'labelProviderDefault')})</span>
                         </label>
                         <div className="grid grid-cols-2 gap-2">
                           {[
-                            { label: 'LLM (Default)', key: 'model' as const, cap: 'text' },
-                            { label: 'TTS', key: 'ttsModel' as const, cap: 'text-to-speech' },
-                            { label: 'STT', key: 'sttModel' as const, cap: 'speech-to-text' },
-                            { label: 'Image', key: 'imageModel' as const, cap: 'text-to-image' },
+                            { label: tr(uiLang, 'labelLlmDefault'), key: 'model' as const, cap: 'text' },
+                            { label: tr(uiLang, 'labelTts'), key: 'ttsModel' as const, cap: 'text-to-speech' },
+                            { label: tr(uiLang, 'labelStt'), key: 'sttModel' as const, cap: 'speech-to-text' },
+                            { label: tr(uiLang, 'labelImage'), key: 'imageModel' as const, cap: 'text-to-image' },
                           ].map(({ label, key, cap }) => {
                             const defaults = PROVIDER_DEFAULTS[draft.global.provider] ?? {};
-                            const placeholder = defaults[cap as keyof typeof defaults] ?? 'provider default';
+                            const placeholder = defaults[cap as keyof typeof defaults] ?? tr(uiLang, 'labelProviderDefault');
                             return (
                               <div key={key}>
                                 <label className="block text-[11px] font-medium text-gray-500 mb-0.5">{label}</label>
@@ -408,7 +409,7 @@ export function Settings({ onClose }: Props) {
                       </div>
                     )}
 
-                    <VerifyFeedback state={verifyState} error={verifyError} />
+                    <VerifyFeedback state={verifyState} error={verifyError} uiLang={uiLang} />
                   </div>
                 )}
               </div>
@@ -417,19 +418,19 @@ export function Settings({ onClose }: Props) {
               <CollapsibleSection
                 id="transform"
                 title="CFLT Transform"
-                subtitle="Sentence restructuring engine"
+                subtitle={tr(uiLang, 'labelTransformEngine')}
                 open={!!openSections.transform}
                 onToggle={() => toggleSection('transform')}
               >
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{tr(uiLang, 'provider')}</label>
                     <select
                       value={draft.advanced.transform?.provider ?? ''}
                       onChange={e => patchAdv('transform', { provider: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
-                      <option value="">— use global / server default —</option>
+                      <option value="">— {tr(uiLang, 'globalDefault')} —</option>
                       {PROVIDERS.filter(p => p.authType !== 'url').map(p => (
                         <option key={p.id} value={p.id}>{p.label}</option>
                       ))}
@@ -437,7 +438,7 @@ export function Settings({ onClose }: Props) {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Model <span className="font-normal text-gray-400">(blank = provider default)</span>
+                      Model <span className="font-normal text-gray-400">({tr(uiLang, 'settingsBlankDefault')})</span>
                     </label>
                     <ModelSelect
                       value={draft.advanced.transform?.model ?? ''}
@@ -453,19 +454,19 @@ export function Settings({ onClose }: Props) {
               <CollapsibleSection
                 id="courseGen"
                 title="Course Generation"
-                subtitle="Full lesson manifest orchestrator"
+                subtitle={tr(uiLang, 'labelCourseOrchestrator')}
                 open={!!openSections.courseGen}
                 onToggle={() => toggleSection('courseGen')}
               >
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{tr(uiLang, 'provider')}</label>
                     <select
                       value={draft.advanced.courseGen?.provider ?? ''}
                       onChange={e => patchAdv('courseGen', { provider: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
-                      <option value="">— use global / server default —</option>
+                      <option value="">— {tr(uiLang, 'globalDefault')} —</option>
                       {PROVIDERS.filter(p => p.authType !== 'url').map(p => (
                         <option key={p.id} value={p.id}>{p.label}</option>
                       ))}
@@ -473,7 +474,7 @@ export function Settings({ onClose }: Props) {
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Model <span className="font-normal text-gray-400">(blank = provider default)</span>
+                      Model <span className="font-normal text-gray-400">({tr(uiLang, 'settingsBlankDefault')})</span>
                     </label>
                     <ModelSelect
                       value={draft.advanced.courseGen?.model ?? ''}
@@ -489,29 +490,29 @@ export function Settings({ onClose }: Props) {
               <CollapsibleSection
                 id="tts"
                 title="Text-to-Speech"
-                subtitle="OpenAI · Qwen CosyVoice · OpenRouter · local servers"
+                subtitle={tr(uiLang, 'labelTtsSub')}
                 open={!!openSections.tts}
                 onToggle={() => toggleSection('tts')}
               >
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{tr(uiLang, 'provider')}</label>
                     <select
                       value={draft.advanced.tts?.provider ?? ''}
                       onChange={e => patchAdv('tts', { provider: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
-                      <option value="">— disabled / use server default —</option>
-                      <option value="openai">OpenAI-compatible (local or openai.com)</option>
-                      <option value="qwen">Qwen / DashScope CosyVoice</option>
-                      <option value="openrouter">OpenRouter (routes to openai/tts-1)</option>
+                      <option value="">— {tr(uiLang, 'globalDefault')} —</option>
+                      <option value="openai">{tr(uiLang, 'labelOpenAiCompatible')}</option>
+                      <option value="qwen">{tr(uiLang, 'labelQwenCosyVoice')}</option>
+                      <option value="openrouter">{tr(uiLang, 'labelOpenRouterTts')}</option>
                     </select>
                   </div>
                   {draft.advanced.tts?.provider === 'openai' && (
                     <>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Base URL <span className="font-normal text-gray-400">(blank = openai.com)</span>
+                          Base URL <span className="font-normal text-gray-400">({tr(uiLang, 'settingsInheritOpenAI')})</span>
                         </label>
                         <input
                           type="text"
@@ -524,7 +525,7 @@ export function Settings({ onClose }: Props) {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Model <span className="font-normal text-gray-400">(blank = server default)</span>
+                          Model <span className="font-normal text-gray-400">({tr(uiLang, 'settingsInheritServer')})</span>
                         </label>
                         <ModelSelect
                           value={draft.advanced.tts?.model ?? ''}
@@ -539,7 +540,7 @@ export function Settings({ onClose }: Props) {
                   {(draft.advanced.tts?.provider === 'qwen' || draft.advanced.tts?.provider === 'openrouter') && (
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
-                        API Key <span className="font-normal text-gray-400">(leave blank to use global key)</span>
+                        API Key <span className="font-normal text-gray-400">({tr(uiLang, 'leaveBlank')})</span>
                       </label>
                       <input
                         type="password"
@@ -556,28 +557,28 @@ export function Settings({ onClose }: Props) {
               <CollapsibleSection
                 id="stt"
                 title="Speech-to-Text"
-                subtitle="OpenAI · Qwen Paraformer · OpenRouter · local servers"
+                subtitle={tr(uiLang, 'labelSttSub')}
                 open={!!openSections.stt}
                 onToggle={() => toggleSection('stt')}
               >
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{tr(uiLang, 'provider')}</label>
                     <select
                       value={draft.advanced.stt?.provider ?? ''}
                       onChange={e => patchAdv('stt', { provider: e.target.value })}
                       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
-                      <option value="">— disabled / use server default —</option>
-                      <option value="openai">OpenAI-compatible (local or openai.com)</option>
-                      <option value="qwen">Qwen / DashScope Paraformer SenseVoice</option>
-                      <option value="openrouter">OpenRouter (routes to openai/whisper-1)</option>
+                      <option value="">— {tr(uiLang, 'globalDefault')} —</option>
+                      <option value="openai">{tr(uiLang, 'labelOpenAiCompatible')}</option>
+                      <option value="qwen">{tr(uiLang, 'labelQwenParaformer')}</option>
+                      <option value="openrouter">{tr(uiLang, 'labelOpenRouterStt')}</option>
                     </select>
                   </div>
                   {draft.advanced.stt?.provider === 'openai' && (
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
-                        Base URL <span className="font-normal text-gray-400">(blank = openai.com)</span>
+                        Base URL <span className="font-normal text-gray-400">({tr(uiLang, 'settingsInheritOpenAI')})</span>
                       </label>
                       <input
                         type="text"
@@ -592,7 +593,7 @@ export function Settings({ onClose }: Props) {
                   {(draft.advanced.stt?.provider === 'qwen' || draft.advanced.stt?.provider === 'openrouter') && (
                     <div>
                       <label className="block text-xs font-medium text-gray-600 mb-1">
-                        API Key <span className="font-normal text-gray-400">(leave blank to use global key)</span>
+                        API Key <span className="font-normal text-gray-400">({tr(uiLang, 'leaveBlank')})</span>
                       </label>
                       <input
                         type="password"
@@ -609,15 +610,15 @@ export function Settings({ onClose }: Props) {
               <CollapsibleSection
                 id="image"
                 title="Image Generation"
-                subtitle="Google Imagen · OpenAI · Ollama-compatible"
+                subtitle={tr(uiLang, 'labelImageSub')}
                 open={!!openSections.image}
                 onToggle={() => toggleSection('image')}
               >
                 <div className="space-y-3">
                   <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Provider</label>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">{tr(uiLang, 'provider')}</label>
                     <div className="grid grid-cols-3 gap-1.5">
-                      {[{ id: '', label: 'None (server env)' }, ...IMAGE_PROVIDERS].map(p => (
+                      {[{ id: '', label: tr(uiLang, 'labelNoneServerEnv') }, ...IMAGE_PROVIDERS].map(p => (
                         <button
                           key={p.id}
                           onClick={() => patchAdv('imageGen', { provider: p.id })}
@@ -626,7 +627,7 @@ export function Settings({ onClose }: Props) {
                             : 'border-gray-200 text-gray-600 hover:border-gray-300'
                             }`}
                         >
-                          {p.label}
+                          {p.id === 'google' || p.id === 'openai' ? p.label : (p.id === '' ? tr(uiLang, 'labelNoneServerEnv') : p.label)}
                         </button>
                       ))}
                     </div>
@@ -635,7 +636,7 @@ export function Settings({ onClose }: Props) {
                     <>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Base URL <span className="font-normal text-gray-400">(blank = inherit from server env / openai.com)</span>
+                          Base URL <span className="font-normal text-gray-400">({tr(uiLang, 'settingsInheritEnv')})</span>
                         </label>
                         <input
                           type="text"
@@ -648,7 +649,7 @@ export function Settings({ onClose }: Props) {
                       </div>
                       <div>
                         <label className="block text-xs font-medium text-gray-600 mb-1">
-                          Model <span className="font-normal text-gray-400">(blank = inherit from server env)</span>
+                          Model <span className="font-normal text-gray-400">({tr(uiLang, 'settingsInheritEnv')})</span>
                         </label>
                         <ModelSelect
                           value={draft.advanced.imageGen?.model ?? ''}
@@ -662,7 +663,7 @@ export function Settings({ onClose }: Props) {
                   )}
                   {draft.advanced.imageGen?.provider && (
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">API Key</label>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">{tr(uiLang, 'apiKey')}</label>
                       <input
                         type="password"
                         value={draft.advanced.imageGen?.apiKey ?? ''}
@@ -681,16 +682,16 @@ export function Settings({ onClose }: Props) {
           {tab === 'skills' && (
             <div>
               <p className="text-xs text-gray-400 mb-4">
-                Customize the AI prompt template for each feature slot. Use <code className="bg-gray-100 px-1 rounded text-xs">{`{{VARIABLE}}`}</code> for dynamic values.
+                {tr(uiLang, 'skillsSubtitle')}. Use <code className="bg-gray-100 px-1 rounded text-xs">{`{{VARIABLE}}`}</code> for dynamic values.
               </p>
-              <SkillsContent />
+              <SkillsContent uiLang={uiLang} />
             </div>
           )}
 
           {tab === 'profile' && (
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Display Name</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{tr(uiLang, 'settingsProfileName')}</label>
                 <input
                   type="text"
                   value={displayName}
@@ -700,9 +701,9 @@ export function Settings({ onClose }: Props) {
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">User ID</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">{tr(uiLang, 'settingsUserId')}</label>
                 <p className="text-sm font-mono text-gray-400 bg-gray-50 rounded-xl px-3 py-2 break-all">{currentId || '—'}</p>
-                <p className="text-xs text-gray-400 mt-1">Future: link to hub.corefirst.world for sync and premium features.</p>
+                <p className="text-xs text-gray-400 mt-1">{tr(uiLang, 'settingsFuture')}</p>
               </div>
             </div>
           )}
@@ -715,13 +716,13 @@ export function Settings({ onClose }: Props) {
           }
           <div className="flex gap-2">
             <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-              Cancel
+              {tr(uiLang, 'cancel')}
             </button>
             <button
               onClick={handleSave}
               className="px-5 py-2 bg-blue-600 text-white text-sm rounded-xl font-medium hover:bg-blue-700 transition-colors"
             >
-              Save
+              {tr(uiLang, 'settingsSave')}
             </button>
           </div>
         </div>
@@ -732,7 +733,7 @@ export function Settings({ onClose }: Props) {
 
 // === Sub-components ========================================================
 
-function ModeToggle({ mode, onChange }: { mode: SettingsMode; onChange: (m: SettingsMode) => void }) {
+function ModeToggle({ uiLang, mode, onChange }: { uiLang: string; mode: SettingsMode; onChange: (m: SettingsMode) => void }) {
   return (
     <div className="flex items-center justify-between gap-3 bg-gray-50 rounded-xl p-1">
       {(['standard', 'advanced'] as const).map((m) => (
@@ -745,9 +746,9 @@ function ModeToggle({ mode, onChange }: { mode: SettingsMode; onChange: (m: Sett
               : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          {m === 'standard' ? 'Standard' : 'Advanced'}
+          {m === 'standard' ? tr(uiLang, 'settingsStandard') : tr(uiLang, 'settingsAdvanced')}
           <span className="ml-2 text-[11px] text-gray-400 font-normal">
-            {m === 'standard' ? 'one key, all features' : 'mix providers per feature'}
+            {m === 'standard' ? tr(uiLang, 'settingsOneKeyAll') : tr(uiLang, 'settingsMixProviders')}
           </span>
         </button>
       ))}
@@ -770,8 +771,8 @@ function ProviderCard({ p, selected, onSelect }: { p: ProviderDef; selected: boo
   );
 }
 
-function VerifyButton({ state, disabled, onClick, label = 'Verify' }: {
-  state: VerifyState; disabled: boolean; onClick: () => void; label?: string;
+function VerifyButton({ state, disabled, onClick, label }: {
+  state: VerifyState; disabled: boolean; onClick: () => void; label: string;
 }) {
   return (
     <button
@@ -785,8 +786,8 @@ function VerifyButton({ state, disabled, onClick, label = 'Verify' }: {
   );
 }
 
-function VerifyFeedback({ state, error }: { state: VerifyState; error: string }) {
-  if (state === 'ok') return <p className="flex items-center gap-1.5 text-sm text-green-700"><CheckCircle size={14} /> Connected successfully</p>;
+function VerifyFeedback({ state, error, uiLang }: { state: VerifyState; error: string; uiLang: SupportedLang }) {
+  if (state === 'ok') return <p className="flex items-center gap-1.5 text-sm text-green-700"><CheckCircle size={14} /> {tr(uiLang, 'verifyOk')}</p>;
   if (state === 'error') return <p className="flex items-center gap-1.5 text-sm text-red-600"><AlertCircle size={14} /> {error}</p>;
   return null;
 }

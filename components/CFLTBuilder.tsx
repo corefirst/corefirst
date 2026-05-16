@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Reorder, motion } from 'framer-motion';
 import { CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
+import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
 interface Block {
   id: string;
@@ -14,6 +15,7 @@ interface Block {
 interface CFLTBuilderProps {
   cfltString: string;
   cfltL2?: string;
+  uiLang: SupportedLang;
   onSuccess: () => void;
 }
 
@@ -44,7 +46,7 @@ const BLOCK_COLOR: Record<string, string> = {
   core: 'bg-cflt-core', reason: 'bg-cflt-reason', space: 'bg-cflt-space', time: 'bg-cflt-time',
 };
 
-export const CFLTBuilder: React.FC<CFLTBuilderProps> = ({ cfltString, cfltL2, onSuccess }) => {
+export const CFLTBuilder: React.FC<CFLTBuilderProps> = ({ cfltString, cfltL2, uiLang, onSuccess }) => {
   const [items, setItems] = useState<Block[]>([]);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,7 +94,7 @@ export const CFLTBuilder: React.FC<CFLTBuilderProps> = ({ cfltString, cfltL2, on
       {l2Parts.length > 0 && (
         <div className="space-y-2">
           <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">
-            Target Language Mapping
+            {tr(uiLang, 'targetMappingHeader')}
           </p>
           <div className="flex flex-wrap gap-2">
             {l2Parts.map(({ text, type }, i) => (
@@ -105,7 +107,7 @@ export const CFLTBuilder: React.FC<CFLTBuilderProps> = ({ cfltString, cfltL2, on
       )}
       <div className="flex items-center justify-between">
         <span className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em]">
-          Logic Puzzle: Reorder the Blocks
+          {tr(uiLang, 'builderHeader')}
         </span>
         <button
           onClick={handleReset}
@@ -145,18 +147,18 @@ export const CFLTBuilder: React.FC<CFLTBuilderProps> = ({ cfltString, cfltL2, on
           onClick={handleCheck}
           className="bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl font-black uppercase tracking-wider shadow-lg shadow-blue-900/20 transition-all active:scale-95"
         >
-          Verify Logic
+          {tr(uiLang, 'builderVerify')}
         </button>
 
         <div className="flex items-center gap-2">
           {isCorrect === true && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-2 text-emerald-400 font-bold">
-              <CheckCircle2 className="w-5 h-5" /> Logic Correct!
+              <CheckCircle2 className="w-5 h-5" /> {tr(uiLang, 'builderCorrect')}
             </motion.div>
           )}
           {isCorrect === false && (
             <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-2 text-red-400 font-bold">
-              <AlertCircle className="w-5 h-5" /> Check the sequence.
+              <AlertCircle className="w-5 h-5" /> {tr(uiLang, 'builderCheckSequence')}
             </motion.div>
           )}
         </div>

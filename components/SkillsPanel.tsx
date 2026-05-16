@@ -5,6 +5,9 @@ import {
   RotateCcw, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
+import { t as tr, type SupportedLang, type DictKey } from '@/src/lib/ui-i18n';
+import { SLOT_METADATA, type FeatureSlot, type SkillCategory } from '@/src/lib/skills/feature-slots';
+
 // ── Types ─────────────────────────────────────────────────────────────────
 
 interface SkillVar { key: string; label: string }
@@ -50,6 +53,32 @@ function validateContent(content: string): ValidationResult {
   return { valid: malformed.length === 0, malformed };
 }
 
+// ── Helpers for metadata mapping ──────────────────────────────────────────
+
+const FRIENDLY_LABELS: Record<string, DictKey> = {
+  'roleplay-coach': 'skillLabelRoleplayCoach',
+  'speech-eval': 'skillLabelSpeechEval',
+  'sentence-refine': 'skillLabelSentenceRefine',
+  'cflt-transformer': 'skillLabelCfltTransformer',
+  'courseware-gen': 'skillLabelCoursewareGen',
+  'courseware-repair': 'skillLabelCoursewareRepair',
+  'roleplay-analysis': 'skillLabelRoleplayAnalysis',
+  'speech-eval-user': 'skillLabelSpeechEvalUser',
+  'sentence-refine-user': 'skillLabelSentenceRefineUser',
+};
+
+const DESCRIPTION_KEYS: Record<string, DictKey> = {
+  'roleplay-coach': 'skillRoleplayCoachDesc',
+  'speech-eval': 'skillSpeechEvalDesc',
+  'sentence-refine': 'skillSentenceRefineDesc',
+};
+
+const CATEGORY_KEYS: Record<SkillCategory, DictKey> = {
+  'core': 'skillCategoryCore',
+  'practice': 'skillCategoryPractice',
+  'courseware': 'skillCategoryCourseware',
+};
+
 // ── Skill Editor ──────────────────────────────────────────────────────────
 
 function SkillEditor({
@@ -57,13 +86,19 @@ function SkillEditor({
   activeSkill,
   onSaved,
   onReset,
+  uiLang,
 }: {
   slot: SlotInfo;
   activeSkill: Skill | null;
   onSaved: () => void;
   onReset: () => void;
+  uiLang: SupportedLang;
 }) {
-  const [name, setName] = useState(activeSkill?.name ?? `My ${slot.label}`);
+  const meta = SLOT_METADATA[slot.slot as FeatureSlot];
+  const descKey = DESCRIPTION_KEYS[slot.slot];
+  
+  const friendlyLabel = FRIENDLY_LABELS[slot.slot] ? tr(uiLang, FRIENDLY_LABELS[slot.slot]) : slot.label;
+  const [name, setName] = useState(activeSkill?.name ?? friendlyLabel);
   const [content, setContent] = useState(activeSkill?.content ?? slot.defaultContent ?? '');
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [saving, setSaving] = useState(false);
@@ -109,7 +144,7 @@ function SkillEditor({
       });
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Save failed');
+      setError(e instanceof Error ? e.message : tr(uiLang, 'skillSaveFailed'));
     } finally {
       setSaving(false);
     }
@@ -117,8 +152,14 @@ function SkillEditor({
 
   return (
     <div className="space-y-3 pt-2">
+      {descKey && (
+        <p className="text-xs text-gray-500 leading-relaxed italic">
+          {tr(uiLang, descKey)}
+        </p>
+      )}
+      
       <div>
-        <label className="text-xs text-gray-500 mb-1 block">Skill name</label>
+        <label className="text-xs font-medium text-gray-700 mb-1 block">{tr(uiLang, 'skillName')}</label>
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -128,12 +169,12 @@ function SkillEditor({
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="text-xs text-gray-500">Template</label>
+          <label className="text-xs text-gray-500">{tr(uiLang, 'template')}</label>
           {validation && (
             <span className={`flex items-center gap-1 text-xs ${validation.valid ? 'text-green-600' : 'text-red-500'}`}>
               {validation.valid
-                ? <><CheckCircle size={12} /> Valid</>
-                : <><AlertCircle size={12} /> Syntax error</>}
+                ? <><CheckCircle size={12} /> {tr(uiLang, 'valid')}</>
+                : <><AlertCircle size={12} /> {tr(uiLang, 'syntaxError')}</>}
             </span>
           )}
         </div>
@@ -142,7 +183,7 @@ function SkillEditor({
           onChange={(e) => setContent(e.target.value)}
           rows={10}
           className="w-full text-xs font-mono border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
-          placeholder="Edit the template above. Use {{VARIABLE}} syntax for dynamic values."
+          placeholder={tr(uiLang, 'skillPlaceholder')}
           spellCheck={false}
         />
       </div>
@@ -159,7 +200,7 @@ function SkillEditor({
 
       {validation?.malformed.length ? (
         <div className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">
-          Syntax error on: <code className="font-mono">{validation.malformed[0]}</code>
+          {tr(uiLang, 'skillSyntaxErrorOn', validation.malformed[0])}
         </div>
       ) : null}
 
@@ -172,7 +213,7 @@ function SkillEditor({
           onClick={handleValidate}
           className="text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50"
         >
-          Validate
+          {tr(uiLang, 'skillBtnValidate')}
         </button>
         <button
           onClick={handleSave}
@@ -180,13 +221,13 @@ function SkillEditor({
           className="flex items-center gap-1 text-xs px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
         >
           {saving && <Loader2 size={12} className="animate-spin" />}
-          Save & Activate
+          {tr(uiLang, 'skillBtnSave')}
         </button>
         <button
           onClick={onReset}
           className="flex items-center gap-1 text-xs px-3 py-1.5 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-600"
         >
-          <RotateCcw size={12} /> Reset to default
+          <RotateCcw size={12} /> {tr(uiLang, 'skillBtnReset')}
         </button>
       </div>
     </div>
@@ -195,12 +236,13 @@ function SkillEditor({
 
 // ── Skills content (no modal wrapper) ────────────────────────────────────────
 
-export function SkillsContent() {
+export function SkillsContent({ uiLang }: { uiLang: SupportedLang }) {
   const [slots, setSlots] = useState<SlotInfo[]>([]);
   const [mySkills, setMySkills] = useState<Skill[]>([]);
   const [expandedSlot, setExpandedSlot] = useState<string | null>(null);
   const [activeSkillMap, setActiveSkillMap] = useState<Record<string, Skill | null>>({});
   const [loading, setLoading] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const loadData = useCallback(async () => {
     const [slotsRes, skillsRes] = await Promise.all([
@@ -242,74 +284,117 @@ export function SkillsContent() {
     );
   }
 
-  return (
-    <div className="space-y-2">
-      {slots.map((slot) => {
-        const active = activeSkillMap[slot.slot];
-        const isExpanded = expandedSlot === slot.slot;
-        return (
-          <div key={slot.slot} className="border border-gray-200 rounded-xl overflow-hidden">
-            <button
-              className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left"
-              onClick={() => setExpandedSlot(isExpanded ? null : slot.slot)}
-            >
-              <div>
-                <div className="text-sm font-medium text-gray-900">{slot.label}</div>
-                <div className="text-xs text-gray-400 font-mono">{slot.slot}</div>
-              </div>
-              <div className="flex items-center gap-2">
-                {active ? (
-                  <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full flex items-center gap-1">
-                    <CheckCircle size={10} /> {active.name}
-                  </span>
-                ) : (
-                  <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
-                    System default
-                  </span>
-                )}
-                {isExpanded
-                  ? <ChevronUp size={14} className="text-gray-400" />
-                  : <ChevronDown size={14} className="text-gray-400" />}
-              </div>
-            </button>
+  // Filter and group slots
+  const visibleSlots = slots.filter(s => {
+    const meta = SLOT_METADATA[s.slot as FeatureSlot];
+    return showAdvanced || (meta?.level === 'basic');
+  });
 
-            {isExpanded && (
-              <div className="px-4 pb-4 border-t border-gray-100">
-                <SkillEditor
-                  slot={slot}
-                  activeSkill={active}
-                  onSaved={() => { loadData(); setExpandedSlot(null); }}
-                  onReset={() => handleReset(slot.slot)}
-                />
-              </div>
-            )}
+  const categories: SkillCategory[] = ['practice', 'core', 'courseware'];
+  const grouped = categories.map(cat => ({
+    cat,
+    slots: visibleSlots.filter(s => SLOT_METADATA[s.slot as FeatureSlot]?.category === cat)
+  })).filter(g => g.slots.length > 0);
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs text-gray-400 uppercase tracking-wider font-semibold">
+          {showAdvanced ? tr(uiLang, 'skillAllCapabilities') : tr(uiLang, 'skillEssentials')}
+        </span>
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <span className="text-xs text-gray-600">{tr(uiLang, 'skillShowAdvanced')}</span>
+          <div
+            className={`w-8 h-4 rounded-full relative transition-colors ${showAdvanced ? 'bg-blue-600' : 'bg-gray-200'}`}
+            onClick={() => setShowAdvanced(!showAdvanced)}
+          >
+            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all ${showAdvanced ? 'left-4.5' : 'left-0.5'}`} />
           </div>
-        );
-      })}
+        </label>
+      </div>
+
+      {grouped.map(({ cat, slots }) => (
+        <div key={cat} className="space-y-2">
+          <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">
+            {tr(uiLang, CATEGORY_KEYS[cat])}
+          </h3>
+          <div className="space-y-2">
+            {slots.map((slot) => {
+              const active = activeSkillMap[slot.slot];
+              const isExpanded = expandedSlot === slot.slot;
+              const meta = SLOT_METADATA[slot.slot as FeatureSlot];
+              
+              return (
+                <div key={slot.slot} className={`border rounded-xl overflow-hidden transition-all ${isExpanded ? 'border-blue-200 ring-2 ring-blue-50' : 'border-gray-200'}`}>
+                  <button
+                    className={`w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors text-left ${isExpanded ? 'bg-blue-50/30' : ''}`}
+                    onClick={() => setExpandedSlot(isExpanded ? null : slot.slot)}
+                  >
+                    <div>
+                      <div className="text-sm font-semibold text-gray-900">
+                        {FRIENDLY_LABELS[slot.slot] ? tr(uiLang, FRIENDLY_LABELS[slot.slot]) : slot.label}
+                      </div>
+                      {showAdvanced && (
+                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">{slot.slot}</div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {active ? (
+                        <span className="text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
+                          <CheckCircle size={10} /> {active.name}
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">
+                          {tr(uiLang, 'skillSystemDefault')}
+                        </span>
+                      )}
+                      {isExpanded
+                        ? <ChevronUp size={14} className="text-gray-400" />
+                        : <ChevronDown size={14} className="text-gray-400" />}
+                    </div>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="px-4 pb-4 border-t border-gray-100 bg-white">
+                      <SkillEditor
+                        slot={slot}
+                        activeSkill={active}
+                        onSaved={() => { loadData(); setExpandedSlot(null); }}
+                        onReset={() => handleReset(slot.slot)}
+                        uiLang={uiLang}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
 // ── Standalone modal wrapper ─────────────────────────────────────────────────
 
-interface Props { onClose: () => void }
+interface Props { onClose: () => void; uiLang: SupportedLang; }
 
-export function SkillsPanel({ onClose }: Props) {
+export function SkillsPanel({ onClose, uiLang }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Zap size={18} className="text-blue-600" />
-            <span className="font-semibold text-gray-900">Skills</span>
-            <span className="text-xs text-gray-400 ml-1">Customize AI prompts per feature</span>
+            <span className="font-semibold text-gray-900">{tr(uiLang, 'skills')}</span>
+            <span className="text-xs text-gray-400 ml-1">{tr(uiLang, 'skillsSubtitle')}</span>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X size={18} />
           </button>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <SkillsContent />
+          <SkillsContent uiLang={uiLang} />
         </div>
       </div>
     </div>
