@@ -28,6 +28,25 @@ const nextConfig = {
     '/api/transform/refine': ['./src/prompts/refine.md', './src/prompts/refine-user.md'],
   },
 
+  // Exclude build artifacts and dev-only directories from the standalone trace.
+  // Without this, NFT over-traces src/lib/skills/store.ts (dynamic fs reads)
+  // and pulls the entire project root—including release/ and electron-out/—
+  // into .next/standalone/, which breaks electron-builder signing.
+  outputFileTracingExcludes: {
+    '**': [
+      './release/**',
+      './electron-out/**',
+      './.next/**',
+      './node_modules/.cache/**',
+      './docs/**',
+      './tests/**',
+      './*.md',
+      './Dockerfile',
+      './docker-compose.yml',
+      './data.tgz',
+    ],
+  },
+
   // FIX: Instruct Next.js not to bundle packages containing native modules.
   serverExternalPackages: [
     'pouchdb',

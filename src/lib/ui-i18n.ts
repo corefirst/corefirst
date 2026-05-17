@@ -33,7 +33,7 @@ export function localizeLang(langName: string, uiLang: SupportedLang): string {
   return TARGET_LANG_NAME[uiLang]?.[target] ?? langName;
 }
 
-type DictKey =
+export type DictKey =
 // Header / tabs
   | 'tagline' | 'tabTransform' | 'tabCourse' | 'tabRoleplay' | 'tabStats'
   | 'uiLangLabel'
@@ -127,7 +127,37 @@ type DictKey =
   | 'skillLabelCoursewareRepair'
   | 'skillLabelRoleplayAnalysis'
   | 'skillLabelSpeechEvalUser'
-  | 'skillLabelSentenceRefineUser';
+  | 'skillLabelSentenceRefineUser'
+  // Course gen progress
+  | 'courseGenStepDesigning'
+  // Course / transform interaction
+  | 'howToSayIn' | 'typeSentenceFromStructure' | 'btnRevealAnswer' | 'standardCorrectAnswer' | 'btnDone'
+  | 'labelLessonScenario' | 'labelVocabTokens'
+  // CFLTBlock
+  | 'ariaClearFill' | 'titleClearFill'
+  // Roleplay
+  | 'roleplayNoResponse' | 'roleplayPlayCorrected'
+  // Visual
+  | 'visualPainting' | 'errVisualFailed' | 'visualNone' | 'visualConcept'
+  // Stats
+  | 'statsCurveWait' | 'statsReviewDue' | 'statsVocabInPractice' | 'statsVocabUsedInRoleplay'
+  | 'statsShowLess' | 'statsShowAll'
+  // Settings
+  | 'settingsNoKey' | 'settingsGetOneFree' | 'settingsMixProviders' | 'settingsOneKeyAll'
+  | 'labelNoApiKeyNeeded' | 'labelModelOverrides' | 'labelProviderDefault' | 'labelLlmDefault'
+  | 'labelTts' | 'labelTtsSub' | 'labelStt' | 'labelSttSub' | 'labelImage' | 'labelImageSub'
+  | 'labelTransformEngine' | 'labelCourseOrchestrator'
+  | 'labelNoneServerEnv' | 'labelOpenAiCompatible' | 'labelOpenRouterTts' | 'labelOpenRouterStt'
+  | 'labelQwenCosyVoice' | 'labelQwenParaformer'
+  // Skills panel
+  | 'skillShowAdvanced'
+  // Vocab review
+  | 'targetLangWord' | 'btnClose' | 'btnReviewAgain' | 'vocabSessionDone' | 'vocabSessionPerfect'
+  // Voice challenge
+  | 'errVoiceEval' | 'voiceChallengeLabel' | 'voiceScore' | 'voiceAnalyzing'
+  // Skills panel descriptions and categories
+  | 'skillRoleplayCoachDesc' | 'skillSpeechEvalDesc' | 'skillSentenceRefineDesc'
+  | 'skillCategoryCore' | 'skillCategoryPractice' | 'skillCategoryCourseware';
 
 type Resolver = (...args: any[]) => string;
 type Dict = Record<DictKey, string | Resolver>;
@@ -304,6 +334,66 @@ const en: Dict = {
   skillLabelRoleplayAnalysis: 'Roleplay Coach (Analysis)',
   skillLabelSpeechEvalUser: 'Speech Evaluator (User)',
   skillLabelSentenceRefineUser: 'Sentence Refine (User)',
+  courseGenStepDesigning: 'Designing lessons…',
+  howToSayIn: (lang) => `How to say in ${TARGET_LANG_NAME.English[lang as SupportedLang] ?? lang}`,
+  typeSentenceFromStructure: (lang) => `Type the ${TARGET_LANG_NAME.English[lang as SupportedLang] ?? lang} sentence`,
+  btnRevealAnswer: 'Reveal Answer',
+  standardCorrectAnswer: (lang) => `Answer in ${TARGET_LANG_NAME.English[lang as SupportedLang] ?? lang}`,
+  btnDone: 'Done',
+  labelLessonScenario: 'Scenario',
+  labelVocabTokens: 'Vocabulary',
+  ariaClearFill: 'Clear',
+  titleClearFill: 'Clear slot',
+  roleplayNoResponse: '(no response)',
+  roleplayPlayCorrected: 'Play corrected sentence',
+  visualPainting: 'Painting…',
+  errVisualFailed: 'Visual unavailable',
+  visualNone: 'No visual',
+  visualConcept: (p) => `Concept: ${p}`,
+  statsCurveWait: (n) => `${n} more session${Number(n) === 1 ? '' : 's'} to unlock your curve`,
+  statsReviewDue: (n) => `${n} due for review`,
+  statsVocabInPractice: 'In Practice',
+  statsVocabUsedInRoleplay: (used, total) => `${used} of ${total} used in Roleplay`,
+  statsShowLess: 'Show Less',
+  statsShowAll: (n) => `Show All (${n})`,
+  settingsNoKey: 'No key needed.',
+  settingsGetOneFree: 'Get one free →',
+  settingsMixProviders: 'Mix providers',
+  settingsOneKeyAll: 'One key for all',
+  labelNoApiKeyNeeded: (id) => `${id} needs no API key`,
+  labelModelOverrides: 'Model Overrides',
+  labelProviderDefault: 'provider default',
+  labelLlmDefault: 'LLM',
+  labelTts: 'TTS',
+  labelTtsSub: 'Text-to-Speech',
+  labelStt: 'STT',
+  labelSttSub: 'Speech-to-Text',
+  labelImage: 'Image',
+  labelImageSub: 'Image Generation',
+  labelTransformEngine: 'Transform Engine',
+  labelCourseOrchestrator: 'Course Generator',
+  labelNoneServerEnv: '(server env)',
+  labelOpenAiCompatible: 'OpenAI-Compatible',
+  labelOpenRouterTts: 'OpenRouter TTS',
+  labelOpenRouterStt: 'OpenRouter STT',
+  labelQwenCosyVoice: 'Qwen CosyVoice',
+  labelQwenParaformer: 'Qwen Paraformer',
+  skillShowAdvanced: 'Show advanced',
+  targetLangWord: (lang) => `${TARGET_LANG_NAME.English[lang as SupportedLang] ?? lang} word`,
+  btnClose: 'Close',
+  btnReviewAgain: 'Review Again',
+  vocabSessionDone: 'Session complete!',
+  vocabSessionPerfect: 'Perfect! All correct!',
+  errVoiceEval: 'Voice evaluation failed',
+  voiceChallengeLabel: 'Voice Challenge',
+  voiceScore: (score) => `Score: ${score}`,
+  voiceAnalyzing: 'Analyzing…',
+  skillRoleplayCoachDesc: 'Customize the roleplay coach personality and coaching style',
+  skillSpeechEvalDesc: 'Adjust how strictly pronunciation and logic stress are graded',
+  skillSentenceRefineDesc: 'Change how the refined sentence explanation is phrased',
+  skillCategoryCore: 'Core',
+  skillCategoryPractice: 'Practice',
+  skillCategoryCourseware: 'Courseware',
 };
 
 const zh: Dict = {
@@ -478,6 +568,66 @@ const zh: Dict = {
   skillLabelRoleplayAnalysis: '角色教练 (分析)',
   skillLabelSpeechEvalUser: '语音评测 (用户)',
   skillLabelSentenceRefineUser: '句子润色 (用户)',
+  courseGenStepDesigning: '正在设计课程…',
+  howToSayIn: (lang) => `${TARGET_LANG_NAME.Chinese[lang as SupportedLang] ?? lang}怎么说`,
+  typeSentenceFromStructure: (lang) => `输入${TARGET_LANG_NAME.Chinese[lang as SupportedLang] ?? lang}句子`,
+  btnRevealAnswer: '显示答案',
+  standardCorrectAnswer: (lang) => `${TARGET_LANG_NAME.Chinese[lang as SupportedLang] ?? lang}参考答案`,
+  btnDone: '完成',
+  labelLessonScenario: '场景',
+  labelVocabTokens: '词汇',
+  ariaClearFill: '清除',
+  titleClearFill: '清除填槽',
+  roleplayNoResponse: '（无回复）',
+  roleplayPlayCorrected: '播放纠正后句子',
+  visualPainting: '绘制中…',
+  errVisualFailed: '图像不可用',
+  visualNone: '无图像',
+  visualConcept: (p) => `概念：${p}`,
+  statsCurveWait: (n) => `再练习 ${n} 次解锁学习曲线`,
+  statsReviewDue: (n) => `${n} 个待复习`,
+  statsVocabInPractice: '练习中',
+  statsVocabUsedInRoleplay: (used, total) => `${total} 个词中 ${used} 个已在对话中使用`,
+  statsShowLess: '收起',
+  statsShowAll: (n) => `显示全部（${n}）`,
+  settingsNoKey: '无需密钥。',
+  settingsGetOneFree: '免费获取 →',
+  settingsMixProviders: '混合提供商',
+  settingsOneKeyAll: '所有功能共用一个密钥',
+  labelNoApiKeyNeeded: (id) => `${id} 无需 API 密钥`,
+  labelModelOverrides: '模型覆盖',
+  labelProviderDefault: '提供商默认',
+  labelLlmDefault: '大模型',
+  labelTts: 'TTS',
+  labelTtsSub: '文字转语音',
+  labelStt: 'STT',
+  labelSttSub: '语音转文字',
+  labelImage: '图像',
+  labelImageSub: '图像生成',
+  labelTransformEngine: '变换引擎',
+  labelCourseOrchestrator: '课程生成器',
+  labelNoneServerEnv: '（服务端环境变量）',
+  labelOpenAiCompatible: 'OpenAI 兼容',
+  labelOpenRouterTts: 'OpenRouter TTS',
+  labelOpenRouterStt: 'OpenRouter STT',
+  labelQwenCosyVoice: '通义 CosyVoice',
+  labelQwenParaformer: '通义 Paraformer',
+  skillShowAdvanced: '显示高级',
+  targetLangWord: (lang) => `${TARGET_LANG_NAME.Chinese[lang as SupportedLang] ?? lang}词`,
+  btnClose: '关闭',
+  btnReviewAgain: '再次复习',
+  vocabSessionDone: '本轮完成！',
+  vocabSessionPerfect: '完美！全部答对！',
+  errVoiceEval: '语音评估失败',
+  voiceChallengeLabel: '语音挑战',
+  voiceScore: (score) => `得分：${score}`,
+  voiceAnalyzing: '分析中…',
+  skillRoleplayCoachDesc: '自定义角色教练的个性和辅导风格',
+  skillSpeechEvalDesc: '调整发音和逻辑重音的评分严格度',
+  skillSentenceRefineDesc: '更改润色句子解释的措辞方式',
+  skillCategoryCore: '核心',
+  skillCategoryPractice: '练习',
+  skillCategoryCourseware: '课件',
 };
 
 
@@ -650,6 +800,7 @@ const ja: Dict = {
   skillLabelRoleplayAnalysis: 'Roleplay Coach (Analysis)',
   skillLabelSpeechEvalUser: 'Speech Evaluator (User)',
   skillLabelSentenceRefineUser: 'Sentence Refine (User)',
+  courseGenStepDesigning: 'Designing lessons…', howToSayIn: (lang) => `How to say in ${lang}`, typeSentenceFromStructure: (lang) => `Type the ${lang} sentence`, btnRevealAnswer: 'Reveal Answer', standardCorrectAnswer: (lang) => `Answer in ${lang}`, btnDone: 'Done', labelLessonScenario: 'Scenario', labelVocabTokens: 'Vocabulary', ariaClearFill: 'Clear', titleClearFill: 'Clear slot', roleplayNoResponse: '(no response)', roleplayPlayCorrected: 'Play corrected sentence', visualPainting: 'Painting…', errVisualFailed: 'Visual unavailable', visualNone: 'No visual', visualConcept: (p) => `Concept: ${p}`, statsCurveWait: (n) => `${n} more sessions to unlock your curve`, statsReviewDue: (n) => `${n} due for review`, statsVocabInPractice: 'In Practice', statsVocabUsedInRoleplay: (used, total) => `${used} of ${total} used in Roleplay`, statsShowLess: 'Show Less', statsShowAll: (n) => `Show All (${n})`, settingsNoKey: 'No key needed.', settingsGetOneFree: 'Get one free →', settingsMixProviders: 'Mix providers', settingsOneKeyAll: 'One key for all', labelNoApiKeyNeeded: (id) => `${id} needs no API key`, labelModelOverrides: 'Model Overrides', labelProviderDefault: 'provider default', labelLlmDefault: 'LLM', labelTts: 'TTS', labelTtsSub: 'Text-to-Speech', labelStt: 'STT', labelSttSub: 'Speech-to-Text', labelImage: 'Image', labelImageSub: 'Image Generation', labelTransformEngine: 'Transform Engine', labelCourseOrchestrator: 'Course Generator', labelNoneServerEnv: '(server env)', labelOpenAiCompatible: 'OpenAI-Compatible', labelOpenRouterTts: 'OpenRouter TTS', labelOpenRouterStt: 'OpenRouter STT', labelQwenCosyVoice: 'Qwen CosyVoice', labelQwenParaformer: 'Qwen Paraformer', skillShowAdvanced: 'Show advanced', targetLangWord: (lang) => `${lang} word`, btnClose: 'Close', btnReviewAgain: 'Review Again', vocabSessionDone: 'Session complete!', vocabSessionPerfect: 'Perfect! All correct!', errVoiceEval: 'Voice evaluation failed', voiceChallengeLabel: 'Voice Challenge', voiceScore: (score) => `Score: ${score}`, voiceAnalyzing: 'Analyzing…', skillRoleplayCoachDesc: 'Customize the roleplay coach personality and coaching style', skillSpeechEvalDesc: 'Adjust how strictly pronunciation and logic stress are graded', skillSentenceRefineDesc: 'Change how the refined sentence explanation is phrased', skillCategoryCore: 'Core', skillCategoryPractice: 'Practice', skillCategoryCourseware: 'Courseware',
 };
 
 const ko: Dict = {
@@ -821,6 +972,7 @@ const ko: Dict = {
   skillLabelRoleplayAnalysis: 'Roleplay Coach (Analysis)',
   skillLabelSpeechEvalUser: 'Speech Evaluator (User)',
   skillLabelSentenceRefineUser: 'Sentence Refine (User)',
+  courseGenStepDesigning: 'Designing lessons…', howToSayIn: (lang) => `How to say in ${lang}`, typeSentenceFromStructure: (lang) => `Type the ${lang} sentence`, btnRevealAnswer: 'Reveal Answer', standardCorrectAnswer: (lang) => `Answer in ${lang}`, btnDone: 'Done', labelLessonScenario: 'Scenario', labelVocabTokens: 'Vocabulary', ariaClearFill: 'Clear', titleClearFill: 'Clear slot', roleplayNoResponse: '(no response)', roleplayPlayCorrected: 'Play corrected sentence', visualPainting: 'Painting…', errVisualFailed: 'Visual unavailable', visualNone: 'No visual', visualConcept: (p) => `Concept: ${p}`, statsCurveWait: (n) => `${n} more sessions to unlock your curve`, statsReviewDue: (n) => `${n} due for review`, statsVocabInPractice: 'In Practice', statsVocabUsedInRoleplay: (used, total) => `${used} of ${total} used in Roleplay`, statsShowLess: 'Show Less', statsShowAll: (n) => `Show All (${n})`, settingsNoKey: 'No key needed.', settingsGetOneFree: 'Get one free →', settingsMixProviders: 'Mix providers', settingsOneKeyAll: 'One key for all', labelNoApiKeyNeeded: (id) => `${id} needs no API key`, labelModelOverrides: 'Model Overrides', labelProviderDefault: 'provider default', labelLlmDefault: 'LLM', labelTts: 'TTS', labelTtsSub: 'Text-to-Speech', labelStt: 'STT', labelSttSub: 'Speech-to-Text', labelImage: 'Image', labelImageSub: 'Image Generation', labelTransformEngine: 'Transform Engine', labelCourseOrchestrator: 'Course Generator', labelNoneServerEnv: '(server env)', labelOpenAiCompatible: 'OpenAI-Compatible', labelOpenRouterTts: 'OpenRouter TTS', labelOpenRouterStt: 'OpenRouter STT', labelQwenCosyVoice: 'Qwen CosyVoice', labelQwenParaformer: 'Qwen Paraformer', skillShowAdvanced: 'Show advanced', targetLangWord: (lang) => `${lang} word`, btnClose: 'Close', btnReviewAgain: 'Review Again', vocabSessionDone: 'Session complete!', vocabSessionPerfect: 'Perfect! All correct!', errVoiceEval: 'Voice evaluation failed', voiceChallengeLabel: 'Voice Challenge', voiceScore: (score) => `Score: ${score}`, voiceAnalyzing: 'Analyzing…', skillRoleplayCoachDesc: 'Customize the roleplay coach personality and coaching style', skillSpeechEvalDesc: 'Adjust how strictly pronunciation and logic stress are graded', skillSentenceRefineDesc: 'Change how the refined sentence explanation is phrased', skillCategoryCore: 'Core', skillCategoryPractice: 'Practice', skillCategoryCourseware: 'Courseware',
 };
 
 const vi: Dict = {
@@ -991,6 +1143,7 @@ const vi: Dict = {
   skillLabelRoleplayAnalysis: 'Roleplay Coach (Analysis)',
   skillLabelSpeechEvalUser: 'Speech Evaluator (User)',
   skillLabelSentenceRefineUser: 'Sentence Refine (User)',
+  courseGenStepDesigning: 'Designing lessons…', howToSayIn: (lang) => `How to say in ${lang}`, typeSentenceFromStructure: (lang) => `Type the ${lang} sentence`, btnRevealAnswer: 'Reveal Answer', standardCorrectAnswer: (lang) => `Answer in ${lang}`, btnDone: 'Done', labelLessonScenario: 'Scenario', labelVocabTokens: 'Vocabulary', ariaClearFill: 'Clear', titleClearFill: 'Clear slot', roleplayNoResponse: '(no response)', roleplayPlayCorrected: 'Play corrected sentence', visualPainting: 'Painting…', errVisualFailed: 'Visual unavailable', visualNone: 'No visual', visualConcept: (p) => `Concept: ${p}`, statsCurveWait: (n) => `${n} more sessions to unlock your curve`, statsReviewDue: (n) => `${n} due for review`, statsVocabInPractice: 'In Practice', statsVocabUsedInRoleplay: (used, total) => `${used} of ${total} used in Roleplay`, statsShowLess: 'Show Less', statsShowAll: (n) => `Show All (${n})`, settingsNoKey: 'No key needed.', settingsGetOneFree: 'Get one free →', settingsMixProviders: 'Mix providers', settingsOneKeyAll: 'One key for all', labelNoApiKeyNeeded: (id) => `${id} needs no API key`, labelModelOverrides: 'Model Overrides', labelProviderDefault: 'provider default', labelLlmDefault: 'LLM', labelTts: 'TTS', labelTtsSub: 'Text-to-Speech', labelStt: 'STT', labelSttSub: 'Speech-to-Text', labelImage: 'Image', labelImageSub: 'Image Generation', labelTransformEngine: 'Transform Engine', labelCourseOrchestrator: 'Course Generator', labelNoneServerEnv: '(server env)', labelOpenAiCompatible: 'OpenAI-Compatible', labelOpenRouterTts: 'OpenRouter TTS', labelOpenRouterStt: 'OpenRouter STT', labelQwenCosyVoice: 'Qwen CosyVoice', labelQwenParaformer: 'Qwen Paraformer', skillShowAdvanced: 'Show advanced', targetLangWord: (lang) => `${lang} word`, btnClose: 'Close', btnReviewAgain: 'Review Again', vocabSessionDone: 'Session complete!', vocabSessionPerfect: 'Perfect! All correct!', errVoiceEval: 'Voice evaluation failed', voiceChallengeLabel: 'Voice Challenge', voiceScore: (score) => `Score: ${score}`, voiceAnalyzing: 'Analyzing…', skillRoleplayCoachDesc: 'Customize the roleplay coach personality and coaching style', skillSpeechEvalDesc: 'Adjust how strictly pronunciation and logic stress are graded', skillSentenceRefineDesc: 'Change how the refined sentence explanation is phrased', skillCategoryCore: 'Core', skillCategoryPractice: 'Practice', skillCategoryCourseware: 'Courseware',
 };
 
 const es: Dict = {
@@ -1161,6 +1314,7 @@ const es: Dict = {
   skillLabelRoleplayAnalysis: 'Roleplay Coach (Analysis)',
   skillLabelSpeechEvalUser: 'Speech Evaluator (User)',
   skillLabelSentenceRefineUser: 'Sentence Refine (User)',
+  courseGenStepDesigning: 'Designing lessons…', howToSayIn: (lang) => `How to say in ${lang}`, typeSentenceFromStructure: (lang) => `Type the ${lang} sentence`, btnRevealAnswer: 'Reveal Answer', standardCorrectAnswer: (lang) => `Answer in ${lang}`, btnDone: 'Done', labelLessonScenario: 'Scenario', labelVocabTokens: 'Vocabulary', ariaClearFill: 'Clear', titleClearFill: 'Clear slot', roleplayNoResponse: '(no response)', roleplayPlayCorrected: 'Play corrected sentence', visualPainting: 'Painting…', errVisualFailed: 'Visual unavailable', visualNone: 'No visual', visualConcept: (p) => `Concept: ${p}`, statsCurveWait: (n) => `${n} more sessions to unlock your curve`, statsReviewDue: (n) => `${n} due for review`, statsVocabInPractice: 'In Practice', statsVocabUsedInRoleplay: (used, total) => `${used} of ${total} used in Roleplay`, statsShowLess: 'Show Less', statsShowAll: (n) => `Show All (${n})`, settingsNoKey: 'No key needed.', settingsGetOneFree: 'Get one free →', settingsMixProviders: 'Mix providers', settingsOneKeyAll: 'One key for all', labelNoApiKeyNeeded: (id) => `${id} needs no API key`, labelModelOverrides: 'Model Overrides', labelProviderDefault: 'provider default', labelLlmDefault: 'LLM', labelTts: 'TTS', labelTtsSub: 'Text-to-Speech', labelStt: 'STT', labelSttSub: 'Speech-to-Text', labelImage: 'Image', labelImageSub: 'Image Generation', labelTransformEngine: 'Transform Engine', labelCourseOrchestrator: 'Course Generator', labelNoneServerEnv: '(server env)', labelOpenAiCompatible: 'OpenAI-Compatible', labelOpenRouterTts: 'OpenRouter TTS', labelOpenRouterStt: 'OpenRouter STT', labelQwenCosyVoice: 'Qwen CosyVoice', labelQwenParaformer: 'Qwen Paraformer', skillShowAdvanced: 'Show advanced', targetLangWord: (lang) => `${lang} word`, btnClose: 'Close', btnReviewAgain: 'Review Again', vocabSessionDone: 'Session complete!', vocabSessionPerfect: 'Perfect! All correct!', errVoiceEval: 'Voice evaluation failed', voiceChallengeLabel: 'Voice Challenge', voiceScore: (score) => `Score: ${score}`, voiceAnalyzing: 'Analyzing…', skillRoleplayCoachDesc: 'Customize the roleplay coach personality and coaching style', skillSpeechEvalDesc: 'Adjust how strictly pronunciation and logic stress are graded', skillSentenceRefineDesc: 'Change how the refined sentence explanation is phrased', skillCategoryCore: 'Core', skillCategoryPractice: 'Practice', skillCategoryCourseware: 'Courseware',
 };
 
 const fr: Dict = {
@@ -1331,6 +1485,7 @@ const fr: Dict = {
   skillLabelRoleplayAnalysis: 'Roleplay Coach (Analysis)',
   skillLabelSpeechEvalUser: 'Speech Evaluator (User)',
   skillLabelSentenceRefineUser: 'Sentence Refine (User)',
+  courseGenStepDesigning: 'Designing lessons…', howToSayIn: (lang) => `How to say in ${lang}`, typeSentenceFromStructure: (lang) => `Type the ${lang} sentence`, btnRevealAnswer: 'Reveal Answer', standardCorrectAnswer: (lang) => `Answer in ${lang}`, btnDone: 'Done', labelLessonScenario: 'Scenario', labelVocabTokens: 'Vocabulary', ariaClearFill: 'Clear', titleClearFill: 'Clear slot', roleplayNoResponse: '(no response)', roleplayPlayCorrected: 'Play corrected sentence', visualPainting: 'Painting…', errVisualFailed: 'Visual unavailable', visualNone: 'No visual', visualConcept: (p) => `Concept: ${p}`, statsCurveWait: (n) => `${n} more sessions to unlock your curve`, statsReviewDue: (n) => `${n} due for review`, statsVocabInPractice: 'In Practice', statsVocabUsedInRoleplay: (used, total) => `${used} of ${total} used in Roleplay`, statsShowLess: 'Show Less', statsShowAll: (n) => `Show All (${n})`, settingsNoKey: 'No key needed.', settingsGetOneFree: 'Get one free →', settingsMixProviders: 'Mix providers', settingsOneKeyAll: 'One key for all', labelNoApiKeyNeeded: (id) => `${id} needs no API key`, labelModelOverrides: 'Model Overrides', labelProviderDefault: 'provider default', labelLlmDefault: 'LLM', labelTts: 'TTS', labelTtsSub: 'Text-to-Speech', labelStt: 'STT', labelSttSub: 'Speech-to-Text', labelImage: 'Image', labelImageSub: 'Image Generation', labelTransformEngine: 'Transform Engine', labelCourseOrchestrator: 'Course Generator', labelNoneServerEnv: '(server env)', labelOpenAiCompatible: 'OpenAI-Compatible', labelOpenRouterTts: 'OpenRouter TTS', labelOpenRouterStt: 'OpenRouter STT', labelQwenCosyVoice: 'Qwen CosyVoice', labelQwenParaformer: 'Qwen Paraformer', skillShowAdvanced: 'Show advanced', targetLangWord: (lang) => `${lang} word`, btnClose: 'Close', btnReviewAgain: 'Review Again', vocabSessionDone: 'Session complete!', vocabSessionPerfect: 'Perfect! All correct!', errVoiceEval: 'Voice evaluation failed', voiceChallengeLabel: 'Voice Challenge', voiceScore: (score) => `Score: ${score}`, voiceAnalyzing: 'Analyzing…', skillRoleplayCoachDesc: 'Customize the roleplay coach personality and coaching style', skillSpeechEvalDesc: 'Adjust how strictly pronunciation and logic stress are graded', skillSentenceRefineDesc: 'Change how the refined sentence explanation is phrased', skillCategoryCore: 'Core', skillCategoryPractice: 'Practice', skillCategoryCourseware: 'Courseware',
 };
 
 const de: Dict = {
@@ -1508,6 +1663,7 @@ const de: Dict = {
   skillLabelRoleplayAnalysis: 'Roleplay Coach (Analysis)',
   skillLabelSpeechEvalUser: 'Speech Evaluator (User)',
   skillLabelSentenceRefineUser: 'Sentence Refine (User)',
+  courseGenStepDesigning: 'Designing lessons…', howToSayIn: (lang) => `How to say in ${lang}`, typeSentenceFromStructure: (lang) => `Type the ${lang} sentence`, btnRevealAnswer: 'Reveal Answer', standardCorrectAnswer: (lang) => `Answer in ${lang}`, btnDone: 'Done', labelLessonScenario: 'Scenario', labelVocabTokens: 'Vocabulary', ariaClearFill: 'Clear', titleClearFill: 'Clear slot', roleplayNoResponse: '(no response)', roleplayPlayCorrected: 'Play corrected sentence', visualPainting: 'Painting…', errVisualFailed: 'Visual unavailable', visualNone: 'No visual', visualConcept: (p) => `Concept: ${p}`, statsCurveWait: (n) => `${n} more sessions to unlock your curve`, statsReviewDue: (n) => `${n} due for review`, statsVocabInPractice: 'In Practice', statsVocabUsedInRoleplay: (used, total) => `${used} of ${total} used in Roleplay`, statsShowLess: 'Show Less', statsShowAll: (n) => `Show All (${n})`, settingsNoKey: 'No key needed.', settingsGetOneFree: 'Get one free →', settingsMixProviders: 'Mix providers', settingsOneKeyAll: 'One key for all', labelNoApiKeyNeeded: (id) => `${id} needs no API key`, labelModelOverrides: 'Model Overrides', labelProviderDefault: 'provider default', labelLlmDefault: 'LLM', labelTts: 'TTS', labelTtsSub: 'Text-to-Speech', labelStt: 'STT', labelSttSub: 'Speech-to-Text', labelImage: 'Image', labelImageSub: 'Image Generation', labelTransformEngine: 'Transform Engine', labelCourseOrchestrator: 'Course Generator', labelNoneServerEnv: '(server env)', labelOpenAiCompatible: 'OpenAI-Compatible', labelOpenRouterTts: 'OpenRouter TTS', labelOpenRouterStt: 'OpenRouter STT', labelQwenCosyVoice: 'Qwen CosyVoice', labelQwenParaformer: 'Qwen Paraformer', skillShowAdvanced: 'Show advanced', targetLangWord: (lang) => `${lang} word`, btnClose: 'Close', btnReviewAgain: 'Review Again', vocabSessionDone: 'Session complete!', vocabSessionPerfect: 'Perfect! All correct!', errVoiceEval: 'Voice evaluation failed', voiceChallengeLabel: 'Voice Challenge', voiceScore: (score) => `Score: ${score}`, voiceAnalyzing: 'Analyzing…', skillRoleplayCoachDesc: 'Customize the roleplay coach personality and coaching style', skillSpeechEvalDesc: 'Adjust how strictly pronunciation and logic stress are graded', skillSentenceRefineDesc: 'Change how the refined sentence explanation is phrased', skillCategoryCore: 'Core', skillCategoryPractice: 'Practice', skillCategoryCourseware: 'Courseware',
 };
 
 const DICTS: Partial<Record<SupportedLang, Dict>> = { English: en, Chinese: zh, Japanese: ja, Korean: ko, Vietnamese: vi, Spanish: es, French: fr, German: de };

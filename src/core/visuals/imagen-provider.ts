@@ -13,7 +13,7 @@ import { parseSize, getClosestAspectRatio, getClosestSize } from './size-utils';
  */
 export class AISDKImageProvider implements VisualProvider {
   private model: ImageModel;
-  constructor(model?: ImageModel) { this.model = model ?? imageGenModel; }
+  constructor(model?: ImageModel) { this.model = (model ?? imageGenModel) as ImageModel; }
 
   async generateImage(prompt: string, options?: { size?: string }): Promise<string> {
     const styledPrompt = `A clean, educational illustration for a language learning app. Style: modern, flat vector, soft colors. Subject: ${prompt}`;
@@ -27,14 +27,14 @@ export class AISDKImageProvider implements VisualProvider {
       const requestedSize = options?.size || '1024x1024';
       const parsed = parseSize(requestedSize);
       
-      if (this.model.modelId.includes('imagen')) {
+      if ((this.model as any).modelId?.includes('imagen')) {
         // Map common sizes to Google-supported aspect ratios
         if (parsed) {
           params.aspectRatio = getClosestAspectRatio(parsed.width, parsed.height, ['1:1', '16:9', '4:3', '3:4', '9:16']);
         } else {
           params.aspectRatio = '1:1';
         }
-      } else if (this.model.modelId.includes('gpt-image-2')) {
+      } else if ((this.model as any).modelId?.includes('gpt-image-2')) {
         // gpt-image-2 (OpenAI 2026) has higher minimum resolution requirements.
         // Map requested size to its official supported sizes.
         const supported = ['1024x1024', '1792x1024', '1024x1792'];

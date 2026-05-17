@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { USER_ID_COOKIE, PROVIDER_DEFAULT_MODELS } from '@/src/lib/constants';
+import { USER_ID_COOKIE } from '@/src/lib/constants';
 
 const COOKIE_NAME = USER_ID_COOKIE;
 

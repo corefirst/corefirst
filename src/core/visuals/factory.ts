@@ -17,7 +17,7 @@ export class VisualFactory {
       const effectiveBaseUrl = override.baseUrl ?? undefined;
       
       if (override.provider === 'qwen') {
-        return new QwenVisualProvider(effectiveApiKey, override.model);
+        return new QwenVisualProvider(effectiveApiKey ?? '', override.model);
       }
       if (override.provider === 'ollama') {
         const raw = (effectiveBaseUrl || process.env.OLLAMA_BASE_URL || 'http://localhost:11434').replace(/\/+$/, '');
@@ -36,7 +36,7 @@ export class VisualFactory {
     if (r.provider === 'none') return new NullVisualProvider(r.envPrefix);
     
     if (r.provider === 'qwen') {
-      return new QwenVisualProvider(r.apiKey, r.model);
+      return new QwenVisualProvider(r.apiKey ?? '', r.model);
     }
 
     if (r.provider === 'ollama') {

@@ -15,10 +15,10 @@ export async function GET(request: Request, ctx: { params: Promise<Params> }) {
   try {
     const userId = await getUserId(request);
     const buffer = await exportPackage(userId, slug);
-    return new Response(buffer, {
+    const safeBuffer = new Uint8Array(buffer);
+    return new Response(new Blob([safeBuffer], { type: 'application/zip' }), {
       status: 200,
       headers: {
-        'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="${slug}.corefirst"`,
         'Content-Length': String(buffer.byteLength),
       },

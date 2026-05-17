@@ -16,3 +16,4 @@ next-env.d.ts
 # Contains personal progress; never committed.
 data/
 data.*
+release

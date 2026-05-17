@@ -9,7 +9,7 @@ import type { STTOptions, STTProvider } from './interface';
  */
 export class OpenAISTTProvider implements STTProvider {
   private readonly model: TranscriptionModel;
-  constructor(model?: TranscriptionModel) { this.model = model ?? sttModel; }
+  constructor(model?: TranscriptionModel) { this.model = (model ?? sttModel) as TranscriptionModel; }
 
   async transcribe(audio: Uint8Array, opts?: STTOptions): Promise<{ text: string }> {
     try {

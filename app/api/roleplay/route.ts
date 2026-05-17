@@ -83,7 +83,7 @@ export async function POST(request: Request) {
     await ensureDataDirs(userId);
 
     if (!modelOverride) console.log('[ai/roleplay] no UI settings — using env fallback');
-    const activeModel: LanguageModel = modelOverride ?? roleplayModel;
+    const activeModel = (modelOverride ?? roleplayModel) as LanguageModel;
 
     // 1. Process and Save user audio if present (Commit-on-Submit)
     let savedAudioFile: string | undefined;
@@ -181,7 +181,7 @@ export async function POST(request: Request) {
       try {
         const finalTitle = result.session_title || context || safeContext;
         await upsertRoleplaySession(userId, packageSlug ?? null, {
-          sessionId, context: finalTitle, sourceLang, targetLang, newMessages,
+          sessionId, context: finalTitle, sourceLang, targetLang, newMessages: newMessages as any,
         });
       } catch (err) {
         console.error('[roleplay] Persistence error:', (err as Error).message);

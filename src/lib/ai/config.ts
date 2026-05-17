@@ -86,7 +86,25 @@ function readProviderForFeature(spec: FeatureSpec): string {
   const globalProvider = process.env.GLOBAL_PROVIDER;
   if (globalProvider) return globalProvider.trim();
 
-  return getFeatureDefaults(spec.key).defaultProvider;
+  const defaultProvider = getFeatureDefaults(spec.key).defaultProvider;
+  if (defaultProvider !== 'none') return defaultProvider;
+
+  // Auto-detect from available API keys when no provider is explicitly set.
+  // Checked in priority order: OpenAI → Google → Anthropic → Groq → DeepSeek → Qwen.
+  const validProviders = getProvidersForCapability(spec.capability);
+  const autoDetect: Array<[string, string | undefined]> = [
+    ['openai',    process.env.OPENAI_API_KEY],
+    ['google',    process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? process.env.GOOGLE_API_KEY],
+    ['anthropic', process.env.ANTHROPIC_API_KEY],
+    ['groq',      process.env.GROQ_API_KEY],
+    ['deepseek',  process.env.DEEPSEEK_API_KEY],
+    ['qwen',      process.env.DASHSCOPE_API_KEY],
+  ];
+  for (const [provider, key] of autoDetect) {
+    if (key && validProviders.includes(provider)) return provider;
+  }
+
+  return 'none';
 }
 
 function readModelForFeature(spec: FeatureSpec, provider: string): string {

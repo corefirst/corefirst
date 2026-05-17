@@ -562,7 +562,7 @@ export default function Home() {
               </div>
             </div>
 
-            {(mode === 'course' || mode === 'roleplay') && (
+            {(['course', 'roleplay'].includes(mode as string)) && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-slate-100">
                 <div className="space-y-2">
                   <label
@@ -1100,7 +1100,7 @@ export default function Home() {
                   uiLang={uiLang}
                   refreshKey={courseHistoryKey}
                   onLoad={(course) => {
-                    setCourseResult(course as typeof courseResult);
+                    setCourseResult(course as unknown as typeof courseResult);
                     if (course.domain_context) {
                       const domainKey = (DOMAIN_KEYS as readonly string[]).includes(course.domain_context)
                         ? (course.domain_context as DomainKey)

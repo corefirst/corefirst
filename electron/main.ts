@@ -8,6 +8,7 @@ import * as net from 'net';
 let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | null = null;
 let serverPort = 3000;
+let isStartingUp = false;
 
 function findFreePort(start: number, limit = start + 50): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -87,8 +88,11 @@ async function startServer(): Promise<void> {
       PORT: String(serverPort),
       HOSTNAME: '127.0.0.1',
       NODE_ENV: 'production',
+      // Run Electron binary as a plain Node.js runtime (no Electron GUI init).
+      // Required so that the packaged Next.js server starts correctly.
+      ELECTRON_RUN_AS_NODE: '1',
     });
-    await waitForServer(serverPort);
+    await waitForServer(serverPort, 60);
     return;
   }
 
@@ -118,8 +122,8 @@ function spawnServer(
     cwd,
     stdio: ['ignore', 'pipe', 'pipe'],
   });
-  serverProcess.stdout?.on('data', (d: Buffer) => process.stdout.write(d));
-  serverProcess.stderr?.on('data', (d: Buffer) => process.stderr.write(d));
+  serverProcess.stdout?.on('data', (d: Buffer) => process.stdout.write(new Uint8Array(d)));
+  serverProcess.stderr?.on('data', (d: Buffer) => process.stderr.write(new Uint8Array(d)));
   serverProcess.on('error', (err) => {
     console.error('[electron] server error:', err);
     app.quit();
@@ -170,27 +174,49 @@ async function createWindow(): Promise<void> {
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
-app.whenReady().then(async () => {
-  try {
-    await startServer();
-    await createWindow();
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error('[electron] startup failed:', message);
-    // Show a native dialog so the error is visible even without a terminal
-    dialog.showErrorBox('CoreFirst — startup error', message);
+// Enforce single instance — second launch focuses the existing window instead.
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) {
+  // Show dialog so user knows why it quits, rather than silently disappearing.
+  app.whenReady().then(() => {
+    dialog.showErrorBox('CoreFirst already running', 'CoreFirst is already open. Check your Dock or taskbar.');
     app.quit();
-  }
-});
+  });
+} else {
+  app.on('second-instance', () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit();
-});
+  app.whenReady().then(async () => {
+    isStartingUp = true;
+    try {
+      await startServer();
+      await createWindow();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[electron] startup failed:', message);
+      dialog.showErrorBox('CoreFirst — startup error', message);
+      app.quit();
+    } finally {
+      isStartingUp = false;
+    }
+  });
 
-app.on('activate', () => {
-  if (mainWindow === null) createWindow();
-});
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') app.quit();
+  });
 
-app.on('before-quit', () => {
-  serverProcess?.kill();
-});
+  app.on('activate', () => {
+    // Guard against re-entry during initial startup.
+    if (isStartingUp) return;
+    if (mainWindow === null) createWindow();
+    else mainWindow.focus();
+  });
+
+  app.on('before-quit', () => {
+    serverProcess?.kill();
+  });
+}

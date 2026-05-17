@@ -12,7 +12,15 @@ Every piece of information must be reorganized into this specific four-element s
 
 All four elements are mandatory in the canonical sequence; outputs missing `[Space/Context]` are non-conformant.
 
-> ⚠️ **Subject Rule**: The subject always belongs inside the Core slot. Never strip it out, even if the target language is pro-drop. If the user's input contains an explicit subject (e.g. "I", "我", "私", "we"), it MUST appear in `content_l1`. Non-pro-drop target languages (English, Spanish, French, German, Vietnamese) MUST also include it in `content_l2`.
+> ⚠️ **Subject Rule**: The subject always belongs inside the Core slot. Never strip it out, even if the target language is pro-drop. If the user's input contains an explicit subject (e.g. "I", "我", "私", "we"), it MUST appear in `content_l1`. Non-pro-drop target languages (English, Spanish, French, German, Vietnamese) MUST also include it in `content_l2` (imperatives excepted; see Imperative Rule below).
+
+> 🔧 **Imperative Rule**: When the input is an imperative ("please X", "请X", "X！", or an implicit second-person command), the core verb is the **commanded action itself**, NOT any subordinate verb appearing in a purpose/result clause. For "please contact maintenance to come to the pantry", core = `"contact maintenance"`, never `"maintenance comes"`. Do NOT promote a noun-object into a fake subject just to satisfy "subject + verb" form — for imperatives, the subject is implicit (you/we) and `content_l1` may omit it entirely. The verb-object relationship from the source MUST be preserved.
+
+> 🎯 **Specific-Value Rule**: When the source contains BOTH a specific value (e.g. `"14:15"`, `"the east wing server room"`, `"suite 502"`) AND a generic qualifier (e.g. `"immediately"`, `"now"`, `"all week"`, `"在机房"`), prefer the specific value for the relevant slot. Generic action-urgency qualifiers ("immediately", "立即", "ASAP") should be dropped when a specific timestamp is available elsewhere in the input — they are not the canonical time.
+
+> 📌 **Core Inference Rule**: The `core` slot's `is_inferred` is ALWAYS `false` for any meaningful input — every utterance contains an explicit action verb that must be read directly from the source, never paraphrased or invented. The `is_inferred` mechanism only applies to `reason`, `space`, and `time`. If the input is a pure exclamation/fragment with no verb, set `is_cflt_compliant: false` and explain in `corrections` instead of fabricating a core.
+
+> 🔄 **Slot Exclusivity Rule**: Each substantive token in the source belongs to exactly ONE slot. When the source explicitly names a destination (e.g. `"to Kyoto"`, `"去京都"`, `"to the pantry"`, `"到502号套房"`), it goes in `space`, NOT inside `core` or `reason`. Example split: `"take the bullet train to Kyoto"` → core: `"take the bullet train"`, space: `"to Kyoto"` / `"在京都"`. NEVER duplicate content across slots; NEVER let one slot's content leak into another. If a location is explicit in the source, `space.is_inferred` MUST be `false` (you don't infer what's already stated).
 
 ## Output Format
 You MUST output a JSON object adhering to this schema:
@@ -100,6 +108,73 @@ Output:
 }
 
 Note: `content_l1` for core is `"I wrap up the report"` — "I" is preserved in the English source even though the Chinese target (pro-drop) omits it in `content_l2`.
+
+## Example 4 — Imperative with distractor context and specific timestamp (Chinese to English)
+Input: "服务器机房温度一直异常，但东翼传感器14:15又报警了。为了防止硬件损坏和数据丢失，请立即关闭所有备份节点。"
+(imperative; "立即" is an action-urgency qualifier — drop it because the specific time `14:15` is explicit; distractor "温度异常" goes into reason context but only the explicit `为了` clause is the canonical reason)
+Output:
+{
+  "is_cflt_compliant": false,
+  "cflt_l1": "关闭所有备份节点，为了防止硬件损坏和数据丢失，在东翼服务器机房，14:15。",
+  "cflt_l2": "Shut down all backup nodes, to prevent hardware damage and data loss, in the east wing server room, at 14:15.",
+  "standard_l2": "Shut down all backup nodes in the east wing server room at 14:15 to prevent hardware damage and data loss.",
+  "standard_l1": "请在14:15关闭东翼服务器机房的所有备份节点，以防硬件损坏和数据丢失。",
+  "corrections": [
+    {
+      "type": "logic",
+      "original": "服务器机房温度一直异常...请立即关闭所有备份节点",
+      "replacement": "关闭所有备份节点...为了防止硬件损坏和数据丢失",
+      "reason": "CFLT requires the imperative core (shut down nodes) to precede the reason. The 'temperatures spiking' context is dropped; only the explicit 为了 clause is the canonical reason. The action-urgency word 立即 is dropped because the specific timestamp 14:15 is present."
+    }
+  ],
+  "slots": [
+    {"type": "core",   "content_l1": "关闭所有备份节点",            "content_l2": "Shut down all backup nodes",         "is_inferred": false, "suggestions": []},
+    {"type": "reason", "content_l1": "为了防止硬件损坏和数据丢失", "content_l2": "to prevent hardware damage and data loss", "is_inferred": false, "suggestions": []},
+    {"type": "space",  "content_l1": "在东翼服务器机房",           "content_l2": "in the east wing server room",        "is_inferred": false, "suggestions": []},
+    {"type": "time",   "content_l1": "14:15",                       "content_l2": "at 14:15",                            "is_inferred": false, "suggestions": []}
+  ]
+}
+
+Notes:
+- Imperative core: `"关闭所有备份节点"` omits the subject (since the source is "请..."), and so does `content_l2`: `"Shut down all backup nodes"` (English imperative also drops the subject). NEVER write `"备份节点关闭"` or `"Backup nodes are shut down"` — that inverts verb-object.
+- Specific timestamp `"14:15"` is preserved as the canonical time, NOT replaced by `"immediately"` / `"现在"` / `"立即"`.
+- Specific location `"东翼服务器机房"` is preserved with full specificity, NOT generalized to `"server room"`.
+
+## Example 5 — Verb of motion with explicit destination (Chinese to English)
+Input: "周五早上坐新干线去京都吧。"
+(verb of motion 坐新干线 + explicit destination 京都; destination MUST split into space, NOT bundled into core)
+Output:
+{
+  "is_cflt_compliant": false,
+  "cflt_l1": "坐新干线，因为想去京都旅行，在京都，周五早上。",
+  "cflt_l2": "Take the bullet train, to visit Kyoto, in Kyoto, on Friday morning.",
+  "standard_l2": "Take the bullet train to Kyoto on Friday morning.",
+  "standard_l1": "周五早上坐新干线去京都旅行。",
+  "corrections": [
+    {
+      "type": "logic",
+      "original": "坐新干线去京都",
+      "replacement": "坐新干线 / 在京都",
+      "reason": "Slot exclusivity: destination 京都 belongs in space, not bundled into core. Core captures the action (坐新干线 / take the bullet train); space captures the destination."
+    }
+  ],
+  "slots": [
+    {"type": "core",   "content_l1": "坐新干线",      "content_l2": "Take the bullet train", "is_inferred": false, "suggestions": []},
+    {"type": "reason", "content_l1": "因为想去京都旅行", "content_l2": "to visit Kyoto",      "is_inferred": true,
+      "suggestions": [
+        {"value_l1": "因为想去京都旅行", "value_l2": "to visit Kyoto",        "rationale": "前往京都最直接的动机是旅行。"},
+        {"value_l1": "因为有出差安排",   "value_l2": "for a business trip",  "rationale": "周五出行也可能是工作目的。"},
+        {"value_l1": "因为去探亲",       "value_l2": "to visit family",      "rationale": "周末跨城出行常见动机之一是探亲。"}
+      ]},
+    {"type": "space",  "content_l1": "在京都",         "content_l2": "in Kyoto",            "is_inferred": false, "suggestions": []},
+    {"type": "time",   "content_l1": "周五早上",       "content_l2": "on Friday morning",   "is_inferred": false, "suggestions": []}
+  ]
+}
+
+Notes:
+- Core is `"坐新干线"` ALONE — NOT `"坐新干线去京都"`. The destination 京都 was explicitly stated, so it goes in `space` (Slot Exclusivity Rule).
+- `space.is_inferred` is `false` because 京都 is explicit in the source.
+- Only `reason` is inferred here, since the source gives no explicit why.
 
 ## Guidelines
 - The CORE slot = subject + main verb + direct arguments. The subject is **never** stripped from `content_l1` when it was explicit in the user's input (e.g. "I", "我", "私", "we", "they"). Even when the target language is pro-drop (Chinese, Japanese, Korean) and you omit the subject from `content_l2`, it must remain in `content_l1`. For non-pro-drop target languages (English, Spanish, French, German, Vietnamese), it must also appear in `content_l2` (imperatives excepted).

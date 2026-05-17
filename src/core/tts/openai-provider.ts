@@ -20,7 +20,7 @@ export class OpenAITTSProvider implements TTSProvider {
   private model: SpeechModel;
   private voiceOverride?: string;
   constructor(model?: SpeechModel, voice?: string) {
-    this.model = model ?? ttsModel;
+    this.model = (model ?? ttsModel) as SpeechModel;
     this.voiceOverride = voice;
   }
 

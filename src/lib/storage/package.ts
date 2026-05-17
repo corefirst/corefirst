@@ -11,6 +11,7 @@ import {
   mediaDir,
   sharedMediaPath,
   sharedMediaDir,
+  isPersonalRecording,
   DEFAULT_USER_ID,
 } from './paths';
 

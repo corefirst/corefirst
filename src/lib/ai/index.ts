@@ -32,8 +32,8 @@ import { buildSpeechModel } from './text-to-speech/factory';
 import { buildTranscriptionModel } from './speech-to-text/factory';
 import type { LanguageModel } from 'ai';
 
-function createModelProxy<T extends object>(builder: () => T): T {
-  return new Proxy({} as T, {
+function createModelProxy<T>(builder: () => T): T {
+  return new Proxy({} as object, {
     get(_, prop) {
       const model = builder();
       const val = (model as any)[prop];
@@ -42,7 +42,7 @@ function createModelProxy<T extends object>(builder: () => T): T {
       }
       return val;
     },
-  });
+  }) as T;
 }
 
 // --- Text features (capability: text) ---

@@ -64,7 +64,7 @@ export class CoursewareOrchestrator {
 
   constructor(modelOverride?: LanguageModel, onProgress?: ProgressEmitter) {
     if (!modelOverride) console.log('[ai/courseGen] no UI settings — using env fallback');
-    this.model = modelOverride ?? courseGenModel;
+    this.model = (modelOverride ?? courseGenModel) as LanguageModel;
     this.transformer = new CFLTTransformer(modelOverride);
     this.emit = onProgress ?? (() => {});
   }

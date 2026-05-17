@@ -32,6 +32,7 @@ var net = __toESM(require("net"));
 var mainWindow = null;
 var serverProcess = null;
 var serverPort = 3e3;
+var isStartingUp = false;
 function findFreePort(start, limit = start + 50) {
   return new Promise((resolve, reject) => {
     if (start > limit) {
@@ -100,9 +101,12 @@ async function startServer() {
       ...serverEnvBase,
       PORT: String(serverPort),
       HOSTNAME: "127.0.0.1",
-      NODE_ENV: "production"
+      NODE_ENV: "production",
+      // Run Electron binary as a plain Node.js runtime (no Electron GUI init).
+      // Required so that the packaged Next.js server starts correctly.
+      ELECTRON_RUN_AS_NODE: "1"
     });
-    await waitForServer(serverPort);
+    await waitForServer(serverPort, 60);
     return;
   }
   const nextBin = path.join(
@@ -126,8 +130,8 @@ function spawnServer(cmd, args, cwd, extraEnv) {
     cwd,
     stdio: ["ignore", "pipe", "pipe"]
   });
-  serverProcess.stdout?.on("data", (d) => process.stdout.write(d));
-  serverProcess.stderr?.on("data", (d) => process.stderr.write(d));
+  serverProcess.stdout?.on("data", (d) => process.stdout.write(new Uint8Array(d)));
+  serverProcess.stderr?.on("data", (d) => process.stderr.write(new Uint8Array(d)));
   serverProcess.on("error", (err) => {
     console.error("[electron] server error:", err);
     import_electron.app.quit();
@@ -173,23 +177,42 @@ async function createWindow() {
     mainWindow = null;
   });
 }
-import_electron.app.whenReady().then(async () => {
-  try {
-    await startServer();
-    await createWindow();
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error("[electron] startup failed:", message);
-    import_electron.dialog.showErrorBox("CoreFirst \u2014 startup error", message);
+var gotLock = import_electron.app.requestSingleInstanceLock();
+if (!gotLock) {
+  import_electron.app.whenReady().then(() => {
+    import_electron.dialog.showErrorBox("CoreFirst already running", "CoreFirst is already open. Check your Dock or taskbar.");
     import_electron.app.quit();
-  }
-});
-import_electron.app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") import_electron.app.quit();
-});
-import_electron.app.on("activate", () => {
-  if (mainWindow === null) createWindow();
-});
-import_electron.app.on("before-quit", () => {
-  serverProcess?.kill();
-});
+  });
+} else {
+  import_electron.app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+  import_electron.app.whenReady().then(async () => {
+    isStartingUp = true;
+    try {
+      await startServer();
+      await createWindow();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[electron] startup failed:", message);
+      import_electron.dialog.showErrorBox("CoreFirst \u2014 startup error", message);
+      import_electron.app.quit();
+    } finally {
+      isStartingUp = false;
+    }
+  });
+  import_electron.app.on("window-all-closed", () => {
+    if (process.platform !== "darwin") import_electron.app.quit();
+  });
+  import_electron.app.on("activate", () => {
+    if (isStartingUp) return;
+    if (mainWindow === null) createWindow();
+    else mainWindow.focus();
+  });
+  import_electron.app.on("before-quit", () => {
+    serverProcess?.kill();
+  });
+}

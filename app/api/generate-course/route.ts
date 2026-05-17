@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { type LanguageModel } from 'ai';
 import { CoursewareOrchestrator } from '@/src/generator/orchestrator';
 import { buildAndWritePackage } from '@/src/generator/package-builder';
 import { getUserId } from '@/src/lib/auth/user';
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
   (async () => {
     try {
       const settings = extractSettings(request);
-      const modelOverride = resolveFeatureFromSettings('courseGen', settings);
+      const modelOverride = resolveFeatureFromSettings('courseGen', settings) as LanguageModel | undefined;
       const ttsOverride = resolveTTSOverride(settings) ?? undefined;
       const imageOverride = resolveImageOverride(settings) ?? undefined;
       const userId = await getUserId(request);

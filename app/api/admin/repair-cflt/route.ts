@@ -39,7 +39,7 @@ interface RepairCount { total: number; fixed: number; skipped: number; errors: n
 
 export async function POST(request: Request) {
   const { model: modelOverride, userId } = await resolveTextContext('transform', request);
-  const activeModel = modelOverride ?? transformModel;
+  const activeModel = (modelOverride ?? transformModel) as LanguageModel;
   const body = await request.json().catch(() => ({}));
   const scope: string = body.scope ?? 'all';
 

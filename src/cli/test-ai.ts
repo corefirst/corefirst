@@ -66,7 +66,7 @@ async function main() {
         await testTTS(provider, input || 'Hello, this is a test of the emergency broadcast system.', modelOverride);
         break;
       case 'stt':
-        await testSTT(provider, input, modelOverride);
+        await testSTT(provider, input);
         break;
       default:
         console.error(`Unknown capability: ${capability}`);
@@ -157,7 +157,7 @@ async function testImage(provider: string, prompt: string, modelName?: string) {
 
   const filename = `test-image-${provider}-${Date.now()}.webp`;
   const filePath = path.join(tmpDir, filename);
-  fs.writeFileSync(filePath, buffer);
+  fs.writeFileSync(filePath, new Uint8Array(buffer));
   
   console.log(`\n✅ Success! (${duration}s)`);
   console.log(`Saved to: ${filePath}`);
@@ -167,14 +167,14 @@ async function testTTS(provider: string, text: string, modelName?: string) {
   const ttsProvider = TTSFactory.getProvider({ provider, model: modelName || '', apiKey: '' });
   console.log(`Text: "${text}"`);
   
-  const audioBuffer = await ttsProvider.generateSpeech(text);
+  const audioBuffer = await ttsProvider.generateAudio(text);
   
   const tmpDir = path.join(process.cwd(), 'data', 'tmp');
   if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir, { recursive: true });
 
   const filename = `test-tts-${provider}-${Date.now()}.mp3`;
   const filePath = path.join(tmpDir, filename);
-  fs.writeFileSync(filePath, Buffer.from(audioBuffer));
+  fs.writeFileSync(filePath, new Uint8Array(audioBuffer));
   
   console.log(`\n✅ Success!`);
   console.log(`Saved to: ${filePath}`);
@@ -188,7 +188,7 @@ async function testSTT(provider: string, filePath?: string) {
   const sttProvider = STTFactory.getProvider({ provider, model: '', apiKey: '' });
   console.log(`File: ${filePath}`);
   
-  const audioData = fs.readFileSync(filePath);
+  const audioData = new Uint8Array(fs.readFileSync(filePath));
   const result = await sttProvider.transcribe(audioData);
   
   console.log(`\n✅ Transcript:\n${result.text}`);

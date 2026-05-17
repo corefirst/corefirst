@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { generateObject } from 'ai';
+import { generateObject, type LanguageModel } from 'ai';
 import { speechEvalModel } from '@/src/lib/ai';
 import { STTFactory } from '@/src/core/stt/factory';
 import { extractSettings, resolveFeatureFromSettings, resolveSTTOverride } from '@/src/lib/ai/settings-config';
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
     const sttProvider = STTFactory.getProvider(sttOverride ?? undefined);
     const evalModelOverride = resolveFeatureFromSettings('speechEval', settings);
     if (!evalModelOverride) console.log('[ai/speechEval] no UI settings — using env fallback');
-    const activeEvalModel = evalModelOverride ?? speechEvalModel;
+    const activeEvalModel = (evalModelOverride ?? speechEvalModel) as LanguageModel;
 
     const { text: transcription } = await sttProvider.transcribe(audioBytes, { language: languageCode, mimeType });
     const userId = await getUserId(request);

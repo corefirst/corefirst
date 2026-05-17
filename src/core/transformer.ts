@@ -19,7 +19,7 @@ export class CFLTTransformer {
 
   constructor(modelOverride?: LanguageModel) {
     if (!modelOverride) console.log('[ai/transform] no UI settings — using env fallback');
-    this.model = modelOverride ?? transformModel;
+    this.model = (modelOverride ?? transformModel) as LanguageModel;
   }
 
   // Lightweight audit used by the orchestrator to re-verify and backfill
@@ -43,7 +43,7 @@ export class CFLTTransformer {
         schema: AuditResultSchema,
         system,
         prompt: standard_l2,
-        maxTokens: 2048,
+        maxOutputTokens: 2048,
       });
       return object;
     } catch (e) {
@@ -82,7 +82,7 @@ export class CFLTTransformer {
         schema: CFLTResponseGenerationSchema,
         system: dynamicPrompt,
         prompt: userInput,
-        maxTokens: 2048,
+        maxOutputTokens: 2048,
       });
 
       return object as CFLTResponse;

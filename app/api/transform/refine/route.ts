@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { generateObject } from 'ai';
+import { generateObject, type LanguageModel } from 'ai';
 import { transformModel } from '@/src/lib/ai';
 import { resolveTextContext } from '@/src/lib/ai/request-context';
 import { loadSkill } from '@/src/lib/skills';
@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     }
     const { sourceLang, targetLang, slots } = parsed.data;
     const { model: modelOverride, userId } = await resolveTextContext('transform', request);
-    const activeModel = modelOverride ?? transformModel;
+    const activeModel = (modelOverride ?? transformModel) as LanguageModel;
 
     const slotsTable = slots
       .map((s) => `- ${s.type.toUpperCase()}: ${sourceLang}="${s.l1}" | ${targetLang}="${s.l2}"`)

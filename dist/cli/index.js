@@ -23411,7 +23411,7 @@ var init_transformer = __esm({
             schema: AuditResultSchema,
             system,
             prompt: standard_l2,
-            maxTokens: 2048
+            maxOutputTokens: 2048
           });
           return object;
         } catch (e) {
@@ -23439,7 +23439,7 @@ var init_transformer = __esm({
             schema: CFLTResponseGenerationSchema,
             system: dynamicPrompt,
             prompt: userInput,
-            maxTokens: 2048
+            maxOutputTokens: 2048
           });
           return object;
         } catch (e) {
@@ -23745,10 +23745,6 @@ var require_package = __commonJS({
         "package.json",
         "README.md"
       ],
-      directories: {
-        doc: "docs",
-        test: "tests"
-      },
       scripts: {
         dev: "next dev",
         build: "next build",
@@ -23759,7 +23755,12 @@ var require_package = __commonJS({
         "build:cli": "tsup",
         "electron:dev": "electron electron/main.js",
         "electron:full": "pnpm build && pnpm build:cli && electron electron/main.js",
-        "electron:build": "pnpm build && pnpm build:cli && electron-builder",
+        "electron:prepare": `rm -rf .next/standalone/.next/node_modules && rm -rf .next/standalone/node_modules/.pnpm/node_modules && rsync -a --ignore-existing .next/server/ .next/standalone/.next/server/ && node scripts/fix-standalone-modules.js && node -e "const fs=require('fs'),path=require('path');const nm='.next/node_modules';const snm='.next/standalone/node_modules';if(fs.existsSync(nm)){for(const e of fs.readdirSync(nm)){const src=fs.realpathSync(path.join(nm,e));const dst=path.join(snm,e);if(!fs.existsSync(dst)){fs.cpSync(src,dst,{recursive:true})}}}" && printf '!node_modules\\n!node_modules/**\\n' > .next/standalone/.gitignore`,
+        "electron:clean": "rm -rf release electron-out",
+        "electron:build": "pnpm electron:clean && pnpm build && pnpm build:cli && pnpm electron:prepare && electron-builder",
+        "electron:build:mac": "pnpm electron:clean && pnpm build && pnpm build:cli && pnpm electron:prepare && electron-builder --mac",
+        "electron:build:win": "pnpm electron:clean && pnpm build && pnpm build:cli && pnpm electron:prepare && electron-builder --win",
+        "electron:build:linux": "pnpm electron:clean && pnpm build && pnpm build:cli && pnpm electron:prepare && electron-builder --linux",
         prepublishOnly: "pnpm build:cli"
       },
       keywords: [
@@ -23819,6 +23820,87 @@ var require_package = __commonJS({
         tsx: "^4.21.0",
         typescript: "^6.0.3",
         vitest: "^4.1.5"
+      },
+      build: {
+        appId: "world.corefirst.app",
+        productName: "CoreFirst",
+        copyright: "Copyright \xA9 2026 CoreFirst",
+        directories: {
+          output: "release"
+        },
+        extraMetadata: {
+          main: "electron/main.js"
+        },
+        files: [
+          "electron/main.js",
+          "electron/preload.js",
+          "package.json"
+        ],
+        extraResources: [
+          {
+            from: ".next/standalone",
+            to: "app/.next/standalone",
+            filter: ["**/*"]
+          },
+          {
+            from: ".next/standalone/node_modules",
+            to: "app/.next/standalone/node_modules",
+            filter: ["**/*"]
+          },
+          {
+            from: ".next/standalone/.next",
+            to: "app/.next/standalone/.next",
+            filter: ["**/*"]
+          },
+          {
+            from: ".next/static",
+            to: "app/.next/standalone/.next/static",
+            filter: ["**/*"]
+          },
+          {
+            from: "public",
+            to: "app/.next/standalone/public",
+            filter: ["**/*"]
+          }
+        ],
+        mac: {
+          category: "public.app-category.education",
+          icon: "public/icons/icon-512.png",
+          target: [
+            { target: "dmg", arch: ["arm64", "x64"] }
+          ]
+        },
+        dmg: {
+          title: "${productName} ${version}",
+          contents: [
+            { x: 130, y: 220 },
+            { x: 410, y: 220, type: "link", path: "/Applications" }
+          ]
+        },
+        win: {
+          icon: "public/icons/icon-512.png",
+          target: [
+            { target: "nsis", arch: ["x64"] }
+          ]
+        },
+        nsis: {
+          oneClick: false,
+          allowToChangeInstallationDirectory: true
+        },
+        linux: {
+          icon: "public/icons/icon-512.png",
+          category: "Education",
+          target: [
+            { target: "AppImage", arch: ["x64"] }
+          ]
+        },
+        publish: [
+          {
+            provider: "github",
+            owner: "corefirst",
+            repo: "corefirst"
+          }
+        ]
       },
       pnpm: {
         onlyBuiltDependencies: [
