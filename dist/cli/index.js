@@ -348,7 +348,21 @@ function readProviderForFeature(spec) {
   if (capProvider) return capProvider.trim();
   const globalProvider = process.env.GLOBAL_PROVIDER;
   if (globalProvider) return globalProvider.trim();
-  return getFeatureDefaults(spec.key).defaultProvider;
+  const defaultProvider = getFeatureDefaults(spec.key).defaultProvider;
+  if (defaultProvider !== "none") return defaultProvider;
+  const validProviders = getProvidersForCapability(spec.capability);
+  const autoDetect = [
+    ["openai", process.env.OPENAI_API_KEY],
+    ["google", process.env.GOOGLE_GENERATIVE_AI_API_KEY ?? process.env.GOOGLE_API_KEY],
+    ["anthropic", process.env.ANTHROPIC_API_KEY],
+    ["groq", process.env.GROQ_API_KEY],
+    ["deepseek", process.env.DEEPSEEK_API_KEY],
+    ["qwen", process.env.DASHSCOPE_API_KEY]
+  ];
+  for (const [provider, key] of autoDetect) {
+    if (key && validProviders.includes(provider)) return provider;
+  }
+  return "none";
 }
 function readModelForFeature(spec, provider) {
   const featureModel = process.env[`${spec.envPrefix}_MODEL`];
@@ -23872,6 +23886,7 @@ var require_package = __commonJS({
         },
         dmg: {
           title: "${productName} ${version}",
+          artifactName: "${productName}-${version}-${arch}.${ext}",
           contents: [
             { x: 130, y: 220 },
             { x: 410, y: 220, type: "link", path: "/Applications" }
@@ -23885,14 +23900,16 @@ var require_package = __commonJS({
         },
         nsis: {
           oneClick: false,
-          allowToChangeInstallationDirectory: true
+          allowToChangeInstallationDirectory: true,
+          artifactName: "${productName}-${version}-${arch}.${ext}"
         },
         linux: {
           icon: "public/icons/icon-512.png",
           category: "Education",
           target: [
             { target: "AppImage", arch: ["x64"] }
-          ]
+          ],
+          artifactName: "${productName}-${version}-${arch}.${ext}"
         },
         publish: [
           {

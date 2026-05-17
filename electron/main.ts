@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, dialog } from 'electron';
+import { app, BrowserWindow, shell, dialog, utilityProcess, UtilityProcess } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as http from 'http';
@@ -6,7 +6,7 @@ import { spawn, ChildProcess } from 'child_process';
 import * as net from 'net';
 
 let mainWindow: BrowserWindow | null = null;
-let serverProcess: ChildProcess | null = null;
+let serverProcess: ChildProcess | UtilityProcess | null = null;
 let serverPort = 3000;
 let isStartingUp = false;
 
@@ -83,14 +83,25 @@ async function startServer(): Promise<void> {
 
   // ── B: start pre-built standalone server (after `pnpm build`) ─────────────
   if (fs.existsSync(standaloneScript)) {
-    spawnServer(process.execPath, [standaloneScript], appRoot, {
-      ...serverEnvBase,
-      PORT: String(serverPort),
-      HOSTNAME: '127.0.0.1',
-      NODE_ENV: 'production',
-      // Run Electron binary as a plain Node.js runtime (no Electron GUI init).
-      // Required so that the packaged Next.js server starts correctly.
-      ELECTRON_RUN_AS_NODE: '1',
+    // utilityProcess runs Node out-of-process with no Dock icon / window.
+    serverProcess = utilityProcess.fork(standaloneScript, [], {
+      cwd: appRoot,
+      env: {
+        ...process.env,
+        ...serverEnvBase,
+        PORT: String(serverPort),
+        HOSTNAME: '127.0.0.1',
+        NODE_ENV: 'production',
+      },
+      stdio: 'pipe',
+    });
+    serverProcess.stdout?.on('data', (d: Buffer) => process.stdout.write(new Uint8Array(d)));
+    serverProcess.stderr?.on('data', (d: Buffer) => process.stderr.write(new Uint8Array(d)));
+    serverProcess.on('exit', (code) => {
+      if (code !== 0 && code !== null) {
+        console.error(`[electron] server exited with code ${code}`);
+        app.quit();
+      }
     });
     await waitForServer(serverPort, 60);
     return;
@@ -217,6 +228,9 @@ if (!gotLock) {
   });
 
   app.on('before-quit', () => {
-    serverProcess?.kill();
+    if (serverProcess) {
+      serverProcess.kill();
+      serverProcess = null;
+    }
   });
 }

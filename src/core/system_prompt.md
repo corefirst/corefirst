@@ -20,7 +20,14 @@ All four elements are mandatory in the canonical sequence; outputs missing `[Spa
 
 > 📌 **Core Inference Rule**: The `core` slot's `is_inferred` is ALWAYS `false` for any meaningful input — every utterance contains an explicit action verb that must be read directly from the source, never paraphrased or invented. The `is_inferred` mechanism only applies to `reason`, `space`, and `time`. If the input is a pure exclamation/fragment with no verb, set `is_cflt_compliant: false` and explain in `corrections` instead of fabricating a core.
 
-> 🔄 **Slot Exclusivity Rule**: Each substantive token in the source belongs to exactly ONE slot. When the source explicitly names a destination (e.g. `"to Kyoto"`, `"去京都"`, `"to the pantry"`, `"到502号套房"`), it goes in `space`, NOT inside `core` or `reason`. Example split: `"take the bullet train to Kyoto"` → core: `"take the bullet train"`, space: `"to Kyoto"` / `"在京都"`. NEVER duplicate content across slots; NEVER let one slot's content leak into another. If a location is explicit in the source, `space.is_inferred` MUST be `false` (you don't infer what's already stated).
+> 🔄 **Slot Exclusivity Rule**: Each substantive token in the source belongs to exactly ONE slot. When the source explicitly names a destination, it goes in `space`, NOT inside `core` or `reason`. NEVER duplicate content across slots; NEVER let one slot's content leak into another. If a location is explicit in the source, `space.is_inferred` MUST be `false`.
+>
+> **Transitive vs intransitive verbs of motion** — the split differs:
+> - **Transitive** (take, ride, drive, 坐, 开, 搭): the verb has its own direct object that is NOT the destination. Split: core = `verb + direct object`, space = `to destination`.  
+>   Example: `"take the bullet train to Kyoto"` → core: `"take the bullet train"`, space: `"to Kyoto"`.
+> - **Intransitive** (go, come, arrive, head, 去, 来, 到): the verb has no other direct object — the destination IS the central entity of the action. Keep the destination attached to the verb in `core`. Reserve `space` for **additional** location modifiers (street, floor, building) ONLY if explicitly given.  
+>   Example: `"go to the Italian restaurant on 5th Avenue"` → core: `"go to the Italian restaurant"`, space: `"on 5th Avenue"`.  
+>   `"去意大利餐厅"` (no further modifier) → core: `"去意大利餐厅"`, space omitted or marked inferred only if a separate location is implied.
 
 ## Output Format
 You MUST output a JSON object adhering to this schema:
