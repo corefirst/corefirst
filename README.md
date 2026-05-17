@@ -362,7 +362,12 @@ npx electron-builder --win    # .exe NSIS installer
 npx electron-builder --linux  # .AppImage
 ```
 
-Output lands in `release/`. See [`docs/cli.md`](docs/cli.md) for prerequisites per platform.
+Output lands in `release/`.
+
+### Release
+
+- **Desktop app (DMG / EXE / AppImage)** — see [`docs/cli.md` → Build the desktop app](docs/cli.md#build-the-desktop-app) for prerequisites, packaging steps, and output paths.
+- **CLI (npm)** — see [`docs/cli.md` → Publish to npm](docs/cli.md#publish-to-npm) for the publish workflow.
 
 ---
 
