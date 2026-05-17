@@ -5,7 +5,9 @@ import type { STTProvider, STTOptions } from './interface';
 import { OpenAISTTProvider } from './openai-provider';
 import { GoogleGeminiSTTProvider } from './google-provider';
 import { QwenSTTProvider } from './qwen-provider';
+import { OpenRouterSTTProvider } from './openrouter-provider';
 import { PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
+import { getProviderBaseUrl } from '@/src/lib/ai/dynamic-config';
 
 type STTCreator = () => STTProvider;
 
@@ -18,7 +20,12 @@ export function registerSTTProvider(provider: string, creator: STTCreator): void
 
 // ── Built-in providers ────────────────────────────────────────────────────────
 registerSTTProvider('openai',     () => new OpenAISTTProvider());
-registerSTTProvider('openrouter', () => new OpenAISTTProvider());
+// NOTE: OpenRouter's /v1/audio/transcriptions uses a JSON+base64 schema,
+// not OpenAI's multipart form — see OpenRouterSTTProvider for the workaround.
+registerSTTProvider('openrouter', () => {
+  const r = resolveFeature('stt');
+  return new OpenRouterSTTProvider(r.model, r.apiKey || '', r.baseUrl);
+});
 registerSTTProvider('google',     () => new GoogleGeminiSTTProvider());
 // Qwen uses DashScope's native ASR API (not OpenAI-compat /audio/transcriptions)
 registerSTTProvider('qwen',       () => {
@@ -39,7 +46,13 @@ export class STTFactory {
         console.log(`[ai/stt] provider=google model=${model}`);
         return new GoogleGeminiSTTProvider({ model, apiKey: override.apiKey });
       }
-      console.log(`[ai/stt] provider=${override.provider ?? 'override'} baseUrl=${override.baseUrl}`);
+      if (override.provider === 'openrouter') {
+        const model = override.model || PROVIDER_DEFAULTS['openrouter']?.['speech-to-text'] || 'openai/gpt-4o-mini-transcribe';
+        const baseUrl = override.baseUrl || getProviderBaseUrl('openrouter') || 'https://openrouter.ai/api/v1';
+        console.log(`[ai/stt] provider=openrouter baseUrl=${baseUrl} model=${model} (json+base64 schema)`);
+        return new OpenRouterSTTProvider(model, override.apiKey || '', baseUrl);
+      }
+      console.log(`[ai/stt] provider=${override.provider ?? 'override'} baseUrl=${override.baseUrl} model=${override.model ?? '(default)'}`);
       const model = buildTranscriptionModelWith({ baseUrl: override.baseUrl, apiKey: override.apiKey, model: override.model });
       return new OpenAISTTProvider(model);
     }

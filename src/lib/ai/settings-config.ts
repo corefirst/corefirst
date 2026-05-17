@@ -31,6 +31,12 @@ export interface RequestSettings {
    *  Headers: x-cf-{feature}-provider, x-cf-{feature}-model
    *  (e.g. x-cf-transform-provider=anthropic, x-cf-roleplay-model=claude-haiku-4-5) */
   features: Partial<Record<FeatureKey, FeatureTextOverride>>;
+  /** SaaS access token (forwarded as x-cf-saas-token from the client). Required when
+   *  provider === 'corefirst'. */
+  saasToken: string;
+  /** SaaS base URL (forwarded as x-cf-saas-base-url from the client, e.g.
+   *  http://localhost:4000). Required when provider === 'corefirst'. */
+  saasBaseUrl: string;
 }
 
 /**
@@ -104,7 +110,19 @@ export function extractSettings(request: Request): RequestSettings {
       baseUrl:  getHeader(request, 'x-cf-image-url'),
     },
     features,
+    saasToken:   getHeader(request, 'x-cf-saas-token'),
+    saasBaseUrl: getHeader(request, 'x-cf-saas-base-url'),
   };
+}
+
+/**
+ * Build the AI gateway URL for the `corefirst` SaaS provider given the
+ * per-request SaaS headers. Returns `${saasBaseUrl}/v1/ai`, which is what the
+ * OpenAI-compatible factories expect as `baseURL`.
+ */
+function corefirstBaseUrl(settings: RequestSettings): string {
+  const root = (settings.saasBaseUrl || '').replace(/\/+$/, '');
+  return root ? `${root}/v1/ai` : '';
 }
 
 function hasTextSettings(s: RequestSettings): boolean {
@@ -117,9 +135,14 @@ export function resolveTextModel(settings: RequestSettings): LanguageModel | und
   const provider = settings.text.provider || settings.global.provider;
   if (!provider) return undefined;
 
-  const apiKey  = settings.text.apiKey  || settings.global.apiKey  || undefined;
-  const baseUrl = provider === 'ollama' ? (settings.ollama.baseUrl || undefined) : undefined;
-  const model   = settings.text.model   || settings.global.model   || getDefaultTextModel(provider);
+  let apiKey  = settings.text.apiKey  || settings.global.apiKey  || undefined;
+  let baseUrl = provider === 'ollama' ? (settings.ollama.baseUrl || undefined) : undefined;
+  const model = settings.text.model   || settings.global.model   || getDefaultTextModel(provider);
+
+  if (provider === 'corefirst') {
+    apiKey = settings.saasToken || undefined;
+    baseUrl = corefirstBaseUrl(settings) || undefined;
+  }
 
   console.log(`[ai/text] request: provider=${provider} model=${model}`);
   return buildTextModelFromSpec({ provider, model, apiKey, baseUrl });
@@ -143,11 +166,17 @@ export function resolveFeatureFromSettings(
 ): LanguageModel | undefined {
   const featureOverride = settings.features[feature];
   if (featureOverride?.provider) {
-    const apiKey  = settings.text.apiKey || settings.global.apiKey || undefined;
-    const baseUrl = featureOverride.provider === 'ollama'
+    let apiKey  = settings.text.apiKey || settings.global.apiKey || undefined;
+    let baseUrl: string | undefined = featureOverride.provider === 'ollama'
       ? (settings.ollama.baseUrl || undefined)
       : undefined;
     const model = featureOverride.model || getDefaultTextModel(featureOverride.provider);
+
+    if (featureOverride.provider === 'corefirst') {
+      apiKey = settings.saasToken || undefined;
+      baseUrl = corefirstBaseUrl(settings) || undefined;
+    }
+
     return buildTextModelFromSpec({ provider: featureOverride.provider, model, apiKey, baseUrl });
   }
   return resolveTextModel(settings);
@@ -161,6 +190,13 @@ export function resolveTTSOverride(settings: RequestSettings): TTSOverride | und
   }
   const provider = tts.provider || g.provider;
   if (!provider) return undefined;
+
+  if (provider === 'corefirst') {
+    const baseUrl = corefirstBaseUrl(settings);
+    if (!baseUrl || !settings.saasToken) return undefined;
+    const model = tts.model || getProviderDefault('corefirst', 'text-to-speech') || 'gpt-4o-mini-tts';
+    return { provider, baseUrl, model, apiKey: settings.saasToken, voice: getProviderTTSVoice('corefirst') };
+  }
 
   const baseUrl = getProviderBaseUrl(provider);
   if (baseUrl) {
@@ -187,6 +223,13 @@ export function resolveSTTOverride(settings: RequestSettings): STTOverride | und
   const provider = stt.provider || g.provider;
   if (!provider) return undefined;
 
+  if (provider === 'corefirst') {
+    const baseUrl = corefirstBaseUrl(settings);
+    if (!baseUrl || !settings.saasToken) return undefined;
+    const resolvedModel = model || getProviderDefault('corefirst', 'speech-to-text') || 'whisper-1';
+    return { provider, baseUrl, apiKey: settings.saasToken, model: resolvedModel };
+  }
+
   const baseUrl = getProviderBaseUrl(provider);
   if (baseUrl) {
     const resolvedModel = model || getProviderDefault(provider, 'speech-to-text') || '';
@@ -205,6 +248,13 @@ export function resolveImageOverride(settings: RequestSettings): ImageOverride |
   const { image, global: g } = settings;
   const provider = image.provider || g.provider;
   if (!provider) return undefined;
+
+  if (provider === 'corefirst') {
+    const baseUrl = corefirstBaseUrl(settings);
+    if (!baseUrl || !settings.saasToken) return undefined;
+    const model = image.model || getProviderDefault('corefirst', 'text-to-image') || 'gpt-image-1';
+    return { provider, apiKey: settings.saasToken, baseUrl, model };
+  }
 
   const apiKey = image.apiKey || g.apiKey || undefined;
   // Note: We no longer return undefined if apiKey is missing. 

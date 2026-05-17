@@ -7,6 +7,7 @@ import {
 
 import { t as tr, type SupportedLang, type DictKey } from '@/src/lib/ui-i18n';
 import { SLOT_METADATA, type FeatureSlot, type SkillCategory } from '@/src/lib/skills/feature-slots';
+import { CommunitySkillsPanel } from './CommunitySkillsPanel';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -312,6 +313,27 @@ export function SkillsContent({ uiLang }: { uiLang: SupportedLang }) {
           </div>
         </label>
       </div>
+
+      <CommunitySkillsPanel
+        mySkills={mySkills as any}
+        onForked={async (s) => {
+          // Make the forked skill usable locally by creating a personal copy.
+          try {
+            await fetch('/api/skills', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                featureSlot: s.featureSlot,
+                name: s.name,
+                description: s.description ?? '',
+                content: s.content,
+                tags: [],
+              }),
+            });
+            loadData();
+          } catch { /* non-fatal */ }
+        }}
+      />
 
       {grouped.map(({ cat, slots }) => (
         <div key={cat} className="space-y-2">

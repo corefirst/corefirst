@@ -5,6 +5,9 @@ import { VisualProvider } from './interface';
 import { AISDKImageProvider } from './imagen-provider';
 import { QwenVisualProvider } from './qwen-provider';
 import { OllamaImageProvider } from './ollama-provider';
+import { OpenRouterImageProvider } from './openrouter-provider';
+import { getProviderBaseUrl } from '@/src/lib/ai/dynamic-config';
+import { PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
 
 export class VisualFactory {
   static getProvider(override?: ImageOverride): VisualProvider {
@@ -24,10 +27,16 @@ export class VisualFactory {
         const baseURL = /\/v1$/.test(raw) ? raw : `${raw}/v1`;
         return new OllamaImageProvider(baseURL, override.model || r.model, effectiveApiKey);
       }
-      const model = buildImageModelWith({ 
-        provider: override.provider, 
-        apiKey: effectiveApiKey, 
-        model: override.model, 
+      if (override.provider === 'openrouter') {
+        const model = override.model || PROVIDER_DEFAULTS['openrouter']?.['text-to-image'] || 'google/gemini-3.1-flash-image-preview';
+        const baseUrl = effectiveBaseUrl || getProviderBaseUrl('openrouter') || 'https://openrouter.ai/api/v1';
+        console.log(`[ai/imageGen] provider=openrouter baseUrl=${baseUrl} model=${model} (chat/completions+modalities)`);
+        return new OpenRouterImageProvider(model, effectiveApiKey || '', baseUrl);
+      }
+      const model = buildImageModelWith({
+        provider: override.provider,
+        apiKey: effectiveApiKey,
+        model: override.model,
         baseUrl: effectiveBaseUrl
       });
       return new AISDKImageProvider(model);
@@ -45,8 +54,16 @@ export class VisualFactory {
       return new OllamaImageProvider(baseURL, r.model, r.apiKey);
     }
 
-    // All other supported image providers (google, openai, openrouter) go through
-    // the AI-SDK ImageModel path.
+    if (r.provider === 'openrouter') {
+      return new OpenRouterImageProvider(
+        r.model,
+        r.apiKey || '',
+        r.baseUrl || getProviderBaseUrl('openrouter') || 'https://openrouter.ai/api/v1',
+      );
+    }
+
+    // Remaining supported image providers (google, openai) go through the
+    // AI-SDK ImageModel path.
     return new AISDKImageProvider();
   }
 }

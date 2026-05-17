@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, dialog, utilityProcess, UtilityProcess } from 'electron';
+import { app, BrowserWindow, shell, dialog, ipcMain, utilityProcess, UtilityProcess } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as http from 'http';
@@ -9,6 +9,55 @@ let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | UtilityProcess | null = null;
 let serverPort = 3000;
 let isStartingUp = false;
+
+// ────────────────────────────────────────────────────────────────────────────
+// Deep-link / OAuth callback support
+//
+// Google rejects OAuth from embedded user-agents (Electron's BrowserWindow
+// counts as one). Our flow therefore:
+//   1. Renderer calls window.__corefirstElectron.openExternal(authUrl)
+//   2. Main process calls shell.openExternal(authUrl) → system browser
+//   3. After SaaS callback, browser navigates to:
+//        corefirst://oauth/callback#accessToken=…&refreshToken=…&userId=…
+//   4. OS hands that URL to this Electron app:
+//        - macOS:   app.on('open-url')
+//        - Win/Linux: argv on launch / second-instance
+//   5. Main process forwards the URL to the renderer via IPC
+//   6. /oauth/callback page receives it (subscribes via preload) and writes
+//      tokens to localStorage just like the web flow.
+//
+// The custom protocol "corefirst://" is registered via app.setAsDefaultProtocolClient
+// at runtime; for installed builds, electron-builder also declares it in the
+// platform-specific manifests.
+// ────────────────────────────────────────────────────────────────────────────
+
+const DEEPLINK_SCHEME = 'corefirst';
+let pendingDeepLink: string | null = null;
+
+function registerProtocol() {
+  if (process.defaultApp && process.argv.length >= 2) {
+    // dev mode (electron <script>) — pass the script path so the OS knows
+    // which command to invoke for the protocol handler.
+    app.setAsDefaultProtocolClient(DEEPLINK_SCHEME, process.execPath, [path.resolve(process.argv[1])]);
+  } else {
+    app.setAsDefaultProtocolClient(DEEPLINK_SCHEME);
+  }
+}
+
+function deliverDeepLink(url: string) {
+  if (!mainWindow) {
+    // Renderer not ready yet — stash and replay on did-finish-load.
+    pendingDeepLink = url;
+    return;
+  }
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+  mainWindow.webContents.send('corefirst:oauth-callback', url);
+}
+
+function extractDeepLinkFromArgs(argv: string[]): string | null {
+  return argv.find(a => a.startsWith(`${DEEPLINK_SCHEME}://`)) ?? null;
+}
 
 function findFreePort(start: number, limit = start + 50): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -182,6 +231,15 @@ async function createWindow(): Promise<void> {
   });
 
   await mainWindow.loadURL(`http://localhost:${serverPort}`);
+
+  // Replay any deep link that arrived before the renderer was ready.
+  mainWindow.webContents.once('did-finish-load', () => {
+    if (pendingDeepLink && mainWindow) {
+      mainWindow.webContents.send('corefirst:oauth-callback', pendingDeepLink);
+      pendingDeepLink = null;
+    }
+  });
+
   mainWindow.on('closed', () => { mainWindow = null; });
 }
 
@@ -194,12 +252,45 @@ if (!gotLock) {
     app.quit();
   });
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.focus();
     }
+    // Windows / Linux: deep links arrive in argv on a second launch.
+    const url = extractDeepLinkFromArgs(argv);
+    if (url) deliverDeepLink(url);
   });
+
+  // macOS: deep links arrive via open-url event.
+  app.on('open-url', (event, url) => {
+    event.preventDefault();
+    if (url.startsWith(`${DEEPLINK_SCHEME}://`)) deliverDeepLink(url);
+  });
+
+  // IPC: renderer asks main to open a URL in the system browser
+  // (used by OAuth flows since Google rejects embedded webviews).
+  ipcMain.handle('corefirst:open-external', async (_evt, url: string) => {
+    try {
+      // Only allow https — never let the renderer launch arbitrary commands.
+      const u = new URL(url);
+      if (u.protocol !== 'https:' && u.protocol !== 'http:') {
+        throw new Error('Only http(s) URLs may be opened externally');
+      }
+      await shell.openExternal(url);
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || String(e) };
+    }
+  });
+
+  registerProtocol();
+
+  // Cold-start deep link: if the app was launched FROM a corefirst:// URL,
+  // it will be the last argv entry on Win/Linux. (macOS uses open-url, fired
+  // after app ready.)
+  const coldDeepLink = extractDeepLinkFromArgs(process.argv);
+  if (coldDeepLink) pendingDeepLink = coldDeepLink;
 
   app.whenReady().then(async () => {
     isStartingUp = true;

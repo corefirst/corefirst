@@ -30,6 +30,11 @@ registerSpeechModelBuilder('ollama',     (r) => {
 registerSpeechModelBuilder('google',     (_r) => nonAiSdkStub('tts'));
 registerSpeechModelBuilder('qwen',       (r) => openaiTtsModel(r.model, getProviderBaseUrl('qwen'), r.apiKey));
 registerSpeechModelBuilder('openrouter', (r) => openaiTtsModel(r.model, getProviderBaseUrl('openrouter'), r.apiKey));
+registerSpeechModelBuilder('corefirst',  (r) => {
+  if (!r.baseUrl) throw new Error('[ai/tts/corefirst] missing baseUrl');
+  if (!r.apiKey)  throw new Error('[ai/tts/corefirst] missing SaaS access token');
+  return openaiTtsModel(r.model, r.baseUrl, r.apiKey);
+});
 
 export function buildSpeechModel(): SpeechModel {
   const r = resolveFeature('tts');

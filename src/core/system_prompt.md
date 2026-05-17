@@ -41,9 +41,9 @@ You MUST output a JSON object adhering to this schema:
   - `type`: One of `"core"`, `"reason"`, `"space"`, `"time"` — must match the position.
   - `content_l1`/`content_l2`: The slot's text in {{SOURCE_LANG}} / {{TARGET_LANG}} (matches what appears in `cflt_l1`/`cflt_l2`).
   - `is_inferred`: `true` ONLY when the user's input did not contain this element and you had to guess it (e.g. user said "我去打篮球" with no time → time is inferred). `false` when the element was explicitly present in the input.
-  - `suggestions`: When `is_inferred=true`, populate with 2-3 candidate fills `[{value_l1, value_l2, rationale}]` covering distinct plausible interpretations of the missing element. The `rationale` MUST be **one short sentence written in {{UI_LANG}}** (the learner's interface language, not necessarily the same as the source language) explaining WHY this candidate fits the user's context. When `is_inferred=false`, set `suggestions: []`.
+  - `suggestions`: When `is_inferred=true`, populate with 2-3 candidate fills `[{value_l1, value_l2, rationale}]` covering distinct plausible interpretations of the missing element. The `rationale` MUST be **one short sentence written in {{UI_LANG}}** (the learner's interface language, not necessarily the same as the source language) explaining WHY this candidate fits the user's context. When `is_inferred=false`, set `suggestions: []`. **UI_LANG generalization**: if `{{UI_LANG}}` is Japanese, write rationale in Japanese; if Korean, in Korean; if Spanish, in Spanish — the source and target languages have no bearing on the rationale language.
 
-## Example 1 — All four slots present (Japanese to English)
+## Example 1 — All four slots present (Japanese → English, UI_LANG: English)
 Input: "昨日、雨が降ったので、家にいて外出しなかった。"
 Output:
 {
@@ -68,7 +68,7 @@ Output:
   ]
 }
 
-## Example 2 — Reason missing in input, explicit subject (Chinese to English)
+## Example 2 — Reason missing in input, explicit subject (Chinese → English, UI_LANG: Chinese)
 Input: "我明天下午去体育馆打篮球。"   (no reason given; subject "我" is explicit and must be preserved)
 Output:
 {
@@ -91,7 +91,7 @@ Output:
   ]
 }
 
-## Example 3 — English source, subject preserved (English to Chinese)
+## Example 3 — English source, subject preserved (English → Chinese, UI_LANG: English)
 Input: "I'm going to the office tomorrow to wrap up the report."
 Output:
 {
@@ -116,7 +116,7 @@ Output:
 
 Note: `content_l1` for core is `"I wrap up the report"` — "I" is preserved in the English source even though the Chinese target (pro-drop) omits it in `content_l2`.
 
-## Example 4 — Imperative with distractor context and specific timestamp (Chinese to English)
+## Example 4 — Imperative with distractor context and specific timestamp (Chinese → English, UI_LANG: Chinese)
 Input: "服务器机房温度一直异常，但东翼传感器14:15又报警了。为了防止硬件损坏和数据丢失，请立即关闭所有备份节点。"
 (imperative; "立即" is an action-urgency qualifier — drop it because the specific time `14:15` is explicit; distractor "温度异常" goes into reason context but only the explicit `为了` clause is the canonical reason)
 Output:
@@ -147,7 +147,7 @@ Notes:
 - Specific timestamp `"14:15"` is preserved as the canonical time, NOT replaced by `"immediately"` / `"现在"` / `"立即"`.
 - Specific location `"东翼服务器机房"` is preserved with full specificity, NOT generalized to `"server room"`.
 
-## Example 5 — Verb of motion with explicit destination (Chinese to English)
+## Example 5 — Verb of motion with explicit destination (Chinese → English, UI_LANG: Chinese)
 Input: "周五早上坐新干线去京都吧。"
 (verb of motion 坐新干线 + explicit destination 京都; destination MUST split into space, NOT bundled into core)
 Output:
@@ -182,6 +182,41 @@ Notes:
 - Core is `"坐新干线"` ALONE — NOT `"坐新干线去京都"`. The destination 京都 was explicitly stated, so it goes in `space` (Slot Exclusivity Rule).
 - `space.is_inferred` is `false` because 京都 is explicit in the source.
 - Only `reason` is inferred here, since the source gives no explicit why.
+
+## Example 6 — Time inferred, non-CJK UI language (Korean → English, UI_LANG: Korean)
+Input: "보고서를 마무리하러 내일 회의실에 갈 거예요."
+(time "내일" is explicit; reason "보고서 마무리" is explicit; space "회의실" is explicit — but no time of day given beyond "내일")
+Output:
+{
+  "is_cflt_compliant": false,
+  "cflt_l1": "보고서를 마무리하다, 마감 기한 때문에, 회의실에서, 내일.",
+  "cflt_l2": "I finish the report, because of the deadline, in the meeting room, tomorrow.",
+  "standard_l2": "I'm going to the meeting room tomorrow to wrap up the report.",
+  "standard_l1": "내일 마감이 있어서 회의실에서 보고서를 마무리할 거예요.",
+  "corrections": [
+    {
+      "type": "logic",
+      "original": "보고서를 마무리하러...갈 거예요",
+      "replacement": "보고서를 마무리하다...회의실에서...내일",
+      "reason": "CFLT requires the core action (finish the report) to precede the purpose clause and location. The motion verb 'go' is absorbed into the space slot."
+    }
+  ],
+  "slots": [
+    {"type": "core",   "content_l1": "보고서를 마무리하다", "content_l2": "I finish the report", "is_inferred": false, "suggestions": []},
+    {"type": "reason", "content_l1": "마감 기한 때문에",    "content_l2": "because of the deadline", "is_inferred": true,
+      "suggestions": [
+        {"value_l1": "마감 기한 때문에",  "value_l2": "because of the deadline",          "rationale": "보고서를 마무리하러 간다는 것은 마감이 있음을 암시합니다."},
+        {"value_l1": "팀에 필요하기 때문에", "value_l2": "because the team needs it",    "rationale": "보고서는 종종 팀이나 고객을 위해 완성됩니다."},
+        {"value_l1": "집중하기 위해",     "value_l2": "to focus without distractions",   "rationale": "회의실은 방해 없이 집중하기 좋은 공간입니다."}
+      ]},
+    {"type": "space",  "content_l1": "회의실에서", "content_l2": "in the meeting room", "is_inferred": false, "suggestions": []},
+    {"type": "time",   "content_l1": "내일",       "content_l2": "tomorrow",            "is_inferred": false, "suggestions": []}
+  ]
+}
+
+Notes:
+- `rationale` is written in Korean because this example's UI_LANG is Korean. For any other UI_LANG, write all rationale in that language instead — Japanese UI_LANG → Japanese rationale, Spanish UI_LANG → Spanish rationale, and so on.
+- The motion verb "갈 거예요" (going to go) disappears from core — the destination becomes `space` and the purpose becomes the core action.
 
 ## Guidelines
 - The CORE slot = subject + main verb + direct arguments. The subject is **never** stripped from `content_l1` when it was explicit in the user's input (e.g. "I", "我", "私", "we", "they"). Even when the target language is pro-drop (Chinese, Japanese, Korean) and you omit the subject from `content_l2`, it must remain in `content_l1`. For non-pro-drop target languages (English, Spanish, French, German, Vietnamese), it must also appear in `content_l2` (imperatives excepted).

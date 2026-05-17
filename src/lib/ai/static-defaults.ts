@@ -2,6 +2,7 @@ import { type Capability, type FeatureKey, type FeatureSpec } from './capabiliti
 
 export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
   text: [
+    'corefirst',
     'google',
     'openai',
     'anthropic',
@@ -14,15 +15,21 @@ export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
     'cli/gemini',
     'none',
   ],
-  'text-to-image': ['google', 'openai', 'ollama', 'qwen', 'openrouter', 'none'],
-  'text-to-speech': ['openai', 'google', 'ollama', 'qwen', 'openrouter', 'none'],
-  'speech-to-text': ['openai', 'google', 'ollama', 'qwen', 'openrouter', 'none'],
+  'text-to-image': ['corefirst', 'google', 'openai', 'ollama', 'qwen', 'openrouter', 'none'],
+  'text-to-speech': ['corefirst', 'openai', 'google', 'ollama', 'qwen', 'openrouter', 'none'],
+  'speech-to-text': ['corefirst', 'openai', 'google', 'ollama', 'qwen', 'openrouter', 'none'],
   'text-to-video': [],
   'image-to-video': [],
   'multimodal-to-video': [],
 };
 
 export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string>>> = {
+  corefirst: {
+    text: 'gpt-4o-mini',
+    'text-to-image': 'gpt-image-1',
+    'text-to-speech': 'gpt-4o-mini-tts',
+    'speech-to-text': 'whisper-1',
+  },
   google: {
     text: 'gemini-2.5-pro',
     'text-to-image': 'imagen-4.0-generate-001',
@@ -52,9 +59,9 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
   },
   openrouter: {
     text: 'google/gemini-2.5-flash',
-    'text-to-image': 'black-forest-labs/flux-schnell',
-    'text-to-speech': 'openai/tts-1',
-    'speech-to-text': 'openai/whisper-1',
+    'text-to-image': 'google/gemini-3.1-flash-image-preview',
+    'text-to-speech': 'openai/gpt-4o-mini-tts-2025-12-15',
+    'speech-to-text': 'openai/gpt-4o-mini-transcribe',
   },
   'cli/claude': { text: 'claude' },
   'cli/gemini': { text: 'gemini' },

@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
+import { useSettings } from '@/hooks/useSettings';
 
 interface CFLTVisualProps {
   prompt: string;
@@ -17,6 +18,7 @@ export const CFLTVisual: React.FC<CFLTVisualProps> = ({ prompt, uiLang, imageUrl
   const [url, setUrl] = useState<string | null>(imageUrl ?? null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const { getHeaders } = useSettings();
 
   useEffect(() => {
     // Fast path: parent provided a stored asset URL — use it as-is.
@@ -37,7 +39,7 @@ export const CFLTVisual: React.FC<CFLTVisualProps> = ({ prompt, uiLang, imageUrl
       try {
         const response = await fetch('/api/generate-image', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getHeaders() },
           body: JSON.stringify({ prompt }),
           signal: controller.signal,
         });

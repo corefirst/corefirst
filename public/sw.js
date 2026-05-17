@@ -1,4 +1,4 @@
-const CACHE_NAME = 'corefirst-v1';
+const CACHE_NAME = 'corefirst-v2';
 const STATIC_EXTS = ['.js', '.css', '.woff', '.woff2', '.ttf', '.png', '.svg', '.ico'];
 
 // Precache the shell and offline fallback on install
@@ -28,6 +28,14 @@ self.addEventListener('fetch', (event) => {
 
   // Network-only for audio/media files (too large to cache)
   if (url.pathname.startsWith('/media/') || url.pathname.match(/\.(mp3|wav|ogg|webm)$/)) {
+    return;
+  }
+
+  // Never cache-first Next.js build output: dev chunk URLs are stable across
+  // edits (only contents change), so caching them serves a stale client bundle
+  // against a fresh SSR HTML and breaks hydration. In production Next.js
+  // already content-hashes these URLs, so the browser HTTP cache is sufficient.
+  if (url.pathname.startsWith('/_next/')) {
     return;
   }
 

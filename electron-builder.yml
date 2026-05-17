@@ -20,6 +20,12 @@ extraResources:
   - from: public
     to: public
 
+# Register corefirst:// custom protocol for OAuth deep-link callbacks.
+# See electron/main.ts for the full flow rationale.
+protocols:
+  - name: CoreFirst
+    schemes: [corefirst]
+
 mac:
   target:
     - target: dmg

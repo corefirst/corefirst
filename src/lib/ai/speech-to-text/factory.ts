@@ -30,6 +30,11 @@ registerTranscriptionModelBuilder('ollama',     (r) => {
 registerTranscriptionModelBuilder('google',     (_r) => nonAiSdkStub());
 registerTranscriptionModelBuilder('qwen',       (r) => openaiSttModel(r.model, getProviderBaseUrl('qwen'), r.apiKey));
 registerTranscriptionModelBuilder('openrouter', (r) => openaiSttModel(r.model, getProviderBaseUrl('openrouter'), r.apiKey));
+registerTranscriptionModelBuilder('corefirst',  (r) => {
+  if (!r.baseUrl) throw new Error('[ai/stt/corefirst] missing baseUrl');
+  if (!r.apiKey)  throw new Error('[ai/stt/corefirst] missing SaaS access token');
+  return openaiSttModel(r.model, r.baseUrl, r.apiKey);
+});
 
 export function buildTranscriptionModel(): TranscriptionModel {
   const r = resolveFeature('stt');

@@ -9,12 +9,17 @@ import { openrouterTextModel } from './sdk/openrouter';
 import { qwenTextModel } from './sdk/qwen';
 import { deepseekTextModel } from './sdk/deepseek';
 import { cliTextModel } from './cli/provider';
+import { corefirstTextModel } from './sdk/corefirst';
 
 export interface TextModelSpec {
   provider: string;
   model: string;
   apiKey?: string;
   baseUrl?: string;
+  /** When provider === 'corefirst', optional pass-through to a specific upstream provider. */
+  upstreamProvider?: string;
+  /** When provider === 'corefirst', optional BYOK key forwarded to upstream. */
+  upstreamApiKey?: string;
 }
 
 type TextModelBuilder = (spec: TextModelSpec) => LanguageModel;
@@ -37,6 +42,17 @@ registerTextModelBuilder('qwen',       (s) => qwenTextModel(s.model, s.apiKey));
 registerTextModelBuilder('deepseek',   (s) => deepseekTextModel(s.model, s.apiKey));
 registerTextModelBuilder('cli/claude', (s) => cliTextModel('claude', s.model));
 registerTextModelBuilder('cli/gemini', (s) => cliTextModel('gemini', s.model));
+registerTextModelBuilder('corefirst', (s) => {
+  if (!s.baseUrl) throw new Error('[ai/corefirst] missing baseUrl — set NEXT_PUBLIC_COREFIRST_SERVER_URL or pass baseUrl');
+  if (!s.apiKey)  throw new Error('[ai/corefirst] missing access token — user must log in to SaaS first');
+  return corefirstTextModel({
+    model: s.model,
+    baseUrl: s.baseUrl,
+    accessToken: s.apiKey,
+    upstreamProvider: s.upstreamProvider,
+    upstreamApiKey: s.upstreamApiKey,
+  });
+});
 
 export function buildTextModelFromSpec(spec: TextModelSpec): LanguageModel {
   const builder = registry.get(spec.provider);

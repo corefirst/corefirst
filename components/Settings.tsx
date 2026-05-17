@@ -2,9 +2,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   X, CheckCircle, AlertCircle, Loader2, ChevronDown, ChevronRight,
-  Settings as SettingsIcon, User, Cpu, Zap,
+  Settings as SettingsIcon, User, Cpu, Zap, UserCircle2,
 } from 'lucide-react';
 import { SkillsContent } from '@/components/SkillsPanel';
+import { MembershipPanel } from '@/components/MembershipPanel';
 import { useSettings, type UserSettings, type SettingsMode } from '@/hooks/useSettings';
 import { useProfile } from '@/hooks/useProfile';
 import { isFullStackProvider, PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
@@ -12,7 +13,7 @@ import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
 interface Props { onClose: () => void; uiLang: SupportedLang; }
 
-type Tab = 'providers' | 'skills' | 'profile';
+type Tab = 'providers' | 'skills' | 'profile' | 'membership';
 type VerifyState = 'idle' | 'loading' | 'ok' | 'error';
 
 // === Provider definitions =================================================
@@ -30,6 +31,7 @@ interface ProviderDef {
 }
 
 const PROVIDERS: ProviderDef[] = [
+  { id: 'corefirst', label: 'CoreFirst（推荐）', tagline: 'CoreFirst SaaS · 无需自备 API key', fullStackTagline: 'CoreFirst · text, image, voice', authType: 'none', group: 'cloud' },
   { id: 'openrouter', label: 'OpenRouter', tagline: '200+ models, free credits', fullStackTagline: 'OpenRouter · text, image, voice', authType: 'key', keyPlaceholder: 'sk-or-…', signupUrl: 'https://openrouter.ai/keys', group: 'cloud' },
   { id: 'groq', label: 'Groq', tagline: 'Ultra-fast, free tier', authType: 'key', keyPlaceholder: 'gsk_…', signupUrl: 'https://console.groq.com/keys', group: 'cloud' },
   { id: 'google', label: 'Google AI', tagline: 'Gemini models', fullStackTagline: 'Gemini · text, image, voice', authType: 'key', keyPlaceholder: 'AIza…', signupUrl: 'https://aistudio.google.com/apikey', group: 'cloud' },
@@ -226,7 +228,7 @@ export function Settings({ onClose, uiLang }: Props) {
         </div>
 
         <div role="tablist" className="flex border-b border-gray-100 px-6 shrink-0">
-          {([['providers', Cpu, tr(uiLang, 'providers')], ['skills', Zap, tr(uiLang, 'skills')], ['profile', User, tr(uiLang, 'profile')]] as const).map(([id, Icon, label]) => (
+          {([['providers', Cpu, tr(uiLang, 'providers')], ['skills', Zap, tr(uiLang, 'skills')], ['membership', UserCircle2, '会员'], ['profile', User, tr(uiLang, 'profile')]] as const).map(([id, Icon, label]) => (
             <button
               key={id}
               role="tab"
@@ -687,6 +689,8 @@ export function Settings({ onClose, uiLang }: Props) {
               <SkillsContent uiLang={uiLang} />
             </div>
           )}
+
+          {tab === 'membership' && <MembershipPanel />}
 
           {tab === 'profile' && (
             <div className="space-y-4">

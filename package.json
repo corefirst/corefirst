@@ -1,6 +1,6 @@
 {
   "name": "corefirst",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Open-source AI-driven bilingual learning platform implementing Core-First Language Theory (CFLT).",
   "homepage": "https://corefirst.world",
   "repository": {
@@ -120,48 +120,77 @@
       {
         "from": ".next/standalone",
         "to": "app/.next/standalone",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": ".next/standalone/node_modules",
         "to": "app/.next/standalone/node_modules",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": ".next/standalone/.next",
         "to": "app/.next/standalone/.next",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": ".next/static",
         "to": "app/.next/standalone/.next/static",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "public",
         "to": "app/.next/standalone/public",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "mac": {
       "category": "public.app-category.education",
       "icon": "public/icons/icon-512.png",
       "target": [
-        { "target": "dmg", "arch": ["arm64", "x64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
       ]
     },
     "dmg": {
       "title": "${productName} ${version}",
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "contents": [
-        { "x": 130, "y": 220 },
-        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
       ]
     },
     "win": {
       "icon": "public/icons/icon-512.png",
       "target": [
-        { "target": "nsis", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {
@@ -173,7 +202,12 @@
       "icon": "public/icons/icon-512.png",
       "category": "Education",
       "target": [
-        { "target": "AppImage", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}"
     },

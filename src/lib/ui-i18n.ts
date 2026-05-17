@@ -35,7 +35,7 @@ export function localizeLang(langName: string, uiLang: SupportedLang): string {
 
 export type DictKey =
 // Header / tabs
-  | 'tagline' | 'tabTransform' | 'tabCourse' | 'tabRoleplay' | 'tabStats'
+  | 'tagline' | 'tabTransform' | 'tabCourse' | 'tabRoleplay' | 'tabStats' | 'tabMarket'
   | 'uiLangLabel'
   // History panel
   | 'library' | 'historyTransformsHeader' | 'historyRoleplayHeader' | 'historyCoursesHeader'
@@ -187,7 +187,7 @@ const en: Dict = {
   btnSend: 'Send',
 
   tagline: 'Core-First Language Method',
-  tabTransform: 'Transform', tabCourse: 'Course', tabRoleplay: 'Roleplay', tabStats: 'Stats',
+  tabTransform: 'Transform', tabCourse: 'Course', tabRoleplay: 'Roleplay', tabStats: 'Stats', tabMarket: 'Market',
   uiLangLabel: 'Interface',
   historyTransformsHeader: 'Transform History',
   historyRoleplayHeader: 'Roleplay Sessions',
@@ -421,7 +421,7 @@ const zh: Dict = {
   btnSend: '发送',
 
   tagline: '核心先行语言方法',
-  tabTransform: '转换', tabCourse: '课程', tabRoleplay: '角色扮演', tabStats: '统计',
+  tabTransform: '转换', tabCourse: '课程', tabRoleplay: '角色扮演', tabStats: '统计', tabMarket: '市场',
   uiLangLabel: '界面语言',
   historyTransformsHeader: '转换历史',
   historyRoleplayHeader: '角色扮演会话',
@@ -656,7 +656,7 @@ const ja: Dict = {
   btnSend: '送信',
 
   tagline: 'コアファースト言語学習法',
-  tabTransform: '変換', tabCourse: 'コース', tabRoleplay: 'ロールプレイ', tabStats: '統計',
+  tabTransform: '変換', tabCourse: 'コース', tabRoleplay: 'ロールプレイ', tabStats: '統計', tabMarket: 'マーケット',
   uiLangLabel: '表示言語',
   historyTransformsHeader: '変換履歴',
   historyRoleplayHeader: 'ロールプレイのセッション',
@@ -828,7 +828,7 @@ const ko: Dict = {
   btnSend: '보내기',
 
   tagline: '코어 퍼스트 언어 학습법',
-  tabTransform: '변환', tabCourse: '코스', tabRoleplay: '역할극', tabStats: '통계',
+  tabTransform: '변환', tabCourse: '코스', tabRoleplay: '역할극', tabStats: '통계', tabMarket: '마켓',
   uiLangLabel: '인터페이스',
   historyTransformsHeader: '변환 기록',
   historyRoleplayHeader: '역할극 세션',
@@ -1000,7 +1000,7 @@ const vi: Dict = {
   btnSend: 'Gửi',
 
   tagline: 'Phương pháp học ngôn ngữ Core-First',
-  tabTransform: 'Chuyển đổi', tabCourse: 'Khóa học', tabRoleplay: 'Đóng vai', tabStats: 'Thống kê',
+  tabTransform: 'Chuyển đổi', tabCourse: 'Khóa học', tabRoleplay: 'Đóng vai', tabStats: 'Thống kê', tabMarket: 'Chợ',
   uiLangLabel: 'Giao diện',
   historyTransformsHeader: 'Lịch sử chuyển đổi',
   historyRoleplayHeader: 'Phiên đóng vai',
@@ -1171,7 +1171,7 @@ const es: Dict = {
   btnSend: 'Enviar',
 
   tagline: 'Método de idiomas Core-First',
-  tabTransform: 'Transformar', tabCourse: 'Curso', tabRoleplay: 'Juego de roles', tabStats: 'Estadísticas',
+  tabTransform: 'Transformar', tabCourse: 'Curso', tabRoleplay: 'Juego de roles', tabStats: 'Estadísticas', tabMarket: 'Mercado',
   uiLangLabel: 'Interfaz',
   historyTransformsHeader: 'Historial de transformaciones',
   historyRoleplayHeader: 'Sesiones de juego de roles',
@@ -1342,7 +1342,7 @@ const fr: Dict = {
   btnSend: 'Envoyer',
 
   tagline: 'Méthode de langue Core-First',
-  tabTransform: 'Transformer', tabCourse: 'Cours', tabRoleplay: 'Jeu de rôle', tabStats: 'Statistiques',
+  tabTransform: 'Transformer', tabCourse: 'Cours', tabRoleplay: 'Jeu de rôle', tabStats: 'Statistiques', tabMarket: 'Marché',
   uiLangLabel: 'Interface',
   historyTransformsHeader: 'Historique des transformations',
   historyRoleplayHeader: 'Sessions de jeu de rôle',
@@ -1526,7 +1526,7 @@ const de: Dict = {
   btnSend: 'Senden',
 
   tagline: 'Core-First Sprachmethode',
-  tabTransform: 'Transformieren', tabCourse: 'Kurs', tabRoleplay: 'Rollenspiel', tabStats: 'Statistiken',
+  tabTransform: 'Transformieren', tabCourse: 'Kurs', tabRoleplay: 'Rollenspiel', tabStats: 'Statistiken', tabMarket: 'Markt',
   uiLangLabel: 'Benutzeroberfläche',
   historyTransformsHeader: 'Transformationsverlauf',
   historyRoleplayHeader: 'Rollenspiel-Sitzungen',

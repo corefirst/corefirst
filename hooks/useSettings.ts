@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { USER_ID_COOKIE } from '@/src/lib/constants';
+import { getAccessToken } from '@/src/lib/saas/storage';
+import { getSaasBaseUrl } from '@/src/lib/saas/client';
 
 const COOKIE_NAME = USER_ID_COOKIE;
 
@@ -26,6 +28,31 @@ const EMPTY_SETTINGS: UserSettings = {
   advanced: {},
 };
 
+// Stored TTS/STT model ids that are no longer routable on a given provider.
+// Old defaults (e.g. OpenRouter `openai/tts-1`, `openai/whisper-1`) were saved
+// into localStorage by earlier app versions; we replace them transparently so
+// the user doesn't have to clear settings after a fix lands upstream.
+const LEGACY_MODEL_MIGRATIONS: Record<string, {
+  ttsModel?:   Record<string, string>;
+  sttModel?:   Record<string, string>;
+  imageModel?: Record<string, string>;
+}> = {
+  openrouter: {
+    ttsModel: { 'openai/tts-1': 'openai/gpt-4o-mini-tts-2025-12-15' },
+    // whisper-1 → 500 (route deprecated). whisper-large-v3-turbo → 500 since
+    // 2026-04 (OpenRouter routes it through Groq, which has a known upstream
+    // outage). gpt-4o-mini-transcribe goes direct to OpenAI and is stable.
+    sttModel: {
+      'openai/whisper-1':              'openai/gpt-4o-mini-transcribe',
+      'openai/whisper-large-v3-turbo': 'openai/gpt-4o-mini-transcribe',
+    },
+    // flux-schnell needs OpenAI-style /v1/images/generations, which OpenRouter
+    // doesn't expose — image generation there only goes through chat/completions
+    // with modalities. Move to a model meant for that path.
+    imageModel: { 'black-forest-labs/flux-schnell': 'google/gemini-3.1-flash-image-preview' },
+  },
+};
+
 export function normalize(raw: unknown): UserSettings {
   // Migrate legacy payloads that predate the `mode` field.
   if (!raw || typeof raw !== 'object') return EMPTY_SETTINGS;
@@ -34,9 +61,19 @@ export function normalize(raw: unknown): UserSettings {
     r.advanced && Object.keys(r.advanced).length > 0 &&
     Object.values(r.advanced).some(v => v && Object.keys(v).length > 0)
   );
+  const global = { provider: '', apiKey: '', model: '', ttsModel: '', sttModel: '', imageModel: '', ...(r.global ?? {}) };
+  const migrations = LEGACY_MODEL_MIGRATIONS[global.provider];
+  if (migrations) {
+    const ttsMap = migrations.ttsModel?.[global.ttsModel];
+    if (ttsMap) global.ttsModel = ttsMap;
+    const sttMap = migrations.sttModel?.[global.sttModel];
+    if (sttMap) global.sttModel = sttMap;
+    const imageMap = migrations.imageModel?.[global.imageModel];
+    if (imageMap) global.imageModel = imageMap;
+  }
   return {
     mode: r.mode ?? (hasAdvancedOverrides ? 'advanced' : 'standard'),
-    global: { provider: '', apiKey: '', model: '', ttsModel: '', sttModel: '', imageModel: '', ...(r.global ?? {}) },
+    global,
     advanced: r.advanced ?? {},
   };
 }
@@ -65,26 +102,33 @@ export function useSettings() {
     const uid = getCookieValue(COOKIE_NAME);
     setUserId(uid);
     const key = storageKey(uid);
+
+    // Pre-select `corefirst` for first-time users that are logged into SaaS
+    // — gives a working out-of-the-box AI experience without a manual key.
+    const withSaasDefault = (s: UserSettings): UserSettings => {
+      if (s.global.provider || !getAccessToken()) return s;
+      return { ...s, global: { ...s.global, provider: 'corefirst' } };
+    };
+
     try {
       const raw = localStorage.getItem(key);
-      if (raw) setSettings(normalize(JSON.parse(raw)));
+      setSettings(withSaasDefault(raw ? normalize(JSON.parse(raw)) : EMPTY_SETTINGS));
     } catch {}
 
-    // Re-sync when another useSettings instance (e.g. the Settings modal) saves.
-    // `storage` events cover cross-tab writes; `cf:settings-saved` covers same-window
-    // writes from other hook instances (Settings modal → page.tsx).
     const reload = () => {
       try {
         const raw = localStorage.getItem(key);
-        setSettings(raw ? normalize(JSON.parse(raw)) : EMPTY_SETTINGS);
+        setSettings(withSaasDefault(raw ? normalize(JSON.parse(raw)) : EMPTY_SETTINGS));
       } catch {}
     };
     const onStorage = (e: StorageEvent) => { if (e.key === key) reload(); };
     window.addEventListener('storage', onStorage);
     window.addEventListener('cf:settings-saved', reload);
+    window.addEventListener('cf:saas-session-changed', reload);
     return () => {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('cf:settings-saved', reload);
+      window.removeEventListener('cf:saas-session-changed', reload);
     };
   }, []);
 
@@ -104,6 +148,16 @@ export function useSettings() {
   const getHeaders = useCallback((): Record<string, string> => {
     const headers: Record<string, string> = {};
     const { mode, global: g, advanced: adv } = settings;
+
+    // SaaS auth — forward access token + base URL on every API call so the
+    // server-side route handlers can reach the gateway whenever the user
+    // selects the `corefirst` provider. Cheap to always include; the per-request
+    // resolvers only use these headers when provider === 'corefirst'.
+    const saasToken = getAccessToken();
+    if (saasToken) {
+      headers['x-cf-saas-token']    = saasToken;
+      headers['x-cf-saas-base-url'] = getSaasBaseUrl();
+    }
 
     if (g.provider)  headers['x-cf-provider']      = g.provider;
     if (g.apiKey)    headers['x-cf-api-key']        = g.apiKey;
@@ -180,7 +234,8 @@ export function useSettings() {
   const hasGlobalKey = !!(settings.global.provider && (
     settings.global.apiKey ||
     settings.global.provider === 'ollama' ||
-    settings.global.provider.startsWith('cli/')
+    settings.global.provider.startsWith('cli/') ||
+    (settings.global.provider === 'corefirst' && getAccessToken())
   ));
 
   const maskedKey = maskKey(settings.global.apiKey);
