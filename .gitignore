@@ -17,3 +17,8 @@ next-env.d.ts
 data/
 data.*
 release
+
+# Electron main/preload are TypeScript sources compiled by `pnpm build:electron`
+# (esbuild). The .js artifacts must NOT be committed — they drift from .ts
+# whenever a developer forgets to rebuild.
+electron/*.js

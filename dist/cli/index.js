@@ -49,6 +49,7 @@ var init_static_defaults = __esm({
     init_cjs_shims();
     PROVIDERS_BY_CAPABILITY = {
       text: [
+        "corefirst",
         "google",
         "openai",
         "anthropic",
@@ -61,14 +62,20 @@ var init_static_defaults = __esm({
         "cli/gemini",
         "none"
       ],
-      "text-to-image": ["google", "openai", "ollama", "qwen", "openrouter", "none"],
-      "text-to-speech": ["openai", "google", "ollama", "qwen", "openrouter", "none"],
-      "speech-to-text": ["openai", "google", "ollama", "qwen", "openrouter", "none"],
+      "text-to-image": ["corefirst", "google", "openai", "ollama", "qwen", "openrouter", "none"],
+      "text-to-speech": ["corefirst", "openai", "google", "ollama", "qwen", "openrouter", "none"],
+      "speech-to-text": ["corefirst", "openai", "google", "ollama", "qwen", "openrouter", "none"],
       "text-to-video": [],
       "image-to-video": [],
       "multimodal-to-video": []
     };
     PROVIDER_DEFAULTS = {
+      corefirst: {
+        text: "gpt-4o-mini",
+        "text-to-image": "gpt-image-1",
+        "text-to-speech": "gpt-4o-mini-tts",
+        "speech-to-text": "whisper-1"
+      },
       google: {
         text: "gemini-2.5-pro",
         "text-to-image": "imagen-4.0-generate-001",
@@ -98,9 +105,9 @@ var init_static_defaults = __esm({
       },
       openrouter: {
         text: "google/gemini-2.5-flash",
-        "text-to-image": "black-forest-labs/flux-schnell",
-        "text-to-speech": "openai/tts-1",
-        "speech-to-text": "openai/whisper-1"
+        "text-to-image": "google/gemini-3.1-flash-image-preview",
+        "text-to-speech": "openai/gpt-4o-mini-tts-2025-12-15",
+        "speech-to-text": "openai/gpt-4o-mini-transcribe"
       },
       "cli/claude": { text: "claude" },
       "cli/gemini": { text: "gemini" }
@@ -1173,6 +1180,27 @@ var init_provider = __esm({
   }
 });
 
+// src/lib/ai/text/sdk/corefirst.ts
+function corefirstTextModel(opts) {
+  const provider = (0, import_openai5.createOpenAI)({
+    baseURL: opts.baseUrl,
+    apiKey: opts.accessToken,
+    headers: {
+      ...opts.upstreamProvider ? { "x-llm-provider": opts.upstreamProvider } : {},
+      ...opts.upstreamApiKey ? { "x-llm-api-key": opts.upstreamApiKey } : {}
+    }
+  });
+  return provider(opts.model);
+}
+var import_openai5;
+var init_corefirst = __esm({
+  "src/lib/ai/text/sdk/corefirst.ts"() {
+    "use strict";
+    init_cjs_shims();
+    import_openai5 = require("@ai-sdk/openai");
+  }
+});
+
 // src/lib/ai/text/factory.ts
 function registerTextModelBuilder(provider, builder) {
   registry.set(provider, builder);
@@ -1210,6 +1238,7 @@ var init_factory = __esm({
     init_qwen();
     init_deepseek();
     init_provider();
+    init_corefirst();
     registry = /* @__PURE__ */ new Map();
     registerTextModelBuilder("google", (s) => googleTextModel(s.model, s.apiKey));
     registerTextModelBuilder("openai", (s) => openaiTextModel(s.model, s.baseUrl, s.apiKey));
@@ -1221,6 +1250,17 @@ var init_factory = __esm({
     registerTextModelBuilder("deepseek", (s) => deepseekTextModel(s.model, s.apiKey));
     registerTextModelBuilder("cli/claude", (s) => cliTextModel("claude", s.model));
     registerTextModelBuilder("cli/gemini", (s) => cliTextModel("gemini", s.model));
+    registerTextModelBuilder("corefirst", (s) => {
+      if (!s.baseUrl) throw new Error("[ai/corefirst] missing baseUrl \u2014 set NEXT_PUBLIC_COREFIRST_SERVER_URL or pass baseUrl");
+      if (!s.apiKey) throw new Error("[ai/corefirst] missing access token \u2014 user must log in to SaaS first");
+      return corefirstTextModel({
+        model: s.model,
+        baseUrl: s.baseUrl,
+        accessToken: s.apiKey,
+        upstreamProvider: s.upstreamProvider,
+        upstreamApiKey: s.upstreamApiKey
+      });
+    });
   }
 });
 
@@ -1247,20 +1287,20 @@ var init_google_imagen = __esm({
 // src/lib/ai/text-to-image/sdk/openai-image.ts
 function openaiImageModel(model, baseUrl, apiKey) {
   if (!baseUrl && !apiKey) {
-    return import_openai6.openai.image(model);
+    return import_openai7.openai.image(model);
   }
-  const provider = (0, import_openai6.createOpenAI)({
+  const provider = (0, import_openai7.createOpenAI)({
     baseURL: baseUrl,
     apiKey: apiKey ?? "no-api-key-required"
   });
   return provider.image(model);
 }
-var import_openai6;
+var import_openai7;
 var init_openai_image = __esm({
   "src/lib/ai/text-to-image/sdk/openai-image.ts"() {
     "use strict";
     init_cjs_shims();
-    import_openai6 = require("@ai-sdk/openai");
+    import_openai7 = require("@ai-sdk/openai");
   }
 });
 
@@ -1308,26 +1348,31 @@ var init_factory2 = __esm({
     });
     registerImageModelBuilder("qwen", (r, k) => openaiImageModel(r.model, getProviderBaseUrl("qwen"), k ?? r.apiKey));
     registerImageModelBuilder("openrouter", (r, k) => openaiImageModel(r.model, getProviderBaseUrl("openrouter"), k ?? r.apiKey));
+    registerImageModelBuilder("corefirst", (r, k) => {
+      if (!r.baseUrl) throw new Error("[ai/imageGen/corefirst] missing baseUrl");
+      if (!(k ?? r.apiKey)) throw new Error("[ai/imageGen/corefirst] missing SaaS access token");
+      return openaiImageModel(r.model, r.baseUrl, k ?? r.apiKey);
+    });
   }
 });
 
 // src/lib/ai/text-to-speech/sdk/openai-tts.ts
 function openaiTtsModel(model, baseUrl, apiKey) {
   if (!baseUrl && !apiKey) {
-    return import_openai7.openai.speech(model);
+    return import_openai8.openai.speech(model);
   }
-  const provider = (0, import_openai7.createOpenAI)({
+  const provider = (0, import_openai8.createOpenAI)({
     baseURL: baseUrl,
     apiKey: apiKey ?? "no-api-key-required"
   });
   return provider.speech(model);
 }
-var import_openai7;
+var import_openai8;
 var init_openai_tts = __esm({
   "src/lib/ai/text-to-speech/sdk/openai-tts.ts"() {
     "use strict";
     init_cjs_shims();
-    import_openai7 = require("@ai-sdk/openai");
+    import_openai8 = require("@ai-sdk/openai");
   }
 });
 
@@ -1378,26 +1423,31 @@ var init_factory3 = __esm({
     registerSpeechModelBuilder("google", (_r) => nonAiSdkStub("tts"));
     registerSpeechModelBuilder("qwen", (r) => openaiTtsModel(r.model, getProviderBaseUrl("qwen"), r.apiKey));
     registerSpeechModelBuilder("openrouter", (r) => openaiTtsModel(r.model, getProviderBaseUrl("openrouter"), r.apiKey));
+    registerSpeechModelBuilder("corefirst", (r) => {
+      if (!r.baseUrl) throw new Error("[ai/tts/corefirst] missing baseUrl");
+      if (!r.apiKey) throw new Error("[ai/tts/corefirst] missing SaaS access token");
+      return openaiTtsModel(r.model, r.baseUrl, r.apiKey);
+    });
   }
 });
 
 // src/lib/ai/speech-to-text/sdk/openai-stt.ts
 function openaiSttModel(model, baseUrl, apiKey) {
   if (!baseUrl && !apiKey) {
-    return import_openai8.openai.transcription(model);
+    return import_openai9.openai.transcription(model);
   }
-  const provider = (0, import_openai8.createOpenAI)({
+  const provider = (0, import_openai9.createOpenAI)({
     baseURL: baseUrl,
     apiKey: apiKey ?? "no-api-key-required"
   });
   return provider.transcription(model);
 }
-var import_openai8;
+var import_openai9;
 var init_openai_stt = __esm({
   "src/lib/ai/speech-to-text/sdk/openai-stt.ts"() {
     "use strict";
     init_cjs_shims();
-    import_openai8 = require("@ai-sdk/openai");
+    import_openai9 = require("@ai-sdk/openai");
   }
 });
 
@@ -1448,6 +1498,11 @@ var init_factory4 = __esm({
     registerTranscriptionModelBuilder("google", (_r) => nonAiSdkStub2());
     registerTranscriptionModelBuilder("qwen", (r) => openaiSttModel(r.model, getProviderBaseUrl("qwen"), r.apiKey));
     registerTranscriptionModelBuilder("openrouter", (r) => openaiSttModel(r.model, getProviderBaseUrl("openrouter"), r.apiKey));
+    registerTranscriptionModelBuilder("corefirst", (r) => {
+      if (!r.baseUrl) throw new Error("[ai/stt/corefirst] missing baseUrl");
+      if (!r.apiKey) throw new Error("[ai/stt/corefirst] missing SaaS access token");
+      return openaiSttModel(r.model, r.baseUrl, r.apiKey);
+    });
   }
 });
 
@@ -23734,7 +23789,7 @@ var require_package = __commonJS({
   "package.json"(exports2, module2) {
     module2.exports = {
       name: "corefirst",
-      version: "0.6.0",
+      version: "0.7.0",
       description: "Open-source AI-driven bilingual learning platform implementing Core-First Language Theory (CFLT).",
       homepage: "https://corefirst.world",
       repository: {
@@ -23767,12 +23822,12 @@ var require_package = __commonJS({
         test: "vitest run",
         "test:e2e": "vitest run --config vitest.config.e2e.ts",
         "build:cli": "tsup",
-        "electron:dev": "electron electron/main.js",
+        "electron:dev": "pnpm build:cli && electron electron/main.js",
         "electron:full": "pnpm build && pnpm build:cli && electron electron/main.js",
         "electron:prepare": `rm -rf .next/standalone/.next/node_modules && rm -rf .next/standalone/node_modules/.pnpm/node_modules && rsync -a --ignore-existing .next/server/ .next/standalone/.next/server/ && node scripts/fix-standalone-modules.js && node -e "const fs=require('fs'),path=require('path');const nm='.next/node_modules';const snm='.next/standalone/node_modules';if(fs.existsSync(nm)){for(const e of fs.readdirSync(nm)){const src=fs.realpathSync(path.join(nm,e));const dst=path.join(snm,e);if(!fs.existsSync(dst)){fs.cpSync(src,dst,{recursive:true})}}}" && printf '!node_modules\\n!node_modules/**\\n' > .next/standalone/.gitignore`,
         "electron:clean": "rm -rf release electron-out",
         "electron:build": "pnpm electron:clean && pnpm build && pnpm build:cli && pnpm electron:prepare && electron-builder",
-        "electron:build:mac": "pnpm electron:clean && pnpm build && pnpm build:cli && pnpm electron:prepare && electron-builder --mac",
+        "electron:build:mac": "pnpm electron:clean && pnpm build && pnpm build:cli && pnpm electron:prepare && electron-builder --mac --x64 --arm64",
         "electron:build:win": "pnpm electron:clean && pnpm build && pnpm build:cli && pnpm electron:prepare && electron-builder --win",
         "electron:build:linux": "pnpm electron:clean && pnpm build && pnpm build:cli && pnpm electron:prepare && electron-builder --linux",
         prepublishOnly: "pnpm build:cli"
@@ -23834,90 +23889,6 @@ var require_package = __commonJS({
         tsx: "^4.21.0",
         typescript: "^6.0.3",
         vitest: "^4.1.5"
-      },
-      build: {
-        appId: "world.corefirst.app",
-        productName: "CoreFirst",
-        copyright: "Copyright \xA9 2026 CoreFirst",
-        directories: {
-          output: "release"
-        },
-        extraMetadata: {
-          main: "electron/main.js"
-        },
-        files: [
-          "electron/main.js",
-          "electron/preload.js",
-          "package.json"
-        ],
-        extraResources: [
-          {
-            from: ".next/standalone",
-            to: "app/.next/standalone",
-            filter: ["**/*"]
-          },
-          {
-            from: ".next/standalone/node_modules",
-            to: "app/.next/standalone/node_modules",
-            filter: ["**/*"]
-          },
-          {
-            from: ".next/standalone/.next",
-            to: "app/.next/standalone/.next",
-            filter: ["**/*"]
-          },
-          {
-            from: ".next/static",
-            to: "app/.next/standalone/.next/static",
-            filter: ["**/*"]
-          },
-          {
-            from: "public",
-            to: "app/.next/standalone/public",
-            filter: ["**/*"]
-          }
-        ],
-        mac: {
-          category: "public.app-category.education",
-          icon: "public/icons/icon-512.png",
-          target: [
-            { target: "dmg", arch: ["arm64", "x64"] }
-          ]
-        },
-        dmg: {
-          title: "${productName} ${version}",
-          artifactName: "${productName}-${version}-${arch}.${ext}",
-          contents: [
-            { x: 130, y: 220 },
-            { x: 410, y: 220, type: "link", path: "/Applications" }
-          ]
-        },
-        win: {
-          icon: "public/icons/icon-512.png",
-          target: [
-            { target: "nsis", arch: ["x64"] }
-          ]
-        },
-        nsis: {
-          oneClick: false,
-          allowToChangeInstallationDirectory: true,
-          artifactName: "${productName}-${version}-${arch}.${ext}"
-        },
-        linux: {
-          icon: "public/icons/icon-512.png",
-          category: "Education",
-          target: [
-            { target: "AppImage", arch: ["x64"] }
-          ],
-          artifactName: "${productName}-${version}-${arch}.${ext}"
-        },
-        publish: [
-          {
-            provider: "github",
-            owner: "corefirst",
-            repo: "corefirst"
-          }
-        ]
       },
       pnpm: {
         onlyBuiltDependencies: [

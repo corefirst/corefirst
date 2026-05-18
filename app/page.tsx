@@ -10,16 +10,15 @@ import { CFLTDemo } from '../components/CFLTDemo';
 import { CFLTChat } from '../components/CFLTChat';
 import { TransformHistory } from '../components/TransformHistory';
 import { RoleplayHistory } from '../components/RoleplayHistory';
-import { CourseHistory } from '../components/CourseHistory';
+import { CourseShelf } from '../components/CourseShelf';
 import { ProfileSwitcher } from '../components/ProfileSwitcher';
 import { Settings } from '../components/Settings';
 import { MarketPanel } from '../components/MarketPanel';
 import { VocabReview } from '../components/VocabReview';
 import { PhoneticBridge } from '../components/PhoneticBridge';
-import { ComboBox } from '../components/ComboBox';
 import { useSettings } from '../hooks/useSettings';
 import {
-  Loader2, Send, Languages, Info, BookOpen, User, Globe, Library, ChevronLeft,
+  Loader2, Languages, Info, BookOpen, User, Globe, Library, ChevronLeft,
   Sparkles, PlayCircle, ChevronRight, BarChart3, MessageSquare, Settings as SettingsIcon,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -55,7 +54,6 @@ export default function Home() {
   const [transformInput, setTransformInput] = useState('');
   const [courseInput, setCourseInput] = useState('');
   const input = mode === 'course' ? courseInput : transformInput;
-  const setInput = mode === 'course' ? setCourseInput : setTransformInput;
   const [loading, setLoading] = useState(false);
   const [transformResult, setTransformResult] = useState<CFLTResponse | null>(null);
   const [slotFills, setSlotFills] = useState<SlotFillMap>({});
@@ -531,8 +529,8 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Controls */}
-        {mode !== 'stats' && mode !== 'roleplay' && mode !== 'market' && (
+        {/* Controls — transform mode only */}
+        {mode === 'transform' && (
           <div className="bg-white p-6 rounded-3xl shadow-xl shadow-slate-200/50 border border-white space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-slate-100">
               <div className="space-y-2">
@@ -569,113 +567,33 @@ export default function Home() {
               </div>
             </div>
 
-            {(['course', 'roleplay'].includes(mode as string)) && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-slate-100">
-                <div className="space-y-2">
-                  <label
-                    htmlFor="ageGroup"
-                    className="text-xs font-black uppercase text-slate-400 flex items-center gap-2"
-                  >
-                    <User className="w-3 h-3" /> {tr(uiLang, 'ageGroupLabel')}
-                  </label>
-                  <select
-                    id="ageGroup"
-                    value={ageGroup}
-                    onChange={(e) => handleAgeChange(e.target.value as AgeKey)}
-                    className="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                  >
-                    <option value="ageChild">{tr(uiLang, 'ageChild')}</option>
-                    <option value="ageYoung">{tr(uiLang, 'ageYoung')}</option>
-                    <option value="ageTeen">{tr(uiLang, 'ageTeen')}</option>
-                    <option value="ageAdult">{tr(uiLang, 'ageAdult')}</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label
-                    htmlFor="domain"
-                    className="text-xs font-black uppercase text-slate-400 flex items-center gap-2"
-                  >
-                    <Globe className="w-3 h-3" /> {tr(uiLang, 'domainLabel')}
-                  </label>
-                  <ComboBox
-                    uiLang={uiLang}
-                    id="domain"
-                    options={AGE_DOMAINS[ageGroup].map(key => ({
-                      value: tr('English', key),
-                      label: tr(uiLang, key),
-                    }))}
-                    value={findDomainKey(domainText) ? tr(uiLang, findDomainKey(domainText)!) : domainText}
-                    onChange={(val) => {
-                      const matchedKey = findDomainKey(val);
-                      if (matchedKey) {
-                        setDomain(matchedKey);
-                        setDomainText(tr('English', matchedKey));
-                        try { window.localStorage.setItem('corefirst.domain', matchedKey); } catch {}
-                      } else {
-                        setDomainText(val);
-                      }
-                    }}
-                    placeholder={tr(uiLang, 'comboSearchPlaceholder')}
-                    className="w-full"
-                    inputClassName="w-full p-3 rounded-xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all font-medium"
-                  />
-                </div>
-              </div>
-            )}
-
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
                 <input
                   type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder={mode === 'transform' ? tr(uiLang, 'transformPlaceholder') : tr(uiLang, 'coursePlaceholder')}
+                  value={transformInput}
+                  onChange={(e) => setTransformInput(e.target.value)}
+                  placeholder={tr(uiLang, 'transformPlaceholder')}
                   className="w-full p-4 pl-6 rounded-2xl bg-slate-50 border border-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-lg font-medium"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                       e.preventDefault();
-                      (mode === 'transform' ? handleTransform : handleGenerateCourse)();
+                      handleTransform();
                     }
                   }}
                 />
               </div>
               <button
-                onClick={mode === 'transform' ? handleTransform : handleGenerateCourse}
+                onClick={handleTransform}
                 disabled={loading}
                 title={tr(uiLang, 'submitHint')}
                 className="bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300 text-white px-10 py-4 rounded-2xl font-black transition-all shadow-lg shadow-blue-200 flex items-center justify-center gap-3 uppercase tracking-wider"
               >
-                {loading
-                  ? <><Loader2 className="animate-spin" />{mode === 'course' && courseGenStep ? <span className="text-sm font-medium">{courseGenStep}</span> : null}</>
-                  : (mode === 'transform' ? tr(uiLang, 'btnTransform') : tr(uiLang, 'btnGenerateCourse'))
-                }
+                {loading ? <Loader2 className="animate-spin" /> : tr(uiLang, 'btnTransform')}
               </button>
             </div>
 
-            {mode === 'course' && (
-              <div className="flex items-center gap-5 -mt-2">
-                <label className="flex items-center gap-2 cursor-pointer select-none group">
-                  <input
-                    type="checkbox"
-                    checked={generateAudio}
-                    onChange={(e) => setGenerateAudio(e.target.checked)}
-                    className="w-4 h-4 rounded accent-blue-600"
-                  />
-                  <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors uppercase tracking-wide">{tr(uiLang, 'audio')}</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none group">
-                  <input
-                    type="checkbox"
-                    checked={generateImages}
-                    onChange={(e) => setGenerateImages(e.target.checked)}
-                    className="w-4 h-4 rounded accent-blue-600"
-                  />
-                  <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 transition-colors uppercase tracking-wide">{tr(uiLang, 'images')}</span>
-                </label>
-              </div>
-            )}
-
-            <p className="text-xs text-slate-400 -mt-2">{loading && mode === 'course' ? tr(uiLang, 'courseGenWait') : tr(uiLang, 'submitHint')}</p>
+            <p className="text-xs text-slate-400 -mt-2">{tr(uiLang, 'submitHint')}</p>
 
             {fetchError && (
               <p className="text-sm text-red-600 font-medium flex items-center gap-2">
@@ -1104,9 +1022,31 @@ export default function Home() {
                   </div>
                 </>
               ) : (
-                <CourseHistory
+                <CourseShelf
                   uiLang={uiLang}
                   refreshKey={courseHistoryKey}
+                  sourceLang={sourceLang}
+                  targetLang={targetLang}
+                  ageGroup={ageGroup}
+                  domainText={domainText}
+                  courseInput={courseInput}
+                  onCourseInputChange={setCourseInput}
+                  generateAudio={generateAudio}
+                  generateImages={generateImages}
+                  onGenerateAudioChange={setGenerateAudio}
+                  onGenerateImagesChange={setGenerateImages}
+                  onSourceLangChange={handleSourceLangChange}
+                  onTargetLangChange={handleTargetLangChange}
+                  onAgeChange={handleAgeChange}
+                  onDomainChange={handleDomainChange}
+                  onDomainTextChange={setDomainText}
+                  loading={loading}
+                  courseGenStep={courseGenStep}
+                  fetchError={fetchError}
+                  keyError={keyError}
+                  onGenerate={handleGenerateCourse}
+                  onOpenSettings={() => setShowSettings(true)}
+                  onClearKeyError={() => setKeyError(null)}
                   onLoad={(course) => {
                     setCourseResult(course as unknown as typeof courseResult);
                     if (course.domain_context) {
