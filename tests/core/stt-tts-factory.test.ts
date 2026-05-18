@@ -103,13 +103,13 @@ describe('STTFactory.getProvider routing', () => {
     expect(STTFactory.getProvider()).toBeInstanceOf(QwenSTTProvider);
   });
 
-  it('routes openrouter to OpenAISTTProvider', async () => {
+  it('routes openrouter to OpenRouterSTTProvider', async () => {
     process.env.STT_PROVIDER = 'openrouter';
     process.env.STT_MODEL = 'openai/whisper-1';
     process.env.OPENROUTER_API_KEY = 'sk-or-test';
     const { STTFactory } = await import('@/src/core/stt/factory');
-    const { OpenAISTTProvider } = await import('@/src/core/stt/openai-provider');
-    expect(STTFactory.getProvider()).toBeInstanceOf(OpenAISTTProvider);
+    const { OpenRouterSTTProvider } = await import('@/src/core/stt/openrouter-provider');
+    expect(STTFactory.getProvider()).toBeInstanceOf(OpenRouterSTTProvider);
   });
 
   it('per-request override always uses OpenAISTTProvider', async () => {

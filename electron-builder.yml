@@ -1,24 +1,35 @@
 appId: world.corefirst.app
 productName: CoreFirst
-copyright: Copyright © 2025 CoreFirst Team
+copyright: Copyright © 2026 CoreFirst
+
+extraMetadata:
+  main: electron/main.js
 
 directories:
   output: release
   buildResources: public
 
+# Only Electron entry files go into the ASAR bundle.
+# The Next.js standalone server lives outside ASAR (extraResources) so that
+# utilityProcess.fork() can execute server.js from the real filesystem.
 files:
-  - .next/standalone/**
-  - .next/static/**
-  - public/**
   - electron/main.js
   - electron/preload.js
   - package.json
 
+# Layout mirrors what electron/main.ts expects at runtime:
+#   process.resourcesPath + '/app/.next/standalone/server.js'
 extraResources:
+  - from: .next/standalone
+    to: app/.next/standalone
+  - from: .next/standalone/node_modules
+    to: app/.next/standalone/node_modules
+  - from: .next/standalone/.next
+    to: app/.next/standalone/.next
   - from: .next/static
-    to: .next/static
+    to: app/.next/standalone/.next/static
   - from: public
-    to: public
+    to: app/.next/standalone/public
 
 # Register corefirst:// custom protocol for OAuth deep-link callbacks.
 # See electron/main.ts for the full flow rationale.
@@ -26,12 +37,27 @@ protocols:
   - name: CoreFirst
     schemes: [corefirst]
 
+publish:
+  - provider: github
+    owner: corefirst
+    repo: corefirst
+
 mac:
   target:
     - target: dmg
-      arch: [arm64, x64]
   category: public.app-category.education
   icon: public/icons/icon-512.png
+
+dmg:
+  title: ${productName} ${version}
+  artifactName: ${productName}-${version}-${arch}.${ext}
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
 
 win:
   target:
@@ -39,12 +65,15 @@ win:
       arch: [x64]
   icon: public/icons/icon-512.png
 
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-${arch}.${ext}
+
 linux:
   target:
     - target: AppImage
       arch: [x64]
+  icon: public/icons/icon-512.png
   category: Education
-
-nsis:
-  oneClick: false
-  allowToChangeInstallationDirectory: true
+  artifactName: ${productName}-${version}-${arch}.${ext}
