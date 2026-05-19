@@ -2,7 +2,7 @@
  * Ledger / transaction history bindings — mirrors corefirst-world
  * `GET /v1/users/transactions` (auth-required).
  */
-import { saasJson } from './client';
+import { cloudJson } from './client';
 
 export type TxType =
   | 'credit_grant_initial'
@@ -21,7 +21,7 @@ export type TxType =
 export type TxStatus = 'submit' | 'pending' | 'confirmed' | 'success' | 'failed';
 export type TxChannel = 'stripe' | 'internal_credit' | 'internal_currency';
 
-export interface SaasTransaction {
+export interface CloudTransaction {
   id: string;
   relatedId: string | null;
   userId: string;
@@ -42,7 +42,7 @@ export interface SaasTransaction {
 }
 
 export interface ListTxResponse {
-  data: SaasTransaction[];
+  data: CloudTransaction[];
   nextCursor: string | null;
 }
 
@@ -53,10 +53,10 @@ export async function listTransactions(opts: {
   status?: TxStatus;
 } = {}): Promise<ListTxResponse> {
   const params = new URLSearchParams();
-  if (opts.limit)  params.set('limit', String(opts.limit));
+  if (opts.limit != null && opts.limit > 0) params.set('limit', String(opts.limit));
   if (opts.cursor) params.set('cursor', opts.cursor);
   if (opts.type)   params.set('type', opts.type);
   if (opts.status) params.set('status', opts.status);
   const qs = params.toString();
-  return saasJson<ListTxResponse>(`/v1/users/transactions${qs ? `?${qs}` : ''}`);
+  return cloudJson<ListTxResponse>(`/v1/users/transactions${qs ? `?${qs}` : ''}`);
 }

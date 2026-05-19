@@ -13,6 +13,7 @@ import {
   updateVocabularyMastery,
 } from '@/src/lib/storage';
 import { getUserId } from '@/src/lib/auth/user';
+import { buildAIErrorResponse } from '@/src/lib/ai/errors';
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_AUDIO_TYPES = new Set([
@@ -146,6 +147,8 @@ export async function POST(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[speech-eval] Error:', msg);
+    const aiResponse = buildAIErrorResponse(error);
+    if (aiResponse) return aiResponse;
     return NextResponse.json({ error: 'Speech evaluation failed' }, { status: 500 });
   }
 }

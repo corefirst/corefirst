@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { STTFactory } from '@/src/core/stt/factory';
 import { extractSettings, resolveSTTOverride } from '@/src/lib/ai/settings-config';
 import { LANG_MAP } from '@/src/lib/constants';
+import { buildAIErrorResponse } from '@/src/lib/ai/errors';
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 
@@ -38,6 +39,8 @@ export async function POST(request: Request) {
       const extra = JSON.stringify(error, Object.getOwnPropertyNames(error));
       if (extra !== '{}') console.error('[transcribe] Details:', extra);
     }
+    const aiResponse = buildAIErrorResponse(error);
+    if (aiResponse) return aiResponse;
     return NextResponse.json({ error: 'Transcription failed' }, { status: 500 });
   }
 }

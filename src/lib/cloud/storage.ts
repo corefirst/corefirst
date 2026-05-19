@@ -40,9 +40,11 @@ function migrateLegacyKeys(): void {
   if (localStorage.getItem(ACCESS_KEY)) return; // already on new keys
   const legacyAccess = localStorage.getItem('cf_saas_access_token');
   if (!legacyAccess) return;
-  localStorage.setItem(ACCESS_KEY,   legacyAccess);
-  localStorage.setItem(REFRESH_KEY,  localStorage.getItem('cf_saas_refresh_token') ?? '');
-  localStorage.setItem(USER_KEY,     localStorage.getItem('cf_saas_user') ?? '');
+  const legacyRefresh = localStorage.getItem('cf_saas_refresh_token');
+  const legacyUser    = localStorage.getItem('cf_saas_user');
+  localStorage.setItem(ACCESS_KEY, legacyAccess);
+  if (legacyRefresh) localStorage.setItem(REFRESH_KEY, legacyRefresh);
+  if (legacyUser)    localStorage.setItem(USER_KEY, legacyUser);
   localStorage.removeItem('cf_saas_access_token');
   localStorage.removeItem('cf_saas_refresh_token');
   localStorage.removeItem('cf_saas_user');
@@ -56,8 +58,14 @@ export function readSession(): CloudSession | null {
     const refreshToken = localStorage.getItem(REFRESH_KEY);
     const userRaw = localStorage.getItem(USER_KEY);
     if (!accessToken || !refreshToken || !userRaw) return null;
-    return { accessToken, refreshToken, user: JSON.parse(userRaw) };
+    const user = JSON.parse(userRaw);
+    if (typeof user?.id !== 'string' || typeof user?.email !== 'string') {
+      clearSession();
+      return null;
+    }
+    return { accessToken, refreshToken, user };
   } catch {
+    clearSession();
     return null;
   }
 }

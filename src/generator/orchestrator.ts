@@ -55,7 +55,9 @@ export interface GenerationRequest {
 }
 
 // Shared progress event emitter — both orchestrator and package-builder use this type.
-export type ProgressEmitter = (event: { type: string; message: string; [k: string]: unknown }) => void;
+// `message` is optional because chapter-level events (`lesson-text`, `lesson-image`,
+// `lesson-audio`, `outline`) describe structural state and don't carry a label.
+export type ProgressEmitter = (event: { type: string; message?: string; [k: string]: unknown }) => void;
 
 export class CoursewareOrchestrator {
   private transformer: CFLTTransformer;
@@ -136,6 +138,18 @@ export class CoursewareOrchestrator {
       }
     }
 
+    // Emit the outline first so the client can render the per-chapter shell
+    // and show "waiting / generating" placeholders while audits run.
+    this.emit({
+      type: 'outline',
+      message: 'Outline ready',
+      lessons: manifest.lessons.map((l, i) => ({
+        lessonIndex: i,
+        title: l.title,
+        scenario_description: l.scenario_description,
+      })),
+    });
+
     this.emit({ type: 'step', message: 'Auditing scripts…' });
     // Parallel self-audit: re-verify cflt structure and backfill standard_l1.
     // Young Child (Under 12) uses the lightweight auditScript schema because
@@ -143,37 +157,46 @@ export class CoursewareOrchestrator {
     // CFLT slots — the strict corrections/slots schema causes consistent false
     // failures. All other age groups use the full transform for proper CFLT audit.
     const isYoungChild = request.age_group === 'Young Child (Under 12)';
-    const auditTasks = manifest.lessons.flatMap((lesson) =>
-      lesson.cflt_scripts.map(async (script) => {
-        if (isYoungChild) {
-          const auditResult = await this.transformer.auditScript(
-            script.standard_l2,
-            sourceLang,
-            targetLang,
-          );
-          if (!('error' in auditResult)) {
-            script.cflt_l1 = auditResult.cflt_l1;
-            script.cflt_l2 = auditResult.cflt_l2;
-            if (auditResult.standard_l1) script.standard_l1 = auditResult.standard_l1;
-          }
-        } else {
-          const auditResult = await this.transformer.transform(
-            script.standard_l2,
-            sourceLang,
-            targetLang,
-          );
-          if (!('error' in auditResult)) {
-            script.cflt_l1 = auditResult.cflt_l1;
-            script.cflt_l2 = auditResult.cflt_l2;
-            if (auditResult.standard_l1) script.standard_l1 = auditResult.standard_l1;
+    const lessonAudits = manifest.lessons.map(async (lesson, lessonIndex) => {
+      this.emit({ type: 'lesson-text', lessonIndex, status: 'generating' });
+      await Promise.all(
+        lesson.cflt_scripts.map(async (script) => {
+          if (isYoungChild) {
+            const auditResult = await this.transformer.auditScript(
+              script.standard_l2,
+              sourceLang,
+              targetLang,
+            );
+            if (!('error' in auditResult)) {
+              script.cflt_l1 = auditResult.cflt_l1;
+              script.cflt_l2 = auditResult.cflt_l2;
+              if (auditResult.standard_l1) script.standard_l1 = auditResult.standard_l1;
+            }
           } else {
-            console.error('[orchestrator] Script audit failed:', auditResult.error);
+            const auditResult = await this.transformer.transform(
+              script.standard_l2,
+              sourceLang,
+              targetLang,
+            );
+            if (!('error' in auditResult)) {
+              script.cflt_l1 = auditResult.cflt_l1;
+              script.cflt_l2 = auditResult.cflt_l2;
+              if (auditResult.standard_l1) script.standard_l1 = auditResult.standard_l1;
+            } else {
+              console.error('[orchestrator] Script audit failed:', auditResult.error);
+            }
           }
-        }
-      })
-    );
+        }),
+      );
+      this.emit({
+        type: 'lesson-text',
+        lessonIndex,
+        status: 'done',
+        lesson,
+      });
+    });
 
-    await Promise.all(auditTasks);
+    await Promise.all(lessonAudits);
     this.emit({ type: 'step', message: 'Generating audio…' });
 
     return manifest;

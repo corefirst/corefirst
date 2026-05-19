@@ -83,6 +83,8 @@ export async function postComment(
   content: string,
   parentId?: string,
 ): Promise<MarketComment> {
+  if (!content.trim()) throw new Error('Comment content must not be empty');
+  if (content.length > 10_000) throw new Error('Comment content exceeds maximum length');
   return cloudJson<MarketComment>(`/v1/market/textbooks/${id}/comments`, {
     method: 'POST',
     body: { content, parentId },

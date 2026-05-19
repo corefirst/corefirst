@@ -3,8 +3,9 @@
 /**
  * OAuth callback landing page.
  *
- * The SaaS server redirects here after a successful /v1/auth/oauth/:provider/callback,
- * placing tokens in the URL fragment (so they never hit any server log).
+ * The CoreFirst cloud server redirects here after a successful
+ * /v1/auth/oauth/:provider/callback, placing tokens in the URL fragment
+ * (so they never hit any server log).
  *
  * Fragment shape on success:   #accessToken=...&refreshToken=...&userId=...
  * Fragment shape on failure:   #error=link_required&provider=google
@@ -12,8 +13,8 @@
  */
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { writeSession } from '@/src/lib/saas/storage';
-import { fetchCurrentUser } from '@/src/lib/saas/auth';
+import { writeSession, clearSession } from '@/src/lib/cloud/storage';
+import { fetchCurrentUser } from '@/src/lib/cloud/auth';
 
 const ERROR_LABELS: Record<string, string> = {
   link_required:           '该邮箱已经注册了本地账号，请用密码登录后在「设置 → 会员」里手动绑定。',
@@ -38,9 +39,8 @@ export default function OAuthCallbackPage() {
 
       const error = params.get('error');
       if (error) {
-        const provider = params.get('provider');
-        const label = ERROR_LABELS[error] ?? `OAuth 错误：${error}`;
-        setState({ kind: 'error', message: provider ? `${provider} · ${label}` : label });
+        const label = ERROR_LABELS[error] ?? '登录时发生未知错误，请重试。';
+        setState({ kind: 'error', message: label });
         return;
       }
 
@@ -65,10 +65,14 @@ export default function OAuthCallbackPage() {
         refreshToken,
         user: { id: userId, email: '' },
       });
-      try { window.location.hash = ''; } catch {}
-      fetchCurrentUser().finally(() => {
+      try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch {}
+      fetchCurrentUser().then((user) => {
+        if (!user) clearSession();
         setState({ kind: 'success' });
         setTimeout(() => router.push('/'), 800);
+      }).catch(() => {
+        clearSession();
+        setState({ kind: 'error', message: '获取用户信息失败，请重试。' });
       });
     };
 

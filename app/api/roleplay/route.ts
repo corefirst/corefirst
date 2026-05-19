@@ -9,7 +9,7 @@ import { contentHash } from '@/src/lib/storage/hash';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { getUserId } from '@/src/lib/auth/user';
 import { resolveTextContext, resolveTTSContext } from '@/src/lib/ai/request-context';
-import { classifyAIError } from '@/src/lib/ai/errors';
+import { buildAIErrorResponse } from '@/src/lib/ai/errors';
 import { loadSkill } from '@/src/lib/skills';
 
 const ALLOWED_LANGUAGES = new Set([
@@ -195,10 +195,8 @@ export async function POST(request: Request) {
     console.error('[roleplay] Error:', msg);
     if (raw) console.error('[roleplay] Raw response:', raw);
     
-    const code = classifyAIError(error);
-    if (code === 'API_KEY_REQUIRED' || code === 'INVALID_API_KEY') {
-      return NextResponse.json({ error: code }, { status: 401 });
-    }
+    const aiResponse = buildAIErrorResponse(error);
+    if (aiResponse) return aiResponse;
     return NextResponse.json({ error: 'Roleplay failed', detail: msg }, { status: 500 });
   }
 }

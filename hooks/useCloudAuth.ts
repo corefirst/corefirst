@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   readSession,
   writeSession,
-  clearSession,
   type CloudSession,
   type CloudUser,
 } from '@/src/lib/cloud/storage';
@@ -119,5 +118,3 @@ export function isCloudLoggedIn(): boolean {
   if (typeof window === 'undefined') return false;
   return !!readSession();
 }
-
-export { clearSession };

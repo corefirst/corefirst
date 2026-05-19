@@ -4,6 +4,7 @@ import { CoursewareOrchestrator } from '@/src/generator/orchestrator';
 import { buildAndWritePackage } from '@/src/generator/package-builder';
 import { getUserId } from '@/src/lib/auth/user';
 import { extractSettings, resolveFeatureFromSettings, resolveTTSOverride, resolveImageOverride } from '@/src/lib/ai/settings-config';
+import { classifyAIError } from '@/src/lib/ai/errors';
 
 const GenerateCourseRequestSchema = z.object({
   age_group: z.string().min(1),
@@ -93,12 +94,24 @@ export async function POST(request: Request) {
       emit({
         type: 'complete',
         result: { ...result, packageId: written.packageId, packageSlug: written.slug },
+        creditsExhausted: written.creditsExhausted === true,
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      const code = classifyAIError(err);
       if (!isClosed) {
         console.error('[generate-course] Error:', msg);
-        emit({ type: 'error', message: 'Course generation failed' });
+        if (code === 'INSUFFICIENT_CREDITS') {
+          emit({
+            type: 'error',
+            code,
+            message: 'Insufficient credits. Provide X-LLM-API-Key or top up.',
+          });
+        } else if (code === 'API_KEY_REQUIRED' || code === 'INVALID_API_KEY') {
+          emit({ type: 'error', code, message: code });
+        } else {
+          emit({ type: 'error', message: 'Course generation failed' });
+        }
       }
     } finally {
       if (!isClosed) {

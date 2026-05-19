@@ -13,6 +13,7 @@ import {
 import type { CoursewareManifest } from '../src/types/courseware';
 import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 import { ComboBox } from './ComboBox';
+import { CourseGenProgress, type CourseGenProgressState } from './CourseGenProgress';
 
 interface CourseSummary {
   slug: string;
@@ -74,8 +75,11 @@ export interface CourseShelfProps {
   onDomainTextChange: (v: string) => void;
   loading: boolean;
   courseGenStep: string | null;
+  /** Structured per-chapter progress driven by SSE events from
+   *  /api/generate-course. Renders the staged text/image/audio status list. */
+  courseGenProgress?: CourseGenProgressState;
   fetchError: string | null;
-  keyError: 'API_KEY_REQUIRED' | 'INVALID_API_KEY' | null;
+  keyError: 'API_KEY_REQUIRED' | 'INVALID_API_KEY' | 'INSUFFICIENT_CREDITS' | null;
   onGenerate: () => void;
   onOpenSettings: () => void;
   onClearKeyError: () => void;
@@ -86,7 +90,7 @@ export const CourseShelf = ({
   sourceLang, targetLang, ageGroup, domainText, courseInput, onCourseInputChange,
   generateAudio, generateImages, onGenerateAudioChange, onGenerateImagesChange,
   onSourceLangChange, onTargetLangChange, onAgeChange, onDomainChange, onDomainTextChange,
-  loading, courseGenStep, fetchError, keyError, onGenerate, onOpenSettings, onClearKeyError,
+  loading, courseGenStep, courseGenProgress, fetchError, keyError, onGenerate, onOpenSettings, onClearKeyError,
 }: CourseShelfProps) => {
   const [items, setItems] = useState<CourseSummary[] | null>(null);
   const [historyLoading, setHistoryLoading] = useState(true);
@@ -353,6 +357,10 @@ export const CourseShelf = ({
                 <p className="text-xs text-slate-400">{tr(uiLang, 'courseGenWait')}</p>
               )}
 
+              {courseGenProgress && (loading || courseGenProgress.lessons.length > 0 || courseGenProgress.errorCode) && (
+                <CourseGenProgress uiLang={uiLang} state={courseGenProgress} />
+              )}
+
               {fetchError && (
                 <p className="text-sm text-red-600 font-medium flex items-center gap-2">
                   <Info className="w-4 h-4" /> {fetchError}
@@ -362,7 +370,13 @@ export const CourseShelf = ({
               {keyError && (
                 <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
                   <span className="text-amber-800">
-                    {keyError === 'API_KEY_REQUIRED' ? tr(uiLang, 'errNoApiKey') : tr(uiLang, 'errApiKeyInvalid')}
+                    {keyError === 'API_KEY_REQUIRED'
+                      ? tr(uiLang, 'errNoApiKey')
+                      : keyError === 'INVALID_API_KEY'
+                        ? tr(uiLang, 'errApiKeyInvalid')
+                        : uiLang === 'Chinese'
+                          ? '额度不足。请充值或在「设置」中填入自己的 API Key。'
+                          : 'Credits exhausted. Top up or add your own API key in Settings.'}
                   </span>
                   <button
                     onClick={() => { onClearKeyError(); onOpenSettings(); }}

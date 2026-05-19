@@ -4,6 +4,7 @@ import { VisualFactory } from '@/src/core/visuals/factory';
 import { contentHash } from '@/src/lib/storage/hash';
 import { sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
 import { extractSettings, resolveImageOverride } from '@/src/lib/ai/settings-config';
+import { buildAIErrorResponse } from '@/src/lib/ai/errors';
 
 const MAX_PROMPT_LEN = 1024;
 
@@ -47,6 +48,8 @@ export async function POST(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[generate-image] Error:', msg);
+    const aiResponse = buildAIErrorResponse(error);
+    if (aiResponse) return aiResponse;
     return NextResponse.json({ error: 'Image generation failed' }, { status: 500 });
   }
 }

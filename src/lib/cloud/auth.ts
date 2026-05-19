@@ -1,7 +1,7 @@
 /**
  * Cloud auth flows — login, register, logout, fetch current user.
  */
-import { cloudFetch, cloudJson, CloudError } from './client';
+import { cloudJson, CloudError } from './client';
 import {
   writeSession,
   clearSession,

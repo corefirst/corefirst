@@ -2,7 +2,7 @@
  * Credits / billing bindings — mirrors corefirst-world /v1/credits/* and
  * /v1/webhooks/* (the webhook endpoints are server-only; not exposed here).
  */
-import { saasJson } from './client';
+import { cloudJson } from './client';
 
 export type CreditSource = 'subscription' | 'top_up' | 'bonus' | 'debt';
 
@@ -62,7 +62,7 @@ export interface UserSubscription {
 }
 
 export async function fetchBalance(): Promise<CreditBalanceSummary> {
-  return saasJson<CreditBalanceSummary>('/v1/credits/balance');
+  return cloudJson<CreditBalanceSummary>('/v1/credits/balance');
 }
 
 export async function listPackages(opts?: {
@@ -73,11 +73,11 @@ export async function listPackages(opts?: {
   if (opts?.type)     params.set('type', opts.type);
   if (opts?.currency) params.set('currency', opts.currency);
   const qs = params.toString();
-  return saasJson<CreditPackage[]>(`/v1/credits/packages${qs ? `?${qs}` : ''}`);
+  return cloudJson<CreditPackage[]>(`/v1/credits/packages${qs ? `?${qs}` : ''}`);
 }
 
 export async function fetchSubscriptions(): Promise<UserSubscription[]> {
-  return saasJson<UserSubscription[]>('/v1/credits/subscriptions');
+  return cloudJson<UserSubscription[]>('/v1/credits/subscriptions');
 }
 
 /**
@@ -87,5 +87,5 @@ export async function fetchSubscriptions(): Promise<UserSubscription[]> {
  * `code: 'NOT_IMPLEMENTED'` — surface that to users as "购买暂未开通".
  */
 export async function startCheckout(packageId: string): Promise<{ url?: string; id?: string }> {
-  return saasJson(`/v1/credits/checkout/${packageId}`, { method: 'POST' });
+  return cloudJson(`/v1/credits/checkout/${packageId}`, { method: 'POST' });
 }

@@ -4,6 +4,7 @@ import { generateObject, type LanguageModel } from 'ai';
 import { transformModel } from '@/src/lib/ai';
 import { resolveTextContext } from '@/src/lib/ai/request-context';
 import { loadSkill } from '@/src/lib/skills';
+import { buildAIErrorResponse } from '@/src/lib/ai/errors';
 
 // Refines the standard sentence after the user has filled (picked or typed)
 // any inferred CRST slots. We hand the LLM the four confirmed slot contents
@@ -65,6 +66,8 @@ export async function POST(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[transform/refine] Error:', msg);
+    const aiResponse = buildAIErrorResponse(error);
+    if (aiResponse) return aiResponse;
     return NextResponse.json({ error: 'Refine failed' }, { status: 500 });
   }
 }

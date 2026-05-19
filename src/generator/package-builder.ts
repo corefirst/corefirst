@@ -17,6 +17,7 @@ import {
 } from '@/src/lib/storage';
 import { contentHash } from '@/src/lib/storage/hash';
 import type { CoursewareManifest } from '@/src/types/courseware';
+import { classifyAIError } from '@/src/lib/ai/errors';
 
 import type { ProgressEmitter } from './orchestrator';
 // Re-export under the local name for callers who import from package-builder.
@@ -38,6 +39,13 @@ export interface BuildPackageInput {
   imageOverride?: ImageOverride;
 }
 
+export interface BuildPackageResult extends WritePackageResult {
+  /** True if media generation halted because the cloud gateway returned
+   *  INSUFFICIENT_CREDITS — the caller surfaces this as a partial-result
+   *  signal to the client. */
+  creditsExhausted?: boolean;
+}
+
 /**
  * Renders a `CoursewareManifest` into a `.corefirst` Lite manifest (and
  * optional Full ZIP) under the owning user's data root, populating the
@@ -47,104 +55,161 @@ export interface BuildPackageInput {
  */
 export async function buildAndWritePackage(
   input: BuildPackageInput,
-): Promise<WritePackageResult> {
+): Promise<BuildPackageResult> {
   const userId = input.userId ?? DEFAULT_USER_ID;
   await ensureDataDirs(userId);
 
   const packageManifest = await mapToPackageManifest(input, userId);
 
   const emit = input.onProgress ?? (() => {});
+  // Once a credits-exhausted failure is observed, suppress every remaining
+  // audio/image call so we don't fan out N error reports — the UI just needs
+  // one clear "stopped — top up" signal plus the partial assets that did
+  // succeed before the wall hit.
+  let creditsExhausted = false;
   const audioMap = new Map<string, Uint8Array>();
-  if (input.generateAudio !== false) {
-    const tts = TTSFactory.getProvider(input.ttsOverride);
-    const totalScripts = packageManifest.lessons.reduce((n, l) => n + l.scripts.length, 0);
-    let audiosDone = 0;
+  const imageMap = new Map<string, Uint8Array>();
 
+  const audioPhase = async () => {
+    if (input.generateAudio === false) return;
+    const tts = TTSFactory.getProvider(input.ttsOverride);
+    const tasks: Promise<void>[] = [];
     for (const [lessonIdx, lesson] of packageManifest.lessons.entries()) {
       for (const [scriptIdx, script] of lesson.scripts.entries()) {
-        const hash = contentHash(script.ssml);
-        const filename = `${hash}.mp3`;
-
-        const poolFile = sharedMediaPath(filename);
-        let audio: Uint8Array | null = null;
-        try {
-          audio = new Uint8Array(await fs.readFile(poolFile));
-        } catch {
+        tasks.push((async () => {
+          if (creditsExhausted) {
+            emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'skipped' });
+            return;
+          }
+          emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'generating' });
+          const hash = contentHash(script.ssml);
+          const filename = `${hash}.mp3`;
+          const poolFile = sharedMediaPath(filename);
+          let audio: Uint8Array | null = null;
           try {
-            audio = await tts.generateAudio(script.ssml);
-            await fs.writeFile(poolFile, audio);
-          } catch (err) {
-            const msg = (err as Error).message;
-            const cause = (err as any).cause;
-            console.error(
-              `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
-              msg,
-              cause ? `| Cause: ${JSON.stringify(cause)}` : ''
-            );
+            audio = new Uint8Array(await fs.readFile(poolFile));
+          } catch {
+            try {
+              audio = await tts.generateAudio(script.ssml);
+              await fs.writeFile(poolFile, audio);
+            } catch (err) {
+              if (classifyAIError(err) === 'INSUFFICIENT_CREDITS') {
+                creditsExhausted = true;
+                emit({
+                  type: 'lesson-audio',
+                  lessonIndex: lessonIdx,
+                  scriptIndex: scriptIdx,
+                  status: 'failed',
+                  code: 'INSUFFICIENT_CREDITS',
+                });
+                return;
+              }
+              const msg = (err as Error).message;
+              const cause = (err as { cause?: unknown }).cause;
+              console.error(
+                `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
+                msg,
+                cause ? `| Cause: ${JSON.stringify(cause)}` : '',
+              );
+              emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'failed' });
+              return;
+            }
           }
-        }
-        if (audio) {
-          audioMap.set(`media/${filename}`, audio);
-          script.audioFile = filename;
-          // Populate UI-only field in the input manifest for immediate use
-          if (input.manifest.lessons[lessonIdx]?.cflt_scripts[scriptIdx]) {
-            input.manifest.lessons[lessonIdx].cflt_scripts[scriptIdx].audioUrl = `/api/media/${filename}`;
+          if (audio) {
+            audioMap.set(`media/${filename}`, audio);
+            script.audioFile = filename;
+            const audioUrl = `/api/media/${filename}`;
+            if (input.manifest.lessons[lessonIdx]?.cflt_scripts[scriptIdx]) {
+              input.manifest.lessons[lessonIdx].cflt_scripts[scriptIdx].audioUrl = audioUrl;
+            }
+            emit({
+              type: 'lesson-audio',
+              lessonIndex: lessonIdx,
+              scriptIndex: scriptIdx,
+              status: 'done',
+              audioUrl,
+            });
           }
-        }
-        audiosDone++;
-        emit({ type: 'step', message: `Generating audio… (${audiosDone}/${totalScripts})` });
+        })());
       }
     }
-  }
+    await Promise.all(tasks);
+  };
 
-  const imageMap = new Map<string, Uint8Array>();
-  if (input.generateImages !== false) {
-    emit({ type: 'step', message: 'Generating images…' });
+  const imagePhase = async () => {
+    if (input.generateImages === false) return;
     const visuals = VisualFactory.getProvider(input.imageOverride);
-    let imagesDone = 0;
-    const totalImages = packageManifest.lessons.filter(l => l.visual_generation_prompts[0]).length;
+    const tasks: Promise<void>[] = [];
     for (const [lessonIdx, lesson] of packageManifest.lessons.entries()) {
       const prompt = lesson.visual_generation_prompts[0];
       if (!prompt) continue;
-
-      // Use same hash key as api/generate-image (prompt + default size)
-      const hash = contentHash(`${prompt}:1024x1024`);
-      const filename = `${hash}.webp`;
-
-      const poolFile = sharedMediaPath(filename);
-      let image: Uint8Array | null = null;
-      try {
-        image = new Uint8Array(await fs.readFile(poolFile));
-      } catch {
+      tasks.push((async () => {
+        if (creditsExhausted) {
+          emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'skipped' });
+          return;
+        }
+        emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'generating' });
+        // Same hash key as api/generate-image (prompt + default size) so a
+        // lesson regeneration reuses the cached image.
+        const hash = contentHash(`${prompt}:1024x1024`);
+        const filename = `${hash}.webp`;
+        const poolFile = sharedMediaPath(filename);
+        let image: Uint8Array | null = null;
         try {
-          const dataUrl = await visuals.generateImage(prompt);
-          const bytes = decodeDataUrl(dataUrl);
-          if (bytes) {
-            image = bytes;
-            await fs.writeFile(poolFile, bytes);
+          image = new Uint8Array(await fs.readFile(poolFile));
+        } catch {
+          try {
+            const dataUrl = await visuals.generateImage(prompt);
+            const bytes = decodeDataUrl(dataUrl);
+            if (bytes) {
+              image = bytes;
+              await fs.writeFile(poolFile, bytes);
+            }
+          } catch (err) {
+            if (classifyAIError(err) === 'INSUFFICIENT_CREDITS') {
+              creditsExhausted = true;
+              emit({
+                type: 'lesson-image',
+                lessonIndex: lessonIdx,
+                status: 'failed',
+                code: 'INSUFFICIENT_CREDITS',
+              });
+              return;
+            }
+            const msg = (err as Error).message;
+            const cause = (err as { cause?: unknown }).cause;
+            console.error(
+              `[package-builder] Image generation failed for lesson ${lesson.lessonIndex}:`,
+              msg,
+              cause ? `| Cause: ${JSON.stringify(cause)}` : '',
+            );
+            emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'failed' });
+            return;
           }
-        } catch (err) {
-          const msg = (err as Error).message;
-          const cause = (err as any).cause;
-          console.error(
-            `[package-builder] Image generation failed for lesson ${lesson.lessonIndex}:`,
-            msg,
-            cause ? `| Cause: ${JSON.stringify(cause)}` : ''
-          );
         }
-      }
-      if (image) {
-        imageMap.set(`media/${filename}`, image);
-        lesson.imageFile = filename;
-        // Populate UI-only field in the input manifest for immediate use
-        if (input.manifest.lessons[lessonIdx]) {
-          input.manifest.lessons[lessonIdx].imageUrl = `/api/media/${filename}`;
+        if (image) {
+          imageMap.set(`media/${filename}`, image);
+          lesson.imageFile = filename;
+          const imageUrl = `/api/media/${filename}`;
+          if (input.manifest.lessons[lessonIdx]) {
+            input.manifest.lessons[lessonIdx].imageUrl = imageUrl;
+          }
+          emit({
+            type: 'lesson-image',
+            lessonIndex: lessonIdx,
+            status: 'done',
+            imageUrl,
+          });
         }
-      }
-      imagesDone++;
-      emit({ type: 'step', message: `Generating images… (${imagesDone}/${totalImages})` });
+      })());
     }
-  }
+    await Promise.all(tasks);
+  };
+
+  // Audio + images run concurrently — they target independent providers,
+  // and serializing the two phases was the largest source of latency in
+  // the previous implementation.
+  await Promise.all([audioPhase(), imagePhase()]);
 
   emit({ type: 'step', message: 'Packaging…' });
   const result = await writePackage(userId, {
@@ -158,7 +223,7 @@ export async function buildAndWritePackage(
     console.error('[package-builder] pruneSharedOrphanMedia failed:', (err as Error).message),
   );
 
-  return result;
+  return { ...result, creditsExhausted };
 }
 
 async function mapToPackageManifest(

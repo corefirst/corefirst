@@ -27,6 +27,11 @@ import type { CoursewareManifest, Lesson, LessonScript } from '../src/types/cour
 import { t as tr, SUPPORTED_LANGS, detectUiLang, defaultLangPair, type SupportedLang, AGE_KEYS, type AgeKey, findAgeKey, type DomainKey, findDomainKey, DOMAIN_KEYS, AGE_DOMAINS } from '../src/lib/ui-i18n';
 import { buildPlayableCflt, type SlotFillMap } from '../src/lib/cflt-playback';
 import { consumeSSE } from '../src/lib/sse-reader';
+import {
+  type CourseGenProgressState,
+  initialCourseGenProgress,
+  reduceCourseGenEvent,
+} from '../components/CourseGenProgress';
 
 const LANGUAGES = SUPPORTED_LANGS;
 const UI_LANG_STORAGE_KEY = 'corefirst.uiLang';
@@ -39,7 +44,7 @@ const LANG_KEY: Record<SupportedLang, 'langEnglish' | 'langChinese' | 'langJapan
 export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
   const [showVocabReview, setShowVocabReview] = useState(false);
-  const [keyError, setKeyError] = useState<'API_KEY_REQUIRED' | 'INVALID_API_KEY' | null>(null);
+  const [keyError, setKeyError] = useState<'API_KEY_REQUIRED' | 'INVALID_API_KEY' | 'INSUFFICIENT_CREDITS' | null>(null);
   const { getHeaders } = useSettings();
 
   // T2: Cover & Recall training state
@@ -167,6 +172,7 @@ export default function Home() {
   const [generateImages, setGenerateImages] = useState(true);
   const [audioLoading, setAudioLoading] = useState<string | null>(null);
   const [courseGenStep, setCourseGenStep] = useState<string | null>(null); // progress hint during course generation
+  const [courseGenProgress, setCourseGenProgress] = useState<CourseGenProgressState>(initialCourseGenProgress);
   const [completedPuzzles, setCompletedPuzzles] = useState<Set<string>>(new Set());
   // Per-lesson toggle between the learning demo and the rearrange-the-blocks
   // practice exercise. Keyed by lesson index so different lessons can be in
@@ -219,6 +225,10 @@ export default function Home() {
           body: JSON.stringify({ sourceLang, targetLang, uiLang, slots: settled }),
           signal: controller.signal,
         });
+        if (res.status === 402) {
+          setKeyError('INSUFFICIENT_CREDITS');
+          return;
+        }
         if (!res.ok) throw new Error('Refine failed');
         const data: {
           standard_l1: string;
@@ -328,6 +338,10 @@ export default function Home() {
         setKeyError(data.error);
         return;
       }
+      if (response.status === 402) {
+        setKeyError('INSUFFICIENT_CREDITS');
+        return;
+      }
       if (!response.ok) throw new Error('Transformation failed');
       const data: CFLTResponse = await response.json();
       setTransformResult(data);
@@ -352,6 +366,10 @@ export default function Home() {
     setFetchError(null);
     setKeyError(null);
     setCourseGenStep(tr(uiLang, 'courseGenStepDesigning'));
+    setCourseGenProgress({
+      ...initialCourseGenProgress,
+      step: tr(uiLang, 'courseGenStepDesigning'),
+    });
     try {
       const response = await fetch('/api/generate-course', {
         method: 'POST',
@@ -363,10 +381,26 @@ export default function Home() {
         setKeyError(data.error ?? 'API_KEY_REQUIRED');
         return;
       }
+      // 402 should only happen before the SSE stream has begun (e.g. a
+      // network proxy intercepts the response) — once the route returns the
+      // ReadableStream the credits check happens inside the stream itself.
+      // Still, handle it for completeness so the UI never silently fails.
+      if (response.status === 402) {
+        setCourseGenProgress((s) => ({
+          ...s,
+          errorCode: 'INSUFFICIENT_CREDITS',
+          errorMessage: 'Insufficient credits',
+        }));
+        return;
+      }
       if (!response.ok || !response.body) throw new Error('Course generation failed');
 
-      // Consume SSE stream and update step label in real time
+      let sawError = false;
+      // Consume SSE stream and update progress in real time
       await consumeSSE(response.body.getReader(), (event) => {
+        // Always feed the progress reducer — handles outline, lesson-*,
+        // error and complete.
+        setCourseGenProgress((s) => reduceCourseGenEvent(s, event));
         if (event.type === 'step') {
           setCourseGenStep(event.message as string);
         } else if (event.type === 'complete') {
@@ -374,9 +408,20 @@ export default function Home() {
           setCourseHistoryKey((k) => k + 1);
           return true; // stop reading
         } else if (event.type === 'error') {
-          throw new Error((event.message as string) ?? 'Course generation failed');
+          sawError = true;
+          if (event.code !== 'INSUFFICIENT_CREDITS') {
+            // INSUFFICIENT_CREDITS is rendered by CourseGenProgress with a
+            // friendly message — don't double up with the generic banner.
+            setFetchError(tr(uiLang, 'errorCourse'));
+          }
+          return true; // stop reading
         }
       });
+      if (!sawError) {
+        // Stream closed cleanly without a complete event — surface a generic
+        // failure so the user isn't stuck staring at a spinner forever.
+        setCourseGenProgress((s) => (s.errorCode ? s : { ...s, errorMessage: tr(uiLang, 'errorCourse') }));
+      }
     } catch (error) {
       console.error(error);
       setFetchError(tr(uiLang, 'errorCourse'));
@@ -1042,6 +1087,7 @@ export default function Home() {
                   onDomainTextChange={setDomainText}
                   loading={loading}
                   courseGenStep={courseGenStep}
+                  courseGenProgress={courseGenProgress}
                   fetchError={fetchError}
                   keyError={keyError}
                   onGenerate={handleGenerateCourse}

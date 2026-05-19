@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { CFLTTransformer } from '@/src/core/transformer';
 import { appendTransform } from '@/src/lib/storage';
 import { resolveTextContext } from '@/src/lib/ai/request-context';
-import { classifyAIError } from '@/src/lib/ai/errors';
+import { buildAIErrorResponse } from '@/src/lib/ai/errors';
 
 const MAX_INPUT_LEN = 8192;
 
@@ -60,10 +60,8 @@ export async function POST(request: Request) {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('[transform] Error:', msg);
-    const code = classifyAIError(error);
-    if (code === 'API_KEY_REQUIRED' || code === 'INVALID_API_KEY') {
-      return NextResponse.json({ error: code }, { status: 401 });
-    }
+    const aiResponse = buildAIErrorResponse(error);
+    if (aiResponse) return aiResponse;
     return NextResponse.json({ error: 'Transformation failed' }, { status: 500 });
   }
 }

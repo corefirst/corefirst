@@ -1,16 +1,16 @@
 export {
-  saasFetch,
-  saasJson,
-  getSaasBaseUrl,
-  SaasError,
+  cloudFetch,
+  cloudJson,
+  getCloudBaseUrl,
+  CloudError,
 } from './client';
 
 export {
-  saasLogin,
-  saasRegister,
-  saasLogout,
-  saasForgotPassword,
-  saasResetPassword,
+  cloudLogin,
+  cloudRegister,
+  cloudLogout,
+  cloudForgotPassword,
+  cloudResetPassword,
   fetchCurrentUser,
 } from './auth';
 
@@ -20,8 +20,8 @@ export {
   clearSession,
   getAccessToken,
   getRefreshToken,
-  type SaasSession,
-  type SaasUser,
+  type CloudSession,
+  type CloudUser,
 } from './storage';
 
 export * as Market from './market';

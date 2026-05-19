@@ -4,6 +4,7 @@ import { TTSFactory } from '@/src/core/tts/factory';
 import { contentHash } from '@/src/lib/storage/hash';
 import { sharedMediaPath, ensureDataDirs } from '@/src/lib/storage/paths';
 import { extractSettings, resolveTTSOverride } from '@/src/lib/ai/settings-config';
+import { buildAIErrorResponse } from '@/src/lib/ai/errors';
 
 const MAX_TTS_LEN = 4096;
 
@@ -64,6 +65,8 @@ export async function POST(request: Request) {
       const extra = JSON.stringify(error, Object.getOwnPropertyNames(error));
       if (extra !== '{}') console.error('[tts] Details:', extra);
     }
+    const aiResponse = buildAIErrorResponse(error);
+    if (aiResponse) return aiResponse;
     return NextResponse.json({ error: 'TTS generation failed' }, { status: 500 });
   }
 }

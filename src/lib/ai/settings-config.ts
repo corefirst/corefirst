@@ -31,12 +31,12 @@ export interface RequestSettings {
    *  Headers: x-cf-{feature}-provider, x-cf-{feature}-model
    *  (e.g. x-cf-transform-provider=anthropic, x-cf-roleplay-model=claude-haiku-4-5) */
   features: Partial<Record<FeatureKey, FeatureTextOverride>>;
-  /** SaaS access token (forwarded as x-cf-saas-token from the client). Required when
+  /** Cloud access token (forwarded as x-cf-cloud-token from the client). Required when
    *  provider === 'corefirst'. */
-  saasToken: string;
-  /** SaaS base URL (forwarded as x-cf-saas-base-url from the client, e.g.
+  cloudToken: string;
+  /** Cloud base URL (forwarded as x-cf-cloud-base-url from the client, e.g.
    *  http://localhost:4000). Required when provider === 'corefirst'. */
-  saasBaseUrl: string;
+  cloudBaseUrl: string;
 }
 
 /**
@@ -54,6 +54,8 @@ export interface ImageOverride { provider: string; apiKey: string; model?: strin
 
 // Maps FeatureKey to the header prefix used for per-feature overrides.
 // Convention: x-cf-{prefix}-provider / x-cf-{prefix}-model
+// imageGen / tts / stt are intentionally absent: they are routed through
+// resolveImageOverride / resolveTTSOverride / resolveSTTOverride instead.
 const FEATURE_HEADER: Partial<Record<FeatureKey, string>> = {
   transform:  'transform',
   roleplay:   'roleplay',
@@ -110,18 +112,18 @@ export function extractSettings(request: Request): RequestSettings {
       baseUrl:  getHeader(request, 'x-cf-image-url'),
     },
     features,
-    saasToken:   getHeader(request, 'x-cf-saas-token'),
-    saasBaseUrl: getHeader(request, 'x-cf-saas-base-url'),
+    cloudToken:   getHeader(request, 'x-cf-cloud-token'),
+    cloudBaseUrl: getHeader(request, 'x-cf-cloud-base-url'),
   };
 }
 
 /**
- * Build the AI gateway URL for the `corefirst` SaaS provider given the
- * per-request SaaS headers. Returns `${saasBaseUrl}/v1/ai`, which is what the
+ * Build the AI gateway URL for the `corefirst` cloud provider given the
+ * per-request cloud headers. Returns `${cloudBaseUrl}/v1/ai`, which is what the
  * OpenAI-compatible factories expect as `baseURL`.
  */
 function corefirstBaseUrl(settings: RequestSettings): string {
-  const root = (settings.saasBaseUrl || '').replace(/\/+$/, '');
+  const root = (settings.cloudBaseUrl || '').replace(/\/+$/, '');
   return root ? `${root}/v1/ai` : '';
 }
 
@@ -140,11 +142,10 @@ export function resolveTextModel(settings: RequestSettings): LanguageModel | und
   const model = settings.text.model   || settings.global.model   || getDefaultTextModel(provider);
 
   if (provider === 'corefirst') {
-    apiKey = settings.saasToken || undefined;
+    apiKey = settings.cloudToken || undefined;
     baseUrl = corefirstBaseUrl(settings) || undefined;
   }
 
-  console.log(`[ai/text] request: provider=${provider} model=${model}`);
   return buildTextModelFromSpec({ provider, model, apiKey, baseUrl });
 }
 
@@ -173,7 +174,7 @@ export function resolveFeatureFromSettings(
     const model = featureOverride.model || getDefaultTextModel(featureOverride.provider);
 
     if (featureOverride.provider === 'corefirst') {
-      apiKey = settings.saasToken || undefined;
+      apiKey = settings.cloudToken || undefined;
       baseUrl = corefirstBaseUrl(settings) || undefined;
     }
 
@@ -193,9 +194,9 @@ export function resolveTTSOverride(settings: RequestSettings): TTSOverride | und
 
   if (provider === 'corefirst') {
     const baseUrl = corefirstBaseUrl(settings);
-    if (!baseUrl || !settings.saasToken) return undefined;
+    if (!baseUrl || !settings.cloudToken) return undefined;
     const model = tts.model || getProviderDefault('corefirst', 'text-to-speech') || 'gpt-4o-mini-tts';
-    return { provider, baseUrl, model, apiKey: settings.saasToken, voice: getProviderTTSVoice('corefirst') };
+    return { provider, baseUrl, model, apiKey: settings.cloudToken, voice: getProviderTTSVoice('corefirst') };
   }
 
   const baseUrl = getProviderBaseUrl(provider);
@@ -225,9 +226,9 @@ export function resolveSTTOverride(settings: RequestSettings): STTOverride | und
 
   if (provider === 'corefirst') {
     const baseUrl = corefirstBaseUrl(settings);
-    if (!baseUrl || !settings.saasToken) return undefined;
+    if (!baseUrl || !settings.cloudToken) return undefined;
     const resolvedModel = model || getProviderDefault('corefirst', 'speech-to-text') || 'whisper-1';
-    return { provider, baseUrl, apiKey: settings.saasToken, model: resolvedModel };
+    return { provider, baseUrl, apiKey: settings.cloudToken, model: resolvedModel };
   }
 
   const baseUrl = getProviderBaseUrl(provider);
@@ -251,9 +252,9 @@ export function resolveImageOverride(settings: RequestSettings): ImageOverride |
 
   if (provider === 'corefirst') {
     const baseUrl = corefirstBaseUrl(settings);
-    if (!baseUrl || !settings.saasToken) return undefined;
+    if (!baseUrl || !settings.cloudToken) return undefined;
     const model = image.model || getProviderDefault('corefirst', 'text-to-image') || 'gpt-image-1';
-    return { provider, apiKey: settings.saasToken, baseUrl, model };
+    return { provider, apiKey: settings.cloudToken, baseUrl, model };
   }
 
   const apiKey = image.apiKey || g.apiKey || undefined;

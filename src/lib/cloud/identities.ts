@@ -2,12 +2,12 @@
  * Third-party identity bindings — list / start-link / unlink.
  *
  * The link flow is a TOP-LEVEL navigation (window.location.assign) so the
- * SaaS server can set HttpOnly cookies before redirecting to the provider.
+ * cloud server can set HttpOnly cookies before redirecting to the provider.
  */
-import { saasJson, getSaasBaseUrl } from './client';
+import { cloudJson, getCloudBaseUrl } from './client';
 import { getAccessToken } from './storage';
 
-export type IdentityProvider = 'google' | 'github' | 'stripe' | string;
+export type IdentityProvider = 'google' | 'github' | 'stripe';
 
 export interface BoundIdentity {
   provider: IdentityProvider;
@@ -17,11 +17,11 @@ export interface BoundIdentity {
 }
 
 export async function listMyIdentities(): Promise<BoundIdentity[]> {
-  return saasJson<BoundIdentity[]>('/v1/users/me/identities');
+  return cloudJson<BoundIdentity[]>('/v1/users/me/identities');
 }
 
 export async function unlinkIdentity(provider: IdentityProvider): Promise<void> {
-  await saasJson(`/v1/users/me/identities/${encodeURIComponent(provider)}`, { method: 'DELETE' });
+  await cloudJson(`/v1/users/me/identities/${encodeURIComponent(provider)}`, { method: 'DELETE' });
 }
 
 /**
@@ -56,7 +56,7 @@ function openOAuthUrl(url: string): void {
  * Web: top-level redirect.  Electron: system browser + corefirst:// callback.
  */
 export function beginOAuthLogin(provider: 'google' | 'github', returnTo?: string): void {
-  const url = new URL(`${getSaasBaseUrl()}/v1/auth/oauth/${provider}/start`);
+  const url = new URL(`${getCloudBaseUrl()}/v1/auth/oauth/${provider}/start`);
   url.searchParams.set('returnTo', returnTo ?? defaultReturnTo());
   openOAuthUrl(url.toString());
 }
@@ -76,10 +76,9 @@ export async function beginLinkExternalAccount(provider: 'google' | 'github', re
   const token = getAccessToken();
   if (!token) throw new Error('Must be logged in to link an external account');
 
-  const { saasJson } = await import('./client');
-  const { linkToken } = await saasJson<{ linkToken: string }>('/v1/auth/link-token', { method: 'POST' });
+  const { linkToken } = await cloudJson<{ linkToken: string }>('/v1/auth/link-token', { method: 'POST' });
 
-  const url = new URL(`${getSaasBaseUrl()}/v1/auth/oauth/${provider}/link`);
+  const url = new URL(`${getCloudBaseUrl()}/v1/auth/oauth/${provider}/link`);
   url.searchParams.set('ltoken', linkToken);
   url.searchParams.set('returnTo', returnTo ?? defaultReturnTo());
   openOAuthUrl(url.toString());

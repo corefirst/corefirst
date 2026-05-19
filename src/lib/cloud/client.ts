@@ -30,6 +30,7 @@ export class CloudError extends Error {
   code?: string;
   constructor(status: number, message: string, code?: string) {
     super(message);
+    this.name = 'CloudError';
     this.status = status;
     this.code = code;
   }
@@ -47,6 +48,7 @@ interface RequestOpts extends Omit<RequestInit, 'body'> {
 let pendingRefresh: Promise<string | null> | null = null;
 
 function refreshAccessToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return Promise.resolve(null);
   if (pendingRefresh) return pendingRefresh;
   pendingRefresh = (async () => {
     const refreshToken = getRefreshToken();
@@ -115,13 +117,14 @@ export async function cloudFetch(path: string, opts: RequestOpts = {}): Promise<
   return res;
 }
 
-export async function cloudJson<T = any>(path: string, opts: RequestOpts = {}): Promise<T> {
+export async function cloudJson<T = unknown>(path: string, opts: RequestOpts = {}): Promise<T> {
   const res = await cloudFetch(path, opts);
-  let body: any = null;
+  let body: unknown = null;
   try { body = await res.json(); } catch { /* empty body */ }
   if (!res.ok) {
-    const message = body?.error || `Request failed: ${res.status}`;
-    throw new CloudError(res.status, message, body?.code);
+    const b = body as Record<string, unknown> | null;
+    const message = (typeof b?.error === 'string' ? b.error : null) || `Request failed: ${res.status}`;
+    throw new CloudError(res.status, message, typeof b?.code === 'string' ? b.code : undefined);
   }
   return body as T;
 }
