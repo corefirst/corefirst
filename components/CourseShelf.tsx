@@ -34,18 +34,21 @@ const LANG_KEY: Record<SupportedLang, 'langEnglish' | 'langChinese' | 'langJapan
   Spanish: 'langSpanish', French: 'langFrench', German: 'langGerman',
 };
 
-const SPINE_COLORS = [
-  'bg-amber-400', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-500',
-  'bg-rose-500', 'bg-cyan-500', 'bg-orange-400', 'bg-teal-500',
-  'bg-indigo-500', 'bg-pink-500',
-];
-
-const COVER_COLORS = [
-  'from-amber-50 to-amber-100', 'from-blue-50 to-blue-100',
-  'from-emerald-50 to-emerald-100', 'from-purple-50 to-purple-100',
-  'from-rose-50 to-rose-100', 'from-cyan-50 to-cyan-100',
-  'from-orange-50 to-orange-100', 'from-teal-50 to-teal-100',
-  'from-indigo-50 to-indigo-100', 'from-pink-50 to-pink-100',
+// Each palette pairs a darker spine tone with a complementary cover gradient
+// and an accent for the title underline. Picking from one stable index per
+// slug keeps the same course looking like the same book between sessions.
+type BookPalette = { spine: string; spineEdge: string; cover: string; accent: string; title: string };
+const BOOK_PALETTES: BookPalette[] = [
+  { spine: 'bg-amber-600',   spineEdge: 'bg-amber-800',   cover: 'from-amber-50 to-amber-100',   accent: 'bg-amber-500',   title: 'text-amber-900' },
+  { spine: 'bg-blue-700',    spineEdge: 'bg-blue-900',    cover: 'from-blue-50 to-blue-100',     accent: 'bg-blue-500',    title: 'text-blue-900' },
+  { spine: 'bg-emerald-700', spineEdge: 'bg-emerald-900', cover: 'from-emerald-50 to-emerald-100', accent: 'bg-emerald-500', title: 'text-emerald-900' },
+  { spine: 'bg-purple-700',  spineEdge: 'bg-purple-900',  cover: 'from-purple-50 to-purple-100', accent: 'bg-purple-500',  title: 'text-purple-900' },
+  { spine: 'bg-rose-700',    spineEdge: 'bg-rose-900',    cover: 'from-rose-50 to-rose-100',     accent: 'bg-rose-500',    title: 'text-rose-900' },
+  { spine: 'bg-cyan-700',    spineEdge: 'bg-cyan-900',    cover: 'from-cyan-50 to-cyan-100',     accent: 'bg-cyan-500',    title: 'text-cyan-900' },
+  { spine: 'bg-orange-600',  spineEdge: 'bg-orange-800',  cover: 'from-orange-50 to-orange-100', accent: 'bg-orange-500',  title: 'text-orange-900' },
+  { spine: 'bg-teal-700',    spineEdge: 'bg-teal-900',    cover: 'from-teal-50 to-teal-100',     accent: 'bg-teal-500',    title: 'text-teal-900' },
+  { spine: 'bg-indigo-700',  spineEdge: 'bg-indigo-900',  cover: 'from-indigo-50 to-indigo-100', accent: 'bg-indigo-500',  title: 'text-indigo-900' },
+  { spine: 'bg-pink-700',    spineEdge: 'bg-pink-900',    cover: 'from-pink-50 to-pink-100',     accent: 'bg-pink-500',    title: 'text-pink-900' },
 ];
 
 function hashIndex(str: string, len: number): number {
@@ -403,10 +406,12 @@ export const CourseShelf = ({
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-4">
-          {/* New Tutorial card — always first */}
+          {/* New Tutorial card — sized to match the book height so the row
+              stays even. The dashed outline reads as "empty slot on the
+              shelf" rather than a real book. */}
           <button
             onClick={() => setExpanded((v) => !v)}
-            className={`group relative flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed transition-all min-h-[180px] p-4
+            className={`group relative flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed transition-all min-h-[220px] p-4
               ${expanded
                 ? 'border-amber-400 bg-amber-50 shadow-md shadow-amber-100'
                 : 'border-amber-200 bg-amber-50/50 hover:border-amber-400 hover:bg-amber-50 hover:shadow-md hover:shadow-amber-100'
@@ -424,11 +429,10 @@ export const CourseShelf = ({
             </div>
           </button>
 
-          {/* Existing course books */}
+          {/* Existing course books — rendered as a left spine + cover layout
+              so each tile reads as a real book standing on a shelf. */}
           {visibleItems.map((course) => {
-            const colorIdx = hashIndex(course.slug, SPINE_COLORS.length);
-            const spineColor = SPINE_COLORS[colorIdx];
-            const coverColor = COVER_COLORS[colorIdx];
+            const palette = BOOK_PALETTES[hashIndex(course.slug, BOOK_PALETTES.length)];
             const isLoading = loadingSlug === course.slug;
             const isDeleting = deletingSlug === course.slug;
             const isRenaming = renamingSlug === course.slug;
@@ -436,87 +440,119 @@ export const CourseShelf = ({
             return (
               <div
                 key={course.slug}
-                className="group relative bg-white rounded-2xl shadow-sm border border-slate-100 hover:shadow-lg hover:border-slate-200 transition-all overflow-hidden flex flex-col min-h-[180px]"
+                className="group relative min-h-[220px] [perspective:1000px]"
               >
-                {/* Colored spine strip */}
-                <div className={`h-2 w-full ${spineColor} shrink-0`} />
+                {/* Drop shadow beneath the book — a soft ellipse that
+                    sells the "standing on shelf" illusion. */}
+                <div className="absolute -bottom-1.5 left-3 right-3 h-2 bg-slate-900/15 blur-md rounded-full pointer-events-none" />
 
-                {/* Cover area */}
-                <div className={`flex-1 bg-gradient-to-b ${coverColor} p-4 flex flex-col gap-2`}>
-                  {isRenaming ? (
-                    <div className="flex flex-col gap-1.5 flex-1">
-                      <input
-                        autoFocus
-                        type="text"
-                        value={renameValue}
-                        onChange={(e) => setRenameValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveRename(course.slug, course.topic);
-                          if (e.key === 'Escape') cancelRename();
-                        }}
-                        className="w-full px-2 py-1 text-sm font-bold text-slate-900 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-200 bg-white"
-                      />
-                      <div className="flex gap-1">
-                        <button onClick={() => saveRename(course.slug, course.topic)} className="p-1 text-amber-600 hover:bg-amber-100 rounded">
-                          <Check className="w-3 h-3" />
-                        </button>
-                        <button onClick={cancelRename} className="p-1 text-slate-400 hover:bg-slate-100 rounded">
-                          <X className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="font-black text-slate-800 text-sm leading-snug line-clamp-3 flex-1">
-                      {course.topic}
-                    </p>
-                  )}
-
-                  <div className="space-y-1 mt-auto">
-                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                      {localizeLang(course.sourceLang, uiLang)} → {localizeLang(course.targetLang, uiLang)}
-                    </p>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      {tr(uiLang, 'historyLessonCount', String(course.lessonCount))}
-                    </p>
+                <div className="relative flex h-full rounded-r-md rounded-l-sm overflow-hidden shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 ring-1 ring-black/5">
+                  {/* Spine — vertical color band with binding-style accents
+                      and a darker inner edge that suggests the page block. */}
+                  <div className={`relative w-3.5 ${palette.spine} shrink-0`}>
+                    {/* Outer highlight */}
+                    <div className="absolute inset-y-0 left-0 w-px bg-white/25" />
+                    {/* Inner shadow line at the page block */}
+                    <div className={`absolute inset-y-0 right-0 w-px ${palette.spineEdge}`} />
+                    {/* Two binding bands near the top/bottom */}
+                    <div className="absolute left-0 right-0 top-3 h-0.5 bg-black/20" />
+                    <div className="absolute left-0 right-0 bottom-3 h-0.5 bg-black/20" />
                   </div>
-                </div>
 
-                {/* Action bar — appears on hover */}
-                <div className="absolute inset-0 bg-slate-900/80 rounded-2xl flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity p-3">
-                  <button
-                    onClick={() => handleLoad(course.slug)}
-                    disabled={isLoading}
-                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white text-slate-900 text-xs font-black uppercase tracking-wider hover:bg-slate-100 transition-colors disabled:opacity-50"
-                  >
-                    {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <BookOpen className="w-3 h-3" />}
-                    {tr(uiLang, 'historyLoadCourse')}
-                  </button>
-                  <div className="flex gap-2">
+                  {/* Cover */}
+                  <div className={`relative flex-1 bg-gradient-to-br ${palette.cover} flex flex-col`}>
+                    {/* Page-edges hint on the foredge (right side) — a thin
+                        gradient stripe + a couple of subtle horizontal lines
+                        evoke stacked pages. */}
+                    <div className="absolute inset-y-0 right-0 w-1.5 bg-gradient-to-l from-black/10 via-black/0 to-transparent pointer-events-none" />
+                    <div className="absolute inset-y-2 right-0.5 w-px bg-black/5 pointer-events-none" />
+
+                    <div className="flex-1 flex flex-col p-4 gap-2">
+                      {isRenaming ? (
+                        <div className="flex flex-col gap-1.5 flex-1">
+                          <input
+                            autoFocus
+                            type="text"
+                            value={renameValue}
+                            onChange={(e) => setRenameValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveRename(course.slug, course.topic);
+                              if (e.key === 'Escape') cancelRename();
+                            }}
+                            className="w-full px-2 py-1 text-sm font-bold text-slate-900 border border-amber-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-200 bg-white"
+                          />
+                          <div className="flex gap-1">
+                            <button onClick={() => saveRename(course.slug, course.topic)} className="p-1 text-amber-600 hover:bg-amber-100 rounded">
+                              <Check className="w-3 h-3" />
+                            </button>
+                            <button onClick={cancelRename} className="p-1 text-slate-400 hover:bg-slate-100 rounded">
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          {/* Title block — serif + accent rule for that
+                              "hardcover textbook" feel. */}
+                          <div className="flex-1 flex flex-col items-center justify-center text-center gap-2.5 px-1">
+                            <p className={`font-serif font-bold ${palette.title} text-[15px] leading-tight line-clamp-4`}>
+                              {course.topic}
+                            </p>
+                            <div className={`h-0.5 w-8 ${palette.accent} rounded-full opacity-70`} />
+                          </div>
+
+                          {/* Publisher band */}
+                          <div className="pt-2 border-t border-black/10 space-y-0.5">
+                            <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest text-center">
+                              {localizeLang(course.sourceLang, uiLang)} → {localizeLang(course.targetLang, uiLang)}
+                            </p>
+                            <p className="text-[9px] font-medium text-slate-400 uppercase tracking-wider text-center">
+                              {tr(uiLang, 'historyLessonCount', String(course.lessonCount))}
+                            </p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action bar — appears on hover. Sits over the whole
+                      book including the spine so the cover stays clickable. */}
+                  <div className="absolute inset-0 bg-slate-900/85 rounded-r-md rounded-l-sm flex flex-col items-center justify-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity p-3">
                     <button
-                      onClick={() => startRename(course)}
-                      title={tr(uiLang, 'rename')}
-                      className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                      onClick={() => handleLoad(course.slug)}
+                      disabled={isLoading}
+                      className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-white text-slate-900 text-xs font-black uppercase tracking-wider hover:bg-slate-100 transition-colors disabled:opacity-50"
                     >
-                      <Pencil className="w-3.5 h-3.5" />
+                      {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <BookOpen className="w-3 h-3" />}
+                      {tr(uiLang, 'historyLoadCourse')}
                     </button>
-                    <button
-                      onClick={() => handleExport(course.slug)}
-                      disabled={exportingSlug === course.slug}
-                      title={tr(uiLang, 'btnExport')}
-                      className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-40"
-                    >
-                      {exportingSlug === course.slug
-                        ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        : <Download className="w-3.5 h-3.5" />}
-                    </button>
-                    <button
-                      onClick={() => handleDelete(course.slug)}
-                      disabled={isDeleting}
-                      title={tr(uiLang, 'delete')}
-                      className="p-2 rounded-lg text-white/70 hover:text-red-400 hover:bg-white/10 transition-colors disabled:opacity-40"
-                    >
-                      {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => startRename(course)}
+                        title={tr(uiLang, 'rename')}
+                        className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleExport(course.slug)}
+                        disabled={exportingSlug === course.slug}
+                        title={tr(uiLang, 'btnExport')}
+                        className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition-colors disabled:opacity-40"
+                      >
+                        {exportingSlug === course.slug
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Download className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        onClick={() => handleDelete(course.slug)}
+                        disabled={isDeleting}
+                        title={tr(uiLang, 'delete')}
+                        className="p-2 rounded-lg text-white/70 hover:text-red-400 hover:bg-white/10 transition-colors disabled:opacity-40"
+                      >
+                        {isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
