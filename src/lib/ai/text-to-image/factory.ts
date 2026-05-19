@@ -33,10 +33,10 @@ registerImageModelBuilder('ollama',     (r, _k) => {
 registerImageModelBuilder('qwen',       (r, k) => openaiImageModel(r.model, getProviderBaseUrl('qwen'), k ?? r.apiKey));
 registerImageModelBuilder('openrouter', (r, k) => openaiImageModel(r.model, getProviderBaseUrl('openrouter'), k ?? r.apiKey));
 registerImageModelBuilder('corefirst',  (r, k) => {
-  // SaaS gateway is OpenAI-compatible at /v1/ai/images/generations. The "API key"
-  // is the SaaS access token; reuse the OpenAI image builder which sets Authorization.
+  // Cloud gateway is OpenAI-compatible at /v1/ai/images/generations. The "API key"
+  // is the cloud access token; reuse the OpenAI image builder which sets Authorization.
   if (!r.baseUrl) throw new Error('[ai/imageGen/corefirst] missing baseUrl');
-  if (!(k ?? r.apiKey)) throw new Error('[ai/imageGen/corefirst] missing SaaS access token');
+  if (!(k ?? r.apiKey)) throw new Error('[ai/imageGen/corefirst] missing cloud access token');
   return openaiImageModel(r.model, r.baseUrl, k ?? r.apiKey);
 });
 

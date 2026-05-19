@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { USER_ID_COOKIE } from '@/src/lib/constants';
-import { getAccessToken } from '@/src/lib/saas/storage';
-import { getSaasBaseUrl } from '@/src/lib/saas/client';
+import { getAccessToken } from '@/src/lib/cloud/storage';
+import { getCloudBaseUrl } from '@/src/lib/cloud/client';
 
 const COOKIE_NAME = USER_ID_COOKIE;
 
@@ -103,32 +103,32 @@ export function useSettings() {
     setUserId(uid);
     const key = storageKey(uid);
 
-    // Pre-select `corefirst` for first-time users that are logged into SaaS
+    // Pre-select `corefirst` for first-time users that are logged into CoreFirst cloud
     // — gives a working out-of-the-box AI experience without a manual key.
-    const withSaasDefault = (s: UserSettings): UserSettings => {
+    const withCloudDefault = (s: UserSettings): UserSettings => {
       if (s.global.provider || !getAccessToken()) return s;
       return { ...s, global: { ...s.global, provider: 'corefirst' } };
     };
 
     try {
       const raw = localStorage.getItem(key);
-      setSettings(withSaasDefault(raw ? normalize(JSON.parse(raw)) : EMPTY_SETTINGS));
+      setSettings(withCloudDefault(raw ? normalize(JSON.parse(raw)) : EMPTY_SETTINGS));
     } catch {}
 
     const reload = () => {
       try {
         const raw = localStorage.getItem(key);
-        setSettings(withSaasDefault(raw ? normalize(JSON.parse(raw)) : EMPTY_SETTINGS));
+        setSettings(withCloudDefault(raw ? normalize(JSON.parse(raw)) : EMPTY_SETTINGS));
       } catch {}
     };
     const onStorage = (e: StorageEvent) => { if (e.key === key) reload(); };
     window.addEventListener('storage', onStorage);
     window.addEventListener('cf:settings-saved', reload);
-    window.addEventListener('cf:saas-session-changed', reload);
+    window.addEventListener('cf:cloud-session-changed', reload);
     return () => {
       window.removeEventListener('storage', onStorage);
       window.removeEventListener('cf:settings-saved', reload);
-      window.removeEventListener('cf:saas-session-changed', reload);
+      window.removeEventListener('cf:cloud-session-changed', reload);
     };
   }, []);
 
@@ -153,10 +153,10 @@ export function useSettings() {
     // server-side route handlers can reach the gateway whenever the user
     // selects the `corefirst` provider. Cheap to always include; the per-request
     // resolvers only use these headers when provider === 'corefirst'.
-    const saasToken = getAccessToken();
-    if (saasToken) {
-      headers['x-cf-saas-token']    = saasToken;
-      headers['x-cf-saas-base-url'] = getSaasBaseUrl();
+    const cloudToken = getAccessToken();
+    if (cloudToken) {
+      headers['x-cf-cloud-token']    = cloudToken;
+      headers['x-cf-cloud-base-url'] = getCloudBaseUrl();
     }
 
     if (g.provider)  headers['x-cf-provider']      = g.provider;

@@ -1,18 +1,17 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, LogOut, UserCircle2, CreditCard, Mail, History, ChevronLeft } from 'lucide-react';
-import { useSaasAuth } from '@/hooks/useSaasAuth';
-import { saasForgotPassword } from '@/src/lib/saas/auth';
-import { getSaasBaseUrl } from '@/src/lib/saas/client';
-import { listTransactions, type SaasTransaction } from '@/src/lib/saas/transactions';
-import { fetchBalance, listPackages, startCheckout, type CreditBalanceSummary, type CreditPackage } from '@/src/lib/saas/credits';
-import { SaasError } from '@/src/lib/saas/client';
-import { beginOAuthLogin, beginLinkExternalAccount, listMyIdentities, unlinkIdentity, type BoundIdentity } from '@/src/lib/saas/identities';
+import { useCloudAuth } from '@/hooks/useCloudAuth';
+import { cloudForgotPassword } from '@/src/lib/cloud/auth';
+import { getCloudBaseUrl, CloudError } from '@/src/lib/cloud/client';
+import { listTransactions, type CloudTransaction } from '@/src/lib/cloud/transactions';
+import { fetchBalance, listPackages, startCheckout, type CreditBalanceSummary, type CreditPackage } from '@/src/lib/cloud/credits';
+import { beginOAuthLogin, beginLinkExternalAccount, listMyIdentities, unlinkIdentity, type BoundIdentity } from '@/src/lib/cloud/identities';
 
 type Mode = 'login' | 'register';
 
 export function MembershipPanel() {
-  const { session, user, loggedIn, login, register, logout, refresh } = useSaasAuth();
+  const { session, user, loggedIn, login, register, logout, refresh } = useCloudAuth();
   const [mode, setMode] = useState<Mode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -59,7 +58,7 @@ export function MembershipPanel() {
     if (!email.trim()) { setError('请先填写邮箱'); return; }
     setError(''); setBusy(true);
     try {
-      await saasForgotPassword(email.trim());
+      await cloudForgotPassword(email.trim());
       setForgotSent(true);
     } catch (err: any) {
       setError(err?.message || 'Request failed');
@@ -155,14 +154,14 @@ export function MembershipPanel() {
       <div className="space-y-2">
         <button
           type="button"
-          onClick={() => beginOAuthLogin('google', `${window.location.origin}/oauth/callback`)}
+          onClick={() => beginOAuthLogin('google')}
           className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 py-2 rounded-xl text-sm hover:bg-gray-50"
         >
           <GoogleGlyph /> 用 Google 登录
         </button>
         <button
           type="button"
-          onClick={() => beginOAuthLogin('github', `${window.location.origin}/oauth/callback`)}
+          onClick={() => beginOAuthLogin('github')}
           className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-2 rounded-xl text-sm hover:bg-black"
         >
           <GitHubGlyph /> 用 GitHub 登录
@@ -170,8 +169,8 @@ export function MembershipPanel() {
       </div>
 
       <p className="text-[11px] text-gray-400 text-center leading-relaxed">
-        服务地址 <code className="text-gray-500">{getSaasBaseUrl()}</code><br />
-        登录 SaaS 后客户端可使用云端 AI、下载课程、与社区互动。
+        服务地址 <code className="text-gray-500">{getCloudBaseUrl()}</code><br />
+        登录 CoreFirst 云后可使用云端 AI、下载课程、与社区互动。
       </p>
     </div>
   );
@@ -251,7 +250,7 @@ function LoggedInView(props: {
 
       <div className="rounded-xl border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 space-y-1">
         <p>
-          <span className="font-semibold">Server:</span> <code className="text-gray-700">{getSaasBaseUrl()}</code>
+          <span className="font-semibold">Server:</span> <code className="text-gray-700">{getCloudBaseUrl()}</code>
         </p>
         <p className="leading-relaxed">
           登录后即可使用 CoreFirst 提供的 AI 模型（默认 provider），下载课程，
@@ -350,7 +349,7 @@ function BoundIdentities() {
       await unlinkIdentity(provider);
       await reload();
     } catch (e: any) {
-      if (e instanceof SaasError && e.code === 'LAST_CREDENTIAL') {
+      if (e instanceof CloudError && e.code === 'LAST_CREDENTIAL') {
         setError('这是你唯一的登录方式，先设置密码再解绑。');
       } else {
         setError(e?.message || '解绑失败');
@@ -436,7 +435,7 @@ function CreditPackages() {
       if (res.url) window.location.href = res.url;
       else setError('Checkout 暂未开通');
     } catch (e: any) {
-      if (e instanceof SaasError && e.code === 'NOT_IMPLEMENTED') {
+      if (e instanceof CloudError && e.code === 'NOT_IMPLEMENTED') {
         setError('支付暂未接入（管理员尚未配置 Stripe）');
       } else {
         setError(e?.message || '购买失败');
@@ -497,7 +496,7 @@ const TX_LABELS: Record<string, string> = {
 };
 
 function TransactionHistory({ onBack }: { onBack: () => void }) {
-  const [items, setItems] = useState<SaasTransaction[]>([]);
+  const [items, setItems] = useState<CloudTransaction[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');

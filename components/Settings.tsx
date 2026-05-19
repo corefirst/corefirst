@@ -31,7 +31,7 @@ interface ProviderDef {
 }
 
 const PROVIDERS: ProviderDef[] = [
-  { id: 'corefirst', label: 'CoreFirst（推荐）', tagline: 'CoreFirst SaaS · 无需自备 API key', fullStackTagline: 'CoreFirst · text, image, voice', authType: 'none', group: 'cloud' },
+  { id: 'corefirst', label: 'CoreFirst（推荐）', tagline: 'CoreFirst 云 · 无需自备 API key', fullStackTagline: 'CoreFirst · text, image, voice', authType: 'none', group: 'cloud' },
   { id: 'openrouter', label: 'OpenRouter', tagline: '200+ models, free credits', fullStackTagline: 'OpenRouter · text, image, voice', authType: 'key', keyPlaceholder: 'sk-or-…', signupUrl: 'https://openrouter.ai/keys', group: 'cloud' },
   { id: 'groq', label: 'Groq', tagline: 'Ultra-fast, free tier', authType: 'key', keyPlaceholder: 'gsk_…', signupUrl: 'https://console.groq.com/keys', group: 'cloud' },
   { id: 'google', label: 'Google AI', tagline: 'Gemini models', fullStackTagline: 'Gemini · text, image, voice', authType: 'key', keyPlaceholder: 'AIza…', signupUrl: 'https://aistudio.google.com/apikey', group: 'cloud' },

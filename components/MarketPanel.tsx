@@ -4,11 +4,11 @@ import {
   Loader2, Download, Heart, MessageCircle, ShoppingCart, RefreshCw,
   AlertCircle, CheckCircle, BookOpen, X,
 } from 'lucide-react';
-import { useSaasAuth } from '@/hooks/useSaasAuth';
-import * as Market from '@/src/lib/saas/market';
-import { SaasError } from '@/src/lib/saas/client';
+import { useCloudAuth } from '@/hooks/useCloudAuth';
+import * as Market from '@/src/lib/cloud/market';
+import { CloudError } from '@/src/lib/cloud/client';
 
-type Status = 'idle' | 'loading' | 'downloading' | 'imported' | 'error';
+type Status = 'idle' | 'downloading' | 'imported' | 'error';
 
 interface BookState {
   status: Status;
@@ -17,7 +17,7 @@ interface BookState {
 }
 
 export function MarketPanel() {
-  const { loggedIn, user, refresh } = useSaasAuth();
+  const { loggedIn, user, refresh } = useCloudAuth();
   const [books, setBooks] = useState<Market.MarketTextbook[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,18 +44,18 @@ export function MarketPanel() {
     setState(s => ({ ...s, [id]: { ...(s[id] || { status: 'idle' }), ...patch } }));
 
   async function handleDownload(b: Market.MarketTextbook) {
-    if (!loggedIn) { setError('请先在「设置 → 会员」中登录 SaaS'); return; }
+    if (!loggedIn) { setError('请先在「设置 → 会员」中登录'); return; }
     updateState(b.id, { status: 'downloading', message: '获取下载链接...' });
     try {
       // Ensure purchase first (no-op if already purchased / free / owner)
       try { await Market.purchaseTextbook(b.id); } catch (e: any) {
-        if (e instanceof SaasError && e.code === 'INSUFFICIENT_CREDITS') {
+        if (e instanceof CloudError && e.code === 'INSUFFICIENT_CREDITS') {
           updateState(b.id, { status: 'error', message: '积分不足，购买失败' });
           return;
         }
-        // 402 PURCHASE_REQUIRED would land here too, but purchase endpoint handles free path itself
-        if (!(e instanceof SaasError) || (e.status !== 200 && e.status !== 201)) {
-          // ignore — getDownloadUrl will surface a clearer error
+        // Swallow only "already purchased" / success-like states; rethrow real failures.
+        if (!(e instanceof CloudError) || (e.status !== 409)) {
+          throw e;
         }
       }
 
@@ -173,7 +173,7 @@ export function MarketPanel() {
                   }`}>
                     {s.status === 'imported' && <CheckCircle size={12} />}
                     {s.status === 'error' && <AlertCircle size={12} />}
-                    {(s.status === 'downloading' || s.status === 'loading') && <Loader2 size={12} className="animate-spin" />}
+                    {s.status === 'downloading' && <Loader2 size={12} className="animate-spin" />}
                     {s.message}
                   </p>
                 )}

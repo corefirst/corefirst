@@ -1,8 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { Loader2, Heart, GitFork, RefreshCw, Send, Share2 } from 'lucide-react';
-import { useSaasAuth } from '@/hooks/useSaasAuth';
-import * as Comm from '@/src/lib/saas/community-skills';
+import { useCloudAuth } from '@/hooks/useCloudAuth';
+import * as Comm from '@/src/lib/cloud/community-skills';
 
 interface OwnSkillLite {
   _id?: string;
@@ -21,7 +21,7 @@ interface Props {
 }
 
 export function CommunitySkillsPanel({ mySkills = [], onForked }: Props) {
-  const { loggedIn } = useSaasAuth();
+  const { loggedIn } = useCloudAuth();
   const [list, setList] = useState<Comm.CommunitySkill[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -61,8 +61,9 @@ export function CommunitySkillsPanel({ mySkills = [], onForked }: Props) {
     try {
       const { liked: now } = await Comm.likeCommunitySkill(s.id);
       setLiked(l => ({ ...l, [s.id]: now }));
-    } catch {
+    } catch (e: any) {
       setLiked(l => ({ ...l, [s.id]: before }));
+      setError(e?.message || '点赞失败，请重试');
     }
   }
 
@@ -89,7 +90,7 @@ export function CommunitySkillsPanel({ mySkills = [], onForked }: Props) {
   if (!loggedIn) {
     return (
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
-        登录 SaaS 后可以浏览社区共享的 prompt 模板、Fork 到本地、为喜欢的模板点赞。
+        登录 CoreFirst 云后可以浏览社区共享的 prompt 模板、Fork 到本地、为喜欢的模板点赞。
       </div>
     );
   }

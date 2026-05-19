@@ -32,7 +32,7 @@ registerSpeechModelBuilder('qwen',       (r) => openaiTtsModel(r.model, getProvi
 registerSpeechModelBuilder('openrouter', (r) => openaiTtsModel(r.model, getProviderBaseUrl('openrouter'), r.apiKey));
 registerSpeechModelBuilder('corefirst',  (r) => {
   if (!r.baseUrl) throw new Error('[ai/tts/corefirst] missing baseUrl');
-  if (!r.apiKey)  throw new Error('[ai/tts/corefirst] missing SaaS access token');
+  if (!r.apiKey)  throw new Error('[ai/tts/corefirst] missing cloud access token');
   return openaiTtsModel(r.model, r.baseUrl, r.apiKey);
 });
 

@@ -44,7 +44,7 @@ registerTextModelBuilder('cli/claude', (s) => cliTextModel('claude', s.model));
 registerTextModelBuilder('cli/gemini', (s) => cliTextModel('gemini', s.model));
 registerTextModelBuilder('corefirst', (s) => {
   if (!s.baseUrl) throw new Error('[ai/corefirst] missing baseUrl — set NEXT_PUBLIC_COREFIRST_SERVER_URL or pass baseUrl');
-  if (!s.apiKey)  throw new Error('[ai/corefirst] missing access token — user must log in to SaaS first');
+  if (!s.apiKey)  throw new Error('[ai/corefirst] missing access token — user must log in to CoreFirst cloud first');
   return corefirstTextModel({
     model: s.model,
     baseUrl: s.baseUrl,

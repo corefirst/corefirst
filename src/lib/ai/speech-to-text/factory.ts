@@ -32,7 +32,7 @@ registerTranscriptionModelBuilder('qwen',       (r) => openaiSttModel(r.model, g
 registerTranscriptionModelBuilder('openrouter', (r) => openaiSttModel(r.model, getProviderBaseUrl('openrouter'), r.apiKey));
 registerTranscriptionModelBuilder('corefirst',  (r) => {
   if (!r.baseUrl) throw new Error('[ai/stt/corefirst] missing baseUrl');
-  if (!r.apiKey)  throw new Error('[ai/stt/corefirst] missing SaaS access token');
+  if (!r.apiKey)  throw new Error('[ai/stt/corefirst] missing cloud access token');
   return openaiSttModel(r.model, r.baseUrl, r.apiKey);
 });
 
