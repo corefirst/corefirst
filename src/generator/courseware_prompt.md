@@ -50,10 +50,15 @@ Output a SINGLE JSON object — no prose before or after, no markdown code fence
 ```
 
 ### Field meanings
-- `cflt_l1`: Reconstructed sentence in {{SOURCE_LANG}} following CRST order.
-- `cflt_l2`: Word-for-word mapping in {{TARGET_LANG}}.
-- `standard_l2`: Polished {{TARGET_LANG}}.
-- `ssml`: Tagged {{TARGET_LANG}} text. If you cannot reliably escape quotes inside SSML, omit this field — it has a safe default.
+- `cflt_l1`: Reconstructed sentence in **{{SOURCE_LANG}}** following CRST order.
+- `cflt_l2`: Word-for-word mapping in **{{TARGET_LANG}}**.
+- `standard_l2`: Polished **{{TARGET_LANG}}**.
+- `ssml`: Tagged **{{TARGET_LANG}}** text. If you cannot reliably escape quotes inside SSML, omit this field — it has a safe default.
+
+### Language-direction rules (CRITICAL — do not flip these mid-lesson)
+- `cflt_l1` is ALWAYS written in **{{SOURCE_LANG}}**. Never put {{TARGET_LANG}} text in `cflt_l1`.
+- `cflt_l2` is ALWAYS written in **{{TARGET_LANG}}**. Never put {{SOURCE_LANG}} text in `cflt_l2`.
+- These rules apply to every script in every lesson, including the last script of the last lesson. Check each script before emitting.
 
 ### Rules
 - Produce 2–4 lessons. Each lesson MUST contain 3–5 scripts in `cflt_scripts`.

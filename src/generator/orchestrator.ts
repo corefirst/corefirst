@@ -1,6 +1,7 @@
 import { generateObject, NoObjectGeneratedError, type LanguageModel } from 'ai';
 import { courseGenModel } from '@/src/lib/ai';
 import { loadSkill } from '@/src/lib/skills';
+import { verifyL1L2 } from '@/src/lib/utils/lang-detect';
 import { CFLTTransformer } from '../core/transformer';
 import {
   CoursewareGenerationSchema,
@@ -184,6 +185,29 @@ export class CoursewareOrchestrator {
               if (auditResult.standard_l1) script.standard_l1 = auditResult.standard_l1;
             } else {
               console.error('[orchestrator] Script audit failed:', auditResult.error);
+            }
+          }
+
+          // Script-level reversal guard: the course-gen LLM occasionally flips
+          // L1/L2 mid-lesson (cflt_l1 ends up in target lang). Detect via
+          // Unicode-block heuristic and swap when clearly inverted. No-op when
+          // the two languages share a script (e.g., English ↔ Spanish).
+          const cflt = verifyL1L2(script.cflt_l1, script.cflt_l2, sourceLang, targetLang);
+          if (cflt.swapped) {
+            console.warn(
+              `[orchestrator] Detected reversed cflt_l1/cflt_l2 in lesson ${lessonIndex} — swapping.`,
+            );
+            script.cflt_l1 = cflt.l1;
+            script.cflt_l2 = cflt.l2;
+          }
+          if (script.standard_l1) {
+            const std = verifyL1L2(script.standard_l1, script.standard_l2, sourceLang, targetLang);
+            if (std.swapped) {
+              console.warn(
+                `[orchestrator] Detected reversed standard_l1/standard_l2 in lesson ${lessonIndex} — swapping.`,
+              );
+              script.standard_l1 = std.l1;
+              script.standard_l2 = std.l2;
             }
           }
         }),
