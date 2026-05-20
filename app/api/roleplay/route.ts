@@ -11,6 +11,8 @@ import { getUserId } from '@/src/lib/auth/user';
 import { resolveTextContext, resolveTTSContext } from '@/src/lib/ai/request-context';
 import { buildAIErrorResponse } from '@/src/lib/ai/errors';
 import { loadSkill } from '@/src/lib/skills';
+import { readPack } from '@/src/lib/roleplay-pack/loader';
+import { renderForRoleplay } from '@/src/lib/roleplay-pack/injector';
 
 const ALLOWED_LANGUAGES = new Set([
   'Chinese', 'English', 'Japanese', 'Korean', 'Vietnamese', 'Spanish', 'French', 'German',
@@ -61,7 +63,7 @@ const RoleplayResponseSchemaLean = z.object({
   feedback: z.string().nullable().optional(), // Now optional
   session_title: z.string().nullable().optional() // Now optional
 });
-const RoleplayRequestSchema = z.object({ messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string() })), sourceLang: z.string(), targetLang: z.string(), context: z.string().optional(), audio: z.object({ data: z.string(), type: z.string().optional() }).optional(), sessionId: z.string().uuid().optional(), packageSlug: z.string().optional(), analysisEnabled: z.boolean().optional() });
+const RoleplayRequestSchema = z.object({ messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string() })), sourceLang: z.string(), targetLang: z.string(), context: z.string().optional(), audio: z.object({ data: z.string(), type: z.string().optional() }).optional(), sessionId: z.string().uuid().optional(), packageSlug: z.string().optional(), analysisEnabled: z.boolean().optional(), packId: z.string().optional(), scenarioId: z.string().optional(), personaId: z.string().optional() });
 
 export async function POST(request: Request) {
   try {
@@ -69,7 +71,7 @@ export async function POST(request: Request) {
     const parsed = RoleplayRequestSchema.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: 'Invalid request' }, { status: 400 });
     
-    const { messages, sourceLang, targetLang, context, audio, sessionId, packageSlug, analysisEnabled } = parsed.data;
+    const { messages, sourceLang, targetLang, context, audio, sessionId, packageSlug, analysisEnabled, packId, scenarioId, personaId } = parsed.data;
     const analysisOn = analysisEnabled === true;
 
     if (!ALLOWED_LANGUAGES.has(sourceLang) || !ALLOWED_LANGUAGES.has(targetLang)) {
@@ -96,12 +98,26 @@ export async function POST(request: Request) {
       try { await fs.access(poolFile); } catch { await fs.writeFile(poolFile, audioBytes); }
     }
 
-    const safeContext = (context ?? 'General daily life').replace(/[\x00-\x1F\x7F]/g, '').slice(0, MAX_CONTEXT_LEN);
+    let packSection = '';
+    let effectiveContext = context;
+    if (packId) {
+      const entry = await readPack(userId, packId);
+      if (entry) {
+        const rendered = renderForRoleplay(entry.pack, scenarioId, personaId);
+        packSection = rendered.packSection;
+        if (!effectiveContext) effectiveContext = rendered.derivedContext;
+      } else {
+        console.warn(`[roleplay] Requested pack '${packId}' not found — falling back to free-text context.`);
+      }
+    }
+
+    const safeContext = (effectiveContext ?? 'General daily life').replace(/[\x00-\x1F\x7F]/g, '').slice(0, MAX_CONTEXT_LEN);
 
     const baseSystemInstructions = await loadSkill('roleplay-coach', {
       SOURCE_LANG: sourceLang,
       TARGET_LANG: targetLang,
       CONTEXT: safeContext,
+      PACK_SECTION: packSection,
     }, userId);
     const fullSystemPrompt = baseSystemInstructions + await loadSkill('roleplay-analysis', {
       SOURCE_LANG: sourceLang,

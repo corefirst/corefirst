@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] - 2026-05-20
+
+### Added
+- **Roleplay Pack (v1):** New community-shareable JSON asset that injects domain vocabulary, scenarios, and personas into the Roleplay coach. Scoped to Roleplay only (Course generation untouched). Includes Zod schema (`src/types/roleplay-pack.ts`), per-user + shared storage loader (`src/lib/roleplay-pack/`), prompt injector with persona styling and avoidTerms guidance, bundled `it-software-en` starter pack, full CRUD API (`/api/roleplay-packs`), in-app pack authoring UI (`PackManager`) with JSON editor and live Zod validation, cascading pack → scenario → persona picker in `CFLTChat`, and an `authorLang` field that surfaces a UI-language mismatch warning when a pack's narrative text is in a language the viewer doesn't read. Cloud distribution (download/upload/share) is reserved for v2.
+- **Cloud Platform Integration:** Identity management, OAuth callback flow, `MembershipPanel`, `CommunitySkillsPanel`, and `MarketPanel` components for cloud subscription and community skill discovery. Added OpenRouter STT provider.
+- **CFLT Audio API:** New `/api/courses/[slug]/crst-audio/[lesson]/[script]` endpoint for retrieving per-script audio files directly from `.corefirst` packages, enabling in-app script playback.
+- **AI Error Handling & Task Queueing:** `src/lib/ai/client-error.ts` for structured client-side AI error parsing; `src/lib/ai/billing-broadcast.ts` for billing event broadcasting to the UI; concurrent task queueing in the courseware package builder to prevent race conditions.
+- **Localization Extended:** Added i18n coverage to speech evaluation prompts and the Settings component.
+
+### Changed
+- Removed GitHub from identity providers and OAuth auth flow; Google OAuth is now the sole social login path.
+- Renamed all "SaaS" references to "cloud" across the entire codebase and documentation for consistent terminology.
+- Migrated Electron build pipeline from webpack to esbuild for faster compilation; moved electron-builder configuration to the external `electron-builder.yml` file.
+- Replaced legacy cloud client/auth modules with credit-aware UI feedback (quota warnings, upgrade prompts) during course generation.
+- Implemented a book-inspired visual palette and card layout for `CourseShelf` items.
+
 ## [0.6.0] - 2026-05-16
 ### Added
 - **Desktop App (F-22):** Cross-platform Electron-based desktop application with a bundled Next.js server, dev server support, and service worker registration.

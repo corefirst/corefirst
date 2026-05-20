@@ -343,7 +343,7 @@ Today, industry context flows through the free-text `industry_context` field on 
 | `pnpm build:cli` | Compile CLI + Electron to `dist/cli/` and `electron/` via tsup |
 | `pnpm electron:dev` | Open Electron desktop app (requires `pnpm build` first) |
 | `pnpm electron:build` | Package Electron app for current platform → `release/` |
-| `pnpm test` | Run Vitest suite (203 tests) |
+| `pnpm test` | Run Vitest suite (256 tests) |
 | `pnpm lint` | ESLint |
 
 ### Build the desktop app
@@ -374,7 +374,7 @@ Output lands in `release/`.
 ## Testing
 
 ```bash
-pnpm test                                         # vitest suite (203 tests)
+pnpm test                                         # vitest suite (256 tests)
 pnpm exec tsc --noEmit --ignoreDeprecations 6.0   # type check
 pnpm build                                        # next standalone build
 ```

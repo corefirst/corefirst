@@ -79,6 +79,18 @@ const HISTORY_MAX_MSGS = 20;
 
 const DEFAULT_SCENARIO = 'General / Life';
 
+interface PackListItem {
+  id: string;
+  name: string;
+  description: string;
+  domain: string;
+  targetLang: string;
+  authorLang: string;
+  source: 'user' | 'shared';
+  scenarios: { id: string; title: string; description: string }[];
+  personas: { id: string; role: string; formality: string }[];
+}
+
 export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSlug, packageId, onOpenSettings }: {
   sourceLang: string;
   targetLang: string;
@@ -92,6 +104,12 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
   // scenarioInput: live value while typing; scenario: committed value that drives the prompt/greeting
   const [scenarioInput, setScenarioInput] = useState(DEFAULT_SCENARIO);
   const [scenario, setScenario] = useState(DEFAULT_SCENARIO);
+
+  // Roleplay Pack state — when packId is empty, free-text scenario behavior is preserved.
+  const [packs, setPacks] = useState<PackListItem[]>([]);
+  const [selectedPackId, setSelectedPackId] = useState<string>('');
+  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string>('');
 
   const [messages, setMessages] = useState<Message[]>([
     { role: 'assistant', content: tr(uiLang, 'roleplayGreeting', targetLang, scenario) }
@@ -128,6 +146,34 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       if (stored === 'true') setAnalysisEnabled(true);
     } catch {}
   }, []);
+
+  useEffect(() => {
+    const fetchPacks = async () => {
+      try {
+        const response = await fetch('/api/roleplay-packs', { headers: getHeaders() });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (Array.isArray(data.packs)) setPacks(data.packs as PackListItem[]);
+      } catch (err) {
+        console.error('[CFLTChat] Failed to load packs:', err);
+      }
+    };
+    fetchPacks();
+  }, [getHeaders]);
+
+  const activePack = packs.find((p) => p.id === selectedPackId);
+  const activeScenario = activePack?.scenarios.find((s) => s.id === selectedScenarioId);
+
+  useEffect(() => {
+    if (!activePack) return;
+    if (activeScenario) {
+      const derived = `${activeScenario.title} — ${activeScenario.description}`;
+      if (derived !== scenario) setScenario(derived);
+    } else {
+      const derived = `${activePack.name}`;
+      if (derived !== scenario) setScenario(derived);
+    }
+  }, [activePack, activeScenario, scenario]);
 
   // Reset session when the committed scenario or target language changes.
   useEffect(() => {
@@ -194,7 +240,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     try {
       const response = await fetch('/api/roleplay', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, ...(sessionId ? { sessionId } : {}) }),
+        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, ...(sessionId ? { sessionId } : {}), ...(selectedPackId ? { packId: selectedPackId } : {}), ...(selectedScenarioId ? { scenarioId: selectedScenarioId } : {}), ...(selectedPersonaId ? { personaId: selectedPersonaId } : {}) }),
       });
       const aiCode = await parseAIErrorResponse(response);
       if (aiCode) {
@@ -282,7 +328,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     try {
       const response = await fetch('/api/roleplay', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, audio: audioBase64 ? { data: audioBase64, type: audioType } : undefined, ...(sessionId ? { sessionId } : {}), }),
+        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, audio: audioBase64 ? { data: audioBase64, type: audioType } : undefined, ...(sessionId ? { sessionId } : {}), ...(selectedPackId ? { packId: selectedPackId } : {}), ...(selectedScenarioId ? { scenarioId: selectedScenarioId } : {}), ...(selectedPersonaId ? { personaId: selectedPersonaId } : {}) }),
       });
       const aiCode = await parseAIErrorResponse(response);
       if (aiCode) {
@@ -320,31 +366,78 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
         </div>
       </div>
 
-      {/* Scenario selector — independent from course settings */}
-      <div className="px-4 py-2 bg-slate-800 border-b border-slate-700 flex items-center gap-2">
-        <label htmlFor="scenario-input" className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
-          {tr(uiLang, 'historyContextLabel')}
-        </label>
-        <ComboBox
-          uiLang={uiLang}
-          id="scenario-input"
-          options={DOMAIN_KEYS.map(key => ({
-            value: tr('English', key),
-            label: tr(uiLang, key),
-          }))}
-          value={findDomainKey(scenarioInput) ? tr(uiLang, findDomainKey(scenarioInput)!) : scenarioInput}
-          onChange={(val) => setScenarioInput(val)}
-          onCommit={(val) => {
-            const trimmed = val.trim();
-            const matchedKey = findDomainKey(trimmed);
-            const committed = matchedKey ? tr('English', matchedKey) : (trimmed || DEFAULT_SCENARIO);
-            setScenarioInput(committed);
-            if (committed !== scenario) setScenario(committed);
+      {/* Pack picker + scenario selector */}
+      <div className="px-4 py-2 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center gap-2">
+        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">Pack</label>
+        <select
+          value={selectedPackId}
+          onChange={(e) => {
+            setSelectedPackId(e.target.value);
+            setSelectedScenarioId('');
+            setSelectedPersonaId('');
           }}
-          placeholder={tr(uiLang, 'comboSearchPlaceholder')}
-          className="flex-1"
-          inputClassName="w-full text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder:text-slate-500"
-        />
+          className="text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+        >
+          <option value="">No pack (free-text)</option>
+          {packs.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}{p.source === 'user' ? ' ★' : ''}
+            </option>
+          ))}
+        </select>
+
+        {activePack ? (
+          <>
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">Scenario</label>
+            <select
+              value={selectedScenarioId}
+              onChange={(e) => setSelectedScenarioId(e.target.value)}
+              className="text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-[140px]"
+            >
+              <option value="">— Any scenario —</option>
+              {activePack.scenarios.map((s) => (
+                <option key={s.id} value={s.id}>{s.title}</option>
+              ))}
+            </select>
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">Persona</label>
+            <select
+              value={selectedPersonaId}
+              onChange={(e) => setSelectedPersonaId(e.target.value)}
+              className="text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-[140px]"
+            >
+              <option value="">— Default voice —</option>
+              {activePack.personas.map((p) => (
+                <option key={p.id} value={p.id}>{p.role}</option>
+              ))}
+            </select>
+          </>
+        ) : (
+          <>
+            <label htmlFor="scenario-input" className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+              {tr(uiLang, 'historyContextLabel')}
+            </label>
+            <ComboBox
+              uiLang={uiLang}
+              id="scenario-input"
+              options={DOMAIN_KEYS.map(key => ({
+                value: tr('English', key),
+                label: tr(uiLang, key),
+              }))}
+              value={findDomainKey(scenarioInput) ? tr(uiLang, findDomainKey(scenarioInput)!) : scenarioInput}
+              onChange={(val) => setScenarioInput(val)}
+              onCommit={(val) => {
+                const trimmed = val.trim();
+                const matchedKey = findDomainKey(trimmed);
+                const committed = matchedKey ? tr('English', matchedKey) : (trimmed || DEFAULT_SCENARIO);
+                setScenarioInput(committed);
+                if (committed !== scenario) setScenario(committed);
+              }}
+              placeholder={tr(uiLang, 'comboSearchPlaceholder')}
+              className="flex-1"
+              inputClassName="w-full text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder:text-slate-500"
+            />
+          </>
+        )}
       </div>
 
       {historyNearLimit && (
