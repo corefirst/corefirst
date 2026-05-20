@@ -2,18 +2,19 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   X, CheckCircle, AlertCircle, Loader2, ChevronDown, ChevronRight,
-  Settings as SettingsIcon, User, Cpu, Zap, UserCircle2,
+  Settings as SettingsIcon, User, Cpu, Zap, Cloud, CloudOff,
 } from 'lucide-react';
 import { SkillsContent } from '@/components/SkillsPanel';
 import { MembershipPanel } from '@/components/MembershipPanel';
 import { useSettings, type UserSettings, type SettingsMode } from '@/hooks/useSettings';
 import { useProfile } from '@/hooks/useProfile';
+import { useCloudAuth } from '@/hooks/useCloudAuth';
 import { isFullStackProvider, PROVIDER_DEFAULTS } from '@/src/lib/ai/capabilities';
 import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
 interface Props { onClose: () => void; uiLang: SupportedLang; }
 
-type Tab = 'providers' | 'skills' | 'profile' | 'membership';
+type Tab = 'providers' | 'skills' | 'profile';
 type VerifyState = 'idle' | 'loading' | 'ok' | 'error';
 
 // === Provider definitions =================================================
@@ -100,8 +101,10 @@ function ModelSelect({ value, onChange, provider, capability, placeholder }: {
 export function Settings({ onClose, uiLang }: Props) {
   const { settings, save, verifyKey } = useSettings();
   const { currentProfile, renameProfile, currentId } = useProfile();
+  const { user, loggedIn } = useCloudAuth();
 
   const [tab, setTab] = useState<Tab>('providers');
+  const [accountExpanded, setAccountExpanded] = useState(false);
   const [draft, setDraft] = useState<UserSettings>(() => structuredClone(settings));
   const [verifyState, setVerifyState] = useState<VerifyState>('idle');
   const [verifyError, setVerifyError] = useState('');
@@ -227,8 +230,31 @@ export function Settings({ onClose, uiLang }: Props) {
           </button>
         </div>
 
+        {/* Account card — always visible, expands to full MembershipPanel */}
+        <div className="shrink-0 border-b border-gray-100">
+          <button
+            onClick={() => setAccountExpanded(v => !v)}
+            className="w-full flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-colors text-left"
+          >
+            <div className="flex items-center gap-2.5">
+              {loggedIn
+                ? <Cloud size={15} className="text-blue-500 shrink-0" />
+                : <CloudOff size={15} className="text-gray-400 shrink-0" />}
+              {loggedIn
+                ? <span className="text-sm text-gray-800">{user?.email}</span>
+                : <span className="text-sm text-gray-400">未连接云账号</span>}
+            </div>
+            <ChevronDown size={14} className={`text-gray-400 transition-transform ${accountExpanded ? 'rotate-180' : ''}`} />
+          </button>
+          {accountExpanded && (
+            <div className="px-6 pb-4">
+              <MembershipPanel />
+            </div>
+          )}
+        </div>
+
         <div role="tablist" className="flex border-b border-gray-100 px-6 shrink-0">
-          {([['providers', Cpu, tr(uiLang, 'providers')], ['skills', Zap, tr(uiLang, 'skills')], ['membership', UserCircle2, '会员'], ['profile', User, tr(uiLang, 'profile')]] as const).map(([id, Icon, label]) => (
+          {([['providers', Cpu, tr(uiLang, 'providers')], ['skills', Zap, tr(uiLang, 'skills')], ['profile', User, tr(uiLang, 'profile')]] as const).map(([id, Icon, label]) => (
             <button
               key={id}
               role="tab"
@@ -689,8 +715,6 @@ export function Settings({ onClose, uiLang }: Props) {
               <SkillsContent uiLang={uiLang} />
             </div>
           )}
-
-          {tab === 'membership' && <MembershipPanel />}
 
           {tab === 'profile' && (
             <div className="space-y-4">

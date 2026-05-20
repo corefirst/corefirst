@@ -61,7 +61,7 @@ Bridge errors using the learner's L1 phonetic system. Be specific about tongue/l
 **Other source languages**: Describe errors in terms of articulatory position (tongue placement, lip shape, voicing) without assuming any reference phonetic system.
 
 ## Feedback Field
-Write 1–2 sentences **in {{TARGET_LANG}}**:
+Write 1–2 sentences **in {{SOURCE_LANG}}**:
 1. Name the single most impactful error and give the specific fix from the Phonetic Migration section above.
 2. If the overall score is above 75, add one genuine line of encouragement.
 

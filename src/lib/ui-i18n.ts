@@ -105,7 +105,7 @@ export type DictKey =
   | 'skillPlaceholder' | 'skillSyntaxErrorOn' | 'skillBtnValidate' | 'skillBtnSave' | 'skillBtnReset' | 'skillEssentials' | 'skillAllCapabilities' | 'skillSaveFailed'
   | 'voiceChallengeHint' | 'pronunciation' | 'logicStress' | 'pinyinIpaReference' | 'phoneticBridge' | 'pinyin' | 'ipa' | 'englishApprox' | 'example' | 'trickySound'
   | 'liveCoach' | 'errNoApiKeyRoleplay' | 'openSettings' | 'thinking' | 'settings'
-  | 'textAi' | 'textAiSubtitle' | 'fullStackSub' | 'leaveBlank' | 'cloud' | 'local' | 'apiKey' | 'baseUrl' | 'model' | 'commandPath' | 'provider' | 'globalDefault' | 'modelBlankDefault'  | 'errCoachUnavailable' | 'roleplayGreeting' | 'roleplayModeCasual' | 'roleplayModeAnalysis' | 'buildModeHeader' | 'phCore' | 'phReason' | 'phSpace' | 'phTime' | 'btnFreeText' | 'btnSend' | 'roleplayPlaceholder' | 'roleplayHistoryWarn' | 'roleplayHistoryTip' | 'statusRecording' | 'statusTranscribing' | 'btnBuild' | 'buildModeTitle' | 'btnPlayCorrected' | 'btnRetranscribe' | 'btnRetranscribeHint'
+  | 'textAi' | 'textAiSubtitle' | 'fullStackSub' | 'leaveBlank' | 'cloud' | 'local' | 'apiKey' | 'baseUrl' | 'model' | 'commandPath' | 'provider' | 'globalDefault' | 'modelBlankDefault'  | 'errCoachUnavailable' | 'roleplayGreeting' | 'roleplayModeCasual' | 'roleplayModeAnalysis' | 'buildModeHeader' | 'phCore' | 'phReason' | 'phSpace' | 'phTime' | 'btnFreeText' | 'btnSend' | 'roleplayPlaceholder' | 'roleplayHistoryWarn' | 'roleplayHistoryTip' | 'statusRecording' | 'statusTranscribing' | 'btnBuild' | 'btnPlayCorrected' | 'btnRetranscribe' | 'btnRetranscribeHint'
   | 'btnExport' | 'builderHeader' | 'builderVerify' | 'builderCorrect' | 'builderCheckSequence'
   | 'comboNoResults' | 'comboSearchPlaceholder'
   | 'settingsAiProviders' | 'settingsPickProvider' | 'settingsAdvanced' | 'settingsStandard'
@@ -165,8 +165,7 @@ type Resolver = (...args: any[]) => string;
 type Dict = Record<DictKey, string | Resolver>;
 
 const en: Dict = {
-  btnBuild: 'Build',
-  buildModeTitle: 'CFLT Build Mode — structure your thought before speaking',
+  btnBuild: 'CRST',
   btnPlayCorrected: 'Play corrected pronunciation', btnRetranscribe: 'Retranscribe', btnRetranscribeHint: 'Retranscribe recorded audio',
 
   statusRecording: 'Recording...',
@@ -185,7 +184,7 @@ const en: Dict = {
   phReason: 'Why / the condition',
   phSpace: 'Where / the context',
   phTime: 'When',
-  btnFreeText: 'Free text',
+  btnFreeText: 'Free',
   btnSend: 'Send',
 
   tagline: 'Core-First Language Method',
@@ -401,8 +400,7 @@ const en: Dict = {
 };
 
 const zh: Dict = {
-  btnBuild: '构思',
-  buildModeTitle: 'CFLT 构思模式 —— 在说话前先梳理思路',
+  btnBuild: 'CRST',
   btnPlayCorrected: '播放纠正发音', btnRetranscribe: '重新识别', btnRetranscribeHint: '重新识别录音文字',
 
   statusRecording: '正在录音...',
@@ -421,7 +419,7 @@ const zh: Dict = {
   phReason: '为什么 / 条件',
   phSpace: '在哪里 / 背景',
   phTime: '什么时候',
-  btnFreeText: '自由输入',
+  btnFreeText: 'Free',
   btnSend: '发送',
 
   tagline: '核心先行语言方法',
@@ -638,8 +636,7 @@ const zh: Dict = {
 
 
 const ja: Dict = {
-  btnBuild: '構成',
-  buildModeTitle: 'CFLT 構成モード — 話す前に思考を整理する',
+  btnBuild: 'CRST',
   btnPlayCorrected: '修正された発音を再生', btnRetranscribe: '再文字起こし', btnRetranscribeHint: '録音した音声を再文字起こし',
 
   statusRecording: '録音中...',
@@ -658,7 +655,7 @@ const ja: Dict = {
   phReason: 'なぜ / 条件',
   phSpace: 'どこで / コンテキスト',
   phTime: 'いつ',
-  btnFreeText: '自由入力',
+  btnFreeText: 'Free',
   btnSend: '送信',
 
   tagline: 'コアファースト言語学習法',
@@ -812,8 +809,7 @@ const ja: Dict = {
 };
 
 const ko: Dict = {
-  btnBuild: '구성',
-  buildModeTitle: 'CFLT 구성 모드 — 말하기 전에 생각을 정리하세요',
+  btnBuild: 'CRST',
   btnPlayCorrected: '교정된 발음 재생', btnRetranscribe: '다시 전사', btnRetranscribeHint: '녹음된 오디오 다시 전사',
 
   statusRecording: '녹음 중...',
@@ -832,7 +828,7 @@ const ko: Dict = {
   phReason: '왜 / 조건',
   phSpace: '어디서 / 맥락',
   phTime: '언제',
-  btnFreeText: '자유 입력',
+  btnFreeText: 'Free',
   btnSend: '보내기',
 
   tagline: '코어 퍼스트 언어 학습법',
@@ -986,8 +982,7 @@ const ko: Dict = {
 };
 
 const vi: Dict = {
-  btnBuild: 'Cấu trúc',
-  buildModeTitle: 'Chế độ cấu trúc CFLT — sắp xếp suy nghĩ của bạn trước khi nói',
+  btnBuild: 'CRST',
   btnPlayCorrected: 'Phát âm thanh đã sửa', btnRetranscribe: 'Chuyển âm lại', btnRetranscribeHint: 'Chuyển âm lại đoạn ghi âm',
 
   statusRecording: 'Đang ghi âm...',
@@ -1006,7 +1001,7 @@ const vi: Dict = {
   phReason: 'Tại sao / điều kiện',
   phSpace: 'Ở đâu / ngữ cảnh',
   phTime: 'Khi nào',
-  btnFreeText: 'Văn bản tự do',
+  btnFreeText: 'Free',
   btnSend: 'Gửi',
 
   tagline: 'Phương pháp học ngôn ngữ Core-First',
@@ -1159,8 +1154,7 @@ const vi: Dict = {
 };
 
 const es: Dict = {
-  btnBuild: 'Construir',
-  buildModeTitle: 'Modo de construcción CFLT: estructura tu pensamiento antes de hablar',
+  btnBuild: 'CRST',
   btnPlayCorrected: 'Reproducir pronunciación corregida', btnRetranscribe: 'Volver a transcribir', btnRetranscribeHint: 'Volver a transcribir el audio grabado',
 
   statusRecording: 'Grabando...',
@@ -1179,7 +1173,7 @@ const es: Dict = {
   phReason: 'Por qué / la condición',
   phSpace: 'Dónde / el contexto',
   phTime: 'Cuándo',
-  btnFreeText: 'Texto libre',
+  btnFreeText: 'Free',
   btnSend: 'Enviar',
 
   tagline: 'Método de idiomas Core-First',
@@ -1332,8 +1326,7 @@ const es: Dict = {
 };
 
 const fr: Dict = {
-  btnBuild: 'Construire',
-  buildModeTitle: 'Mode de construction CFLT — structurez votre pensée avant de parler',
+  btnBuild: 'CRST',
   btnPlayCorrected: 'Lire la prononciation corrigée', btnRetranscribe: 'Retranscrire', btnRetranscribeHint: "Retranscrire l'audio enregistré",
 
   statusRecording: 'Enregistrement...',
@@ -1352,7 +1345,7 @@ const fr: Dict = {
   phReason: 'Pourquoi / la condition',
   phSpace: 'Où / le contexte',
   phTime: 'Quand',
-  btnFreeText: 'Texte libre',
+  btnFreeText: 'Free',
   btnSend: 'Envoyer',
 
   tagline: 'Méthode de langue Core-First',
@@ -1505,7 +1498,7 @@ const fr: Dict = {
 };
 
 const de: Dict = {
-  btnBuild: 'Bauen',
+  btnBuild: 'CRST',
   btnExport: 'Exportieren',
   builderHeader: 'Logikrätsel: Blöcke neu anordnen',
   builderVerify: 'Logik prüfen',
@@ -1519,7 +1512,6 @@ const de: Dict = {
   settingsUserId: 'Benutzer-ID',
   settingsProfileNameOptional: 'Name (optional)',
   settingsSave: 'Änderungen speichern', settingsSaving: 'Wird gespeichert...', settingsSaved: 'Gespeichert!',
-  buildModeTitle: 'CFLT-Baumodus — strukturieren Sie Ihren Gedanken, bevor Sie sprechen',
   btnPlayCorrected: 'Korrigierte Aussprache abspielen', btnRetranscribe: 'Neu transkribieren', btnRetranscribeHint: 'Aufgenommenes Audio neu transkribieren',
 
   statusRecording: 'Aufnahme...',
@@ -1538,7 +1530,7 @@ const de: Dict = {
   phReason: 'Warum / die Bedingung',
   phSpace: 'Wo / der Kontext',
   phTime: 'Wann',
-  btnFreeText: 'Freitext',
+  btnFreeText: 'Free',
   btnSend: 'Senden',
 
   tagline: 'Core-First Sprachmethode',

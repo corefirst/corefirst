@@ -314,13 +314,6 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
             <Sparkles className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">{tr(uiLang, 'roleplayAnalysisToggle')}</span>
           </button>
-          <button
-            onClick={() => setBuildMode(b => !b)}
-            title={tr(uiLang, 'buildModeTitle')}
-            className={`px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${buildMode ? 'bg-emerald-500 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}
-          >
-            {tr(uiLang, 'btnBuild')}
-          </button>
           <button onClick={resetSession} title={tr(uiLang, 'roleplayNewSession')} className="p-2 rounded-xl bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
           </button>
@@ -433,6 +426,24 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       </div>
 
       <div className="bg-white border-t border-slate-100">
+        {/* Input mode toggle */}
+        <div className="px-4 pt-3">
+          <div className="flex bg-slate-100 rounded-xl p-0.5 text-[11px] font-black uppercase tracking-wider">
+            <button
+              onClick={() => setBuildMode(false)}
+              className={`flex-1 py-1.5 rounded-[10px] transition-colors ${!buildMode ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {tr(uiLang, 'btnFreeText')}
+            </button>
+            <button
+              onClick={() => setBuildMode(true)}
+              className={`flex-1 py-1.5 rounded-[10px] transition-colors ${buildMode ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {tr(uiLang, 'btnBuild')}
+            </button>
+          </div>
+        </div>
+
         {buildMode ? (
           /* T1: CFLT Build Mode — 4 structured slots */
           <div className="p-4 space-y-2">
@@ -467,9 +478,6 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
               >
                 {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 {tr(uiLang, 'btnSend')}
-              </button>
-              <button onClick={() => setBuildMode(false)} className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-medium hover:bg-slate-200 transition-colors">
-                {tr(uiLang, 'btnFreeText')}
               </button>
             </div>
           </div>
