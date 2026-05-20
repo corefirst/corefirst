@@ -17,7 +17,7 @@ const COOKIE_NAME = 'cf_user_id';
  * Pure server-side helper; do NOT call from client components.
  */
 export async function getUserId(request?: Request): Promise<string> {
-  // 1. Platform-injected header (reverse proxy / SaaS edge)
+  // 1. Platform-injected header (reverse proxy / cloud edge)
   if (request) {
     const fromReq = request.headers.get(HEADER_NAME);
     if (fromReq) return normalizeUserId(fromReq);

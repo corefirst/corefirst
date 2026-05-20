@@ -46,7 +46,7 @@
 | **Provider defaults** | `PROVIDER_DEFAULT_MODELS` (constants.ts) removed. Single source: `PROVIDER_DEFAULTS` in `capabilities.ts` + `getDefaultTextModel(provider)` helper. `groq` added to `PROVIDERS_BY_CAPABILITY.text` (was previously missing despite being registered in factory). |
 | **Per-feature headers** | `resolveFeatureFromSettings()` now reads `x-cf-{feature}-provider` / `x-cf-{feature}-model` headers, enabling per-feature model overrides from the client without affecting other features. |
 | **Request context** | `src/lib/ai/request-context.ts` — shared `resolveTextContext`, `resolveTTSContext`, `resolveSTTContext` helpers eliminate 3-line boilerplate repeated across routes. |
-| **Community backend** | Publish/fork/like/community-browse API routes and shared PouchDB catalog are implemented but the UI tab is hidden — reserved for corefirst-world SaaS integration. |
+| **Community backend** | Publish/fork/like/community-browse API routes and shared PouchDB catalog are implemented but the UI tab is hidden — reserved for corefirst-world cloud integration. |
 
 ---
 
@@ -155,7 +155,7 @@ To support the vision of a 100% private, BYOK (Bring Your Own Key) ecosystem acr
 | `tts/` | TTS provider interface + factory + OpenAI, Google Gemini, and Qwen (CosyVoice) implementations |
 | `visuals/` | Image-generation provider interface + factory + Imagen, OpenAI, Qwen Wanx, and Ollama implementations |
 
-The shared model registry lives in `src/lib/ai/`, split per *capability* (text, text-to-image, text-to-speech, speech-to-text, plus three video stubs). Consumers import the pre-built model for the specific *feature* they implement: `transformModel`, `courseGenModel`, `roleplayModel`, `speechEvalModel`, `imageGenModel`, `ttsModel`, `sttModel`. There is no separate `client.ts` wrapper — the Vercel AI SDK is the abstraction. Subscription CLIs (Claude / Gemini) plug in as a custom `LanguageModelV3` so call sites are oblivious to whether text comes from a SaaS API or a local subprocess.
+The shared model registry lives in `src/lib/ai/`, split per *capability* (text, text-to-image, text-to-speech, speech-to-text, plus three video stubs). Consumers import the pre-built model for the specific *feature* they implement: `transformModel`, `courseGenModel`, `roleplayModel`, `speechEvalModel`, `imageGenModel`, `ttsModel`, `sttModel`. There is no separate `client.ts` wrapper — the Vercel AI SDK is the abstraction. Subscription CLIs (Claude / Gemini) plug in as a custom `LanguageModelV3` so call sites are oblivious to whether text comes from a cloud API or a local subprocess.
 
 **Key design decision:** `CFLTTransformer.transform(input, sourceLang, targetLang)` is effectively pure given a fixed model — no DB writes, no global state — and is exercised against the canonical vectors in `tests/core/test_vectors.md`.
 
@@ -413,7 +413,7 @@ data/users/<userId>/
 
 Override the data root via `COREFIRST_DATA_DIR=/some/path`. The default `userId` is `'local'`; a single-user install never sees the partitioning.
 
-PouchDB infrastructure (per-event docs + revisions + tombstones) is sync-ready; the live multi-device sync against a SaaS registry is a separate planned phase (`docs/storage-design.md` §7).
+PouchDB infrastructure (per-event docs + revisions + tombstones) is sync-ready; the live multi-device sync against a cloud registry is a separate planned phase (`docs/storage-design.md` §7).
 
 ### Adding an Industry Module
 

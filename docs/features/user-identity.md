@@ -49,7 +49,7 @@ export async function getUserId(request?: Request): Promise<string>
 ```
 
 Resolution order:
-1. `x-user-id` request header — reverse-proxy / SaaS platform injection
+1. `x-user-id` request header — reverse-proxy / cloud platform injection
 2. `cf_user_id` cookie — always present after middleware
 
 All values normalized via `normalizeUserId()` which strips to `[a-z0-9_-]`. UUID hex chars + hyphens pass through unchanged.

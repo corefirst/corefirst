@@ -33,26 +33,8 @@ function isBrowser(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
-// One-time migration from the previous cf_saas_* key names. Runs once on first
-// access; users upgrading from an older build are kept logged in automatically.
-function migrateLegacyKeys(): void {
-  if (!isBrowser()) return;
-  if (localStorage.getItem(ACCESS_KEY)) return; // already on new keys
-  const legacyAccess = localStorage.getItem('cf_saas_access_token');
-  if (!legacyAccess) return;
-  const legacyRefresh = localStorage.getItem('cf_saas_refresh_token');
-  const legacyUser    = localStorage.getItem('cf_saas_user');
-  localStorage.setItem(ACCESS_KEY, legacyAccess);
-  if (legacyRefresh) localStorage.setItem(REFRESH_KEY, legacyRefresh);
-  if (legacyUser)    localStorage.setItem(USER_KEY, legacyUser);
-  localStorage.removeItem('cf_saas_access_token');
-  localStorage.removeItem('cf_saas_refresh_token');
-  localStorage.removeItem('cf_saas_user');
-}
-
 export function readSession(): CloudSession | null {
   if (!isBrowser()) return null;
-  migrateLegacyKeys();
   try {
     const accessToken = localStorage.getItem(ACCESS_KEY);
     const refreshToken = localStorage.getItem(REFRESH_KEY);

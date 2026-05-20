@@ -180,7 +180,7 @@ Pre-built token vocabularies for IT, Medical, Finance, Hospitality sectors.
 **Status:** Currently free-text via the `industry_context` field on `GenerationRequest` (the LLM is instructed to draw on industry-appropriate vocabulary). Structured JSON token packs and a dedicated injection slot in `src/generator/courseware_prompt.md` are not yet built; community-contributed packs are welcome.
 
 #### F-12: Multi-User Storage Partitioning
-Per-user data isolation enabling multiple learners on a shared device (and serving as the foundation for the SaaS sync layer).
+Per-user data isolation enabling multiple learners on a shared device (and serving as the foundation for the cloud sync layer).
 
 **User identity resolution** (precedence order):
 1. `X-User-Id` request header — platform/reverse-proxy injection
@@ -212,7 +212,7 @@ Every learner event (transform / voice attempt / roleplay message) is a distinct
 
 **Why it matters:** The previous "single doc with arrays of events" pattern produced `_conflicts` on concurrent multi-device writes; per-event docs eliminate that conflict class entirely. Distinct IDs cannot collide.
 
-**Status:** Shipped storage-side. Live replication to a SaaS CouchDB endpoint is a separate planned phase.
+**Status:** Shipped storage-side. Live replication to a cloud CouchDB endpoint is a separate planned phase.
 
 #### F-15: UI-Configurable AI Provider (Settings Panel)
 
@@ -290,8 +290,8 @@ Course generation (20–30 seconds) now streams Server-Sent Events so users see 
 | Offline mode | LLM API dependency requires connectivity |
 | L1 acquisition (children learning first language) | Fundamentally different from CFLT's L2 use case |
 | Hard-coded local dictionary | MVP is fully LLM-driven for iteration speed |
-| Live multi-device replication endpoint | PouchDB infrastructure ready (F-14); the SaaS registry + sync service is the next major project, not part of the local app |
-| User authentication backend | Local app accepts userId from header/cookie/env but does not authenticate it — the SaaS registry layer (when shipped) handles identity proofing |
+| Live multi-device replication endpoint | PouchDB infrastructure ready (F-14); the cloud registry + sync service is the next major project, not part of the local app |
+| User authentication backend | Local app accepts userId from header/cookie/env but does not authenticate it — the cloud registry layer (when shipped) handles identity proofing |
 | LLM-protocol layer (Apcore ecosystem integration) | Belongs to a sister project in the apcore ecosystem; see §11 Related Projects |
 
 ---
@@ -307,7 +307,7 @@ Every major module must be independently swappable without modifying core logic:
 
 | Extension Point | Interface | How to Swap |
 |----------------|-----------|-------------|
-| Text Provider (env) | `src/lib/ai/text/factory.ts` (`buildTextModelFor(featureKey)` — dispatches on `TEXT_PROVIDER` and per-feature overrides) | Add a branch under `text/sdk/` for SaaS providers, or `text/cli/` for new subscription-CLI providers |
+| Text Provider (env) | `src/lib/ai/text/factory.ts` (`buildTextModelFor(featureKey)` — dispatches on `TEXT_PROVIDER` and per-feature overrides) | Add a branch under `text/sdk/` for cloud providers, or `text/cli/` for new subscription-CLI providers |
 | Text Provider (UI/per-request) | `src/lib/ai/settings-config.ts` (`resolveFeatureFromSettings`) — reads `x-cf-provider` / `x-cf-api-key` headers | Client sends provider+key as request headers; server builds a fresh model instance for that request only |
 | Image Provider | `src/lib/ai/text-to-image/factory.ts` (`buildImageModel`, `buildImageModelWith`) | Add a branch under `text-to-image/sdk/`. CLI providers not supported — text-only |
 | TTS Provider | `src/lib/ai/text-to-speech/factory.ts` (`buildSpeechModel`, `buildSpeechModelWith`) | Add a branch under `text-to-speech/sdk/`; or configure local server via `x-cf-tts-url` header |

@@ -19,7 +19,7 @@ This document describes the end-to-end learning architecture of **CoreFirst**: h
 **Excluded:**
 - Internal implementation details of any single mode (see individual feature specs in `docs/features/`).
 - Media rendering, image generation, and asset delivery pipelines.
-- Multi-device sync and multi-user tenancy (handled by a separate SaaS platform project).
+- Multi-device sync and multi-user tenancy (handled by a separate cloud platform project).
 
 ## The Three Modes
 
@@ -193,24 +193,24 @@ A per-user CFLT weakness radar chart is generated from accumulated four-element 
 
 **Client-side puzzle gating.** The three-step Course Mode flow (puzzle → unlock → voice) is managed entirely in React component state (`completedPuzzles` set). This avoids a round-trip for every puzzle interaction and keeps the flow snappy. The trade-off is that completion state is lost on page reload in Phase 1; Phase 2 persists completion state to `.cfrecord`.
 
-**No database — file-based storage only.** CoreFirst uses no SQLite, Prisma, or any relational database. Course content lives in self-contained `.corefirst` packages (ZIP files); learner progress, history, and vocabulary mastery live in `.cfrecord` JSON files. This keeps the local app dependency-free and portable. Multi-device sync is handled by a separate SaaS platform that uploads `.cfrecord` to the cloud.
+**No database — file-based storage only.** CoreFirst uses no SQLite, Prisma, or any relational database. Course content lives in self-contained `.corefirst` packages (ZIP files); learner progress, history, and vocabulary mastery live in `.cfrecord` JSON files. This keeps the local app dependency-free and portable. Multi-device sync is handled by a separate cloud platform that uploads `.cfrecord` to the cloud.
 
 **Audio bundled in package, TTS on demand elsewhere.** Course audio is pre-rendered by the generator at package creation time (one OpenAI TTS call per script) and stored as `audio/*.mp3` inside the `.corefirst` ZIP. Playback reads directly from the bundle — no API call required. For Transform and Roleplay, TTS is called in real time on demand; no caching layer is needed because these sentences are unpredictable and non-repeating across users.
 
 **Single vocabulary mastery store, multi-mode writes.** Rather than per-mode vocabulary records, all modes write to the same token-keyed vocabulary mastery object inside `.cfrecord`. This simplifies mastery aggregation and avoids duplication, at the cost of requiring upsert semantics and careful mastery weight management in Phase 3.
 
-**AI provider abstraction.** Each mode imports a *feature-specific* model from `src/lib/ai/`: Transform uses `transformModel`, Course generation uses `courseGenModel` + `imageGenModel` + `ttsModel`, Roleplay uses `roleplayModel` + `sttModel`, etc. A feature's provider and model are independently selectable via `<FEATURE>_PROVIDER` / `<FEATURE>_MODEL` env vars (with capability-level defaults like `TEXT_PROVIDER` as fallbacks). Text supports SaaS (`google`, `openai`, `anthropic`, `ollama`, `openrouter`) and **subscription-CLI** (`cli/claude`, `cli/gemini`) backends — the CLI ones run a locally logged-in subprocess and need no API key. Image, TTS, and STT remain SaaS-only because the CLIs do not generate non-text output. Switching is purely an env-var change; no mode code touches it directly.
+**AI provider abstraction.** Each mode imports a *feature-specific* model from `src/lib/ai/`: Transform uses `transformModel`, Course generation uses `courseGenModel` + `imageGenModel` + `ttsModel`, Roleplay uses `roleplayModel` + `sttModel`, etc. A feature's provider and model are independently selectable via `<FEATURE>_PROVIDER` / `<FEATURE>_MODEL` env vars (with capability-level defaults like `TEXT_PROVIDER` as fallbacks). Text supports cloud (`google`, `openai`, `anthropic`, `ollama`, `openrouter`) and **subscription-CLI** (`cli/claude`, `cli/gemini`) backends — the CLI ones run a locally logged-in subprocess and need no API key. Image, TTS, and STT remain cloud-only because the CLIs do not generate non-text output. Switching is purely an env-var change; no mode code touches it directly.
 
-## Multi-Device Sync (SaaS Platform — Separate Project)
+## Multi-Device Sync (Cloud Platform — Separate Project)
 
-CoreFirst local storage is intentionally self-contained: all learner data lives in `.cfrecord` files on the learner's device. Multi-device sync is out of scope for the local app and is handled by a **separate SaaS platform project**.
+CoreFirst local storage is intentionally self-contained: all learner data lives in `.cfrecord` files on the learner's device. Multi-device sync is out of scope for the local app and is handled by a **separate cloud platform project**.
 
 The sync model is:
-1. The SaaS client watches the learner's `.cfrecord` files and uploads them to a cloud store on change.
-2. On a second device, the SaaS client downloads the latest `.cfrecord` and writes it to the expected local path before CoreFirst reads it.
+1. The cloud client watches the learner's `.cfrecord` files and uploads them to a cloud store on change.
+2. On a second device, the cloud client downloads the latest `.cfrecord` and writes it to the expected local path before CoreFirst reads it.
 3. `.corefirst` package files may also be synced so courses opened on one device are available on others.
 
-The local CoreFirst app has no knowledge of the sync layer — it reads and writes files at fixed paths regardless of whether a sync client is running. This clean separation means the local app never requires a network connection and the SaaS platform can iterate independently.
+The local CoreFirst app has no knowledge of the sync layer — it reads and writes files at fixed paths regardless of whether a sync client is running. This clean separation means the local app never requires a network connection and the cloud platform can iterate independently.
 
 ## Constraints
 

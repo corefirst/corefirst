@@ -17,7 +17,7 @@ let isStartingUp = false;
 // counts as one). Our flow therefore:
 //   1. Renderer calls window.__corefirstElectron.openExternal(authUrl)
 //   2. Main process calls shell.openExternal(authUrl) → system browser
-//   3. After SaaS callback, browser navigates to:
+//   3. After cloud callback, browser navigates to:
 //        corefirst://oauth/callback#accessToken=…&refreshToken=…&userId=…
 //   4. OS hands that URL to this Electron app:
 //        - macOS:   app.on('open-url')

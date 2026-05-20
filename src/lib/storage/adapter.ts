@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * Generic storage adapter interface for JSON document storage.
- * Designed to abstract differences between PouchDB, FileSystem, and SaaS APIs.
+ * Designed to abstract differences between PouchDB, FileSystem, and cloud APIs.
  */
 export interface DataStore {
   /** Read a single document (null on 404). */

@@ -95,7 +95,7 @@ CoreFirst ships on four platforms from a single codebase.
 
 - **Frontend:** Next.js 16 + React 19 + Tailwind v4
 - **AI layer:** [Vercel AI SDK](https://ai-sdk.dev) — provider-agnostic by design. Split per *capability* (text / text-to-image / text-to-speech / speech-to-text) and per *feature* (transform / courseGen / roleplay / speechEval / imageGen / tts / stt). Each feature configures its own provider + model independently.
-- **Provider catalog:** SaaS (`google` / `openai` / `anthropic` / `openrouter`), local daemon (`ollama`), subscription CLIs (`cli/claude` / `cli/gemini`), and any OpenAI-compatible local server (Kokoro / faster-whisper / Piper / LM Studio / vLLM…) via `<FEATURE>_BASE_URL`.
+- **Provider catalog:** cloud (`google` / `openai` / `anthropic` / `openrouter`), local daemon (`ollama`), subscription CLIs (`cli/claude` / `cli/gemini`), and any OpenAI-compatible local server (Kokoro / faster-whisper / Piper / LM Studio / vLLM…) via `<FEATURE>_BASE_URL`.
 - **Storage:** **No database.** Course content lives in self-contained `.corefirst` ZIP packages; learner progress lives in plain JSON `.cfrecord` files. See [`docs/storage-design.md`](docs/storage-design.md).
 - **Validation:** Zod everywhere — at LLM output boundary, at file read/write, at API request boundary.
 
@@ -201,7 +201,7 @@ The 7 features and their default providers/models:
 | `tts` | text-to-speech | `openai` / `gpt-4o-mini-tts` | course audio + Transform/Roleplay playback |
 | `stt` | speech-to-text | `openai` / `gpt-4o-mini-transcribe` | `/api/transcribe`, `/api/speech-eval` |
 
-### Minimum `.env` (defaults — paid SaaS path)
+### Minimum `.env` (defaults — paid cloud path)
 
 ```env
 GOOGLE_GENERATIVE_AI_API_KEY=your_gemini_key   # text + image
@@ -311,7 +311,7 @@ Override the data root with `COREFIRST_DATA_DIR=/some/path` if you need to.
 
 CoreFirst is designed for secondary development. Every major module is independently swappable.
 
-### Add a new SaaS provider
+### Add a new cloud provider
 
 Drop a new file under `src/lib/ai/<capability>/sdk/<provider>.ts` exporting a builder function (return the AI SDK model type for that capability), add the provider id to `PROVIDERS_BY_CAPABILITY` in `src/lib/ai/capabilities.ts`, and add a `case` to the corresponding factory.
 

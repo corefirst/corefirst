@@ -26,7 +26,7 @@ Course Mode is the structured practice layer of **CoreFirst**. It takes a user-d
 **Excluded:**
 - **Lesson-level Progress Gating:** Completing one lesson does not currently unlock the next; all lessons in a manifest are rendered in parallel (Phase 2 item).
 - **Script `bestScore` / `attemptCount` Tracking:** Per-script aggregate metrics are deferred to Phase 2.
-- **Multi-Device Sync (live):** The PouchDB infrastructure (per-event docs, tombstone-based delete) is ready for sync; the active replication endpoint and SaaS registry are not yet shipped.
+- **Multi-Device Sync (live):** The PouchDB infrastructure (per-event docs, tombstone-based delete) is ready for sync; the active replication endpoint and cloud registry are not yet shipped.
 - **In-place Lesson Edit:** Editing a single lesson script after generation is not supported. To change content, delete + re-generate.
 
 ## Core Responsibilities
@@ -201,7 +201,7 @@ The Progress Dashboard reads from `GET /api/progress`, which aggregates the curr
 ### Phase 4 — CFLT Profiling and Sync
 - Per-user CRST weakness radar chart from sub-scores.
 - Adaptive course generation: detect that a user scores low on `[Space/Context]` and suggest courses focused on that element.
-- **Live multi-device sync via SaaS registry**: PouchDB infrastructure is sync-ready; wiring the actual replication endpoint and registry is the remaining work.
+- **Live multi-device sync via cloud registry**: PouchDB infrastructure is sync-ready; wiring the actual replication endpoint and registry is the remaining work.
 
 ## Constraints
 

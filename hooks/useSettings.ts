@@ -149,7 +149,7 @@ export function useSettings() {
     const headers: Record<string, string> = {};
     const { mode, global: g, advanced: adv } = settings;
 
-    // SaaS auth — forward access token + base URL on every API call so the
+    // Cloud auth — forward access token + base URL on every API call so the
     // server-side route handlers can reach the gateway whenever the user
     // selects the `corefirst` provider. Cheap to always include; the per-request
     // resolvers only use these headers when provider === 'corefirst'.

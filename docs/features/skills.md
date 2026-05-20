@@ -115,7 +115,7 @@ interface SkillPrefsDoc {
 | `POST` | `/api/skills/:id/publish` | Publish a personal skill to the community catalog |
 | `POST` | `/api/skills/:id/fork` | Fork a community skill into personal library |
 
-> **Note:** Community endpoints (`/publish`, `/fork`, `/community`) are implemented and available but the community UI (Skills Hub tab) is not yet exposed in the product. It is reserved for the corefirst-world SaaS platform. See `corefirs-world/docs/features/skills-community.md`.
+> **Note:** Community endpoints (`/publish`, `/fork`, `/community`) are implemented and available but the community UI (Skills Hub tab) is not yet exposed in the product. It is reserved for the corefirst-world cloud platform. See `corefirs-world/docs/features/skills-community.md`.
 
 ---
 

@@ -31,7 +31,7 @@ The CLI provider work (Claude / Gemini subscription CLIs) sits inside the AI lay
 ### 1.2 Non-Goals
 
 - Phase 2/3/4 features (per-element CFLT sub-scores, cross-mode vocabulary, SM-2). Hooks left in but not implemented.
-- ~~Authentication, multi-user, multi-tenant.~~ **Update:** Multi-user partitioning and the household profile switcher shipped in v0.3.0 (see `docs/features/user-identity.md`). Multi-tenant SaaS auth remains out of scope.
+- ~~Authentication, multi-user, multi-tenant.~~ **Update:** Multi-user partitioning and the household profile switcher shipped in v0.3.0 (see `docs/features/user-identity.md`). Multi-tenant cloud auth remains out of scope.
 - Replacing the Vercel AI SDK as the type/abstraction layer. We extend it with custom providers; we do not abandon it.
 - Migrating existing `dev.db` data. Local DBs are dropped; `data/` is the new world.
 
@@ -288,7 +288,7 @@ Selecting `cli/claude` for `IMAGE_GEN_PROVIDER` is rejected at module load with 
 
 ### 3.4 CLI Provider Internals
 
-The CLI provider implements `LanguageModelV2` from `@ai-sdk/provider`. It sits underneath `generateObject` / `generateText` so the rest of the codebase is oblivious to whether it's talking to a SaaS API or a logged-in CLI process.
+The CLI provider implements `LanguageModelV2` from `@ai-sdk/provider`. It sits underneath `generateObject` / `generateText` so the rest of the codebase is oblivious to whether it's talking to a cloud API or a logged-in CLI process.
 
 #### 3.4.1 Adapter interface (vendored from reachforge, trimmed)
 
@@ -385,7 +385,7 @@ Three deliberate design decisions:
 
 2. **Object mode via prompt injection, not native tool calling.** Neither the Claude CLI nor the Gemini CLI exposes structured-output mode the way the SDK does. `injectJsonSchemaInstructions` appends a schema-and-format block that the SDK's existing `mode: 'json'` handler is designed for; the SDK's built-in JSON repair / parse retries handle malformed output without us writing a parser.
 
-3. **Skill / session features deliberately omitted.** Reachforge uses the CLIs as agents with their own filesystem state. CoreFirst uses them as text-in/text-out replacements for a SaaS API. Stripping skills/sessions is a clean simplification.
+3. **Skill / session features deliberately omitted.** Reachforge uses the CLIs as agents with their own filesystem state. CoreFirst uses them as text-in/text-out replacements for a cloud API. Stripping skills/sessions is a clean simplification.
 
 #### 3.4.3 Prompt rendering
 
@@ -564,7 +564,7 @@ These are deliberately **not** part of this refactor. They will be tracked as se
 - Codex CLI provider (reachforge has it; no demand in CoreFirst).
 - Phase 2 per-element CFLT sub-scores, Phase 3 cross-mode vocabulary, Phase 4 SM-2.
 - Replacing the Vercel AI SDK with a hand-rolled abstraction.
-- ~~Authentication / multi-user~~ → **Shipped (v0.3.0):** UUID-based multi-user identity and household profile switcher. See `docs/features/user-identity.md`. Multi-tenant SaaS auth (login, passwords, hub.corefirst.world) remains deferred.
+- ~~Authentication / multi-user~~ → **Shipped (v0.3.0):** UUID-based multi-user identity and household profile switcher. See `docs/features/user-identity.md`. Multi-tenant cloud auth (login, passwords, hub.corefirst.world) remains deferred.
 - Per-request TTS/STT key overrides (base URL supported; per-request API key overrides for TTS/STT deferred).
 
 ---

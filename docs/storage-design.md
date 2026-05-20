@@ -7,7 +7,7 @@
 
 ## 1. Overview
 
-CoreFirst follows a **local-first storage model** with **per-user partitioning**. Persistence is handled through a hybrid architecture that separates structured learning data (PouchDB) from heavy media assets (filesystem CAS pool). All data is partitioned by `userId` so multiple learners sharing a device — or sharing a server in SaaS mode — never see each other's records.
+CoreFirst follows a **local-first storage model** with **per-user partitioning**. Persistence is handled through a hybrid architecture that separates structured learning data (PouchDB) from heavy media assets (filesystem CAS pool). All data is partitioned by `userId` so multiple learners sharing a device — or sharing a server in cloud mode — never see each other's records.
 
 ### 1.1 Storage Architecture V3 (multi-user + per-event docs)
 
@@ -15,7 +15,7 @@ The system is decoupled into three specialized stores, each owned by a single `u
 
 | Store Type | Implementation | Data Nature | Synchronization |
 | :--- | :--- | :--- | :--- |
-| **DataStore** | PouchDB (LevelDB) | Per-user state, events, SRS | **Native Sync**: bidirectional with CouchDB/SaaS via PouchDB replication protocol |
+| **DataStore** | PouchDB (LevelDB) | Per-user state, events, SRS | **Native Sync**: bidirectional with CouchDB/cloud via PouchDB replication protocol |
 | **BlobStore** | Filesystem (CAS) | MP3 audio and WebP images, hash-named | **Lazy Pull**: download from CDN by hash when missing (planned) |
 | **PackageStore** | Filesystem (`.json` + optional `.corefirst` ZIP) | Course manifest content | Out-of-band (sharing model, not personal data) |
 
@@ -26,8 +26,8 @@ The system is decoupled into three specialized stores, each owned by a single `u
 3. **Safe read-modify-write.** Documents that ARE shared between writers (state flags, SRS deck) go through a `mutate(collection, id, mutator)` primitive that retries the mutator on PouchDB 409, so concurrent updates compose instead of clobbering.
 4. **Content-addressable media.** Audio/image filenames are SHA-256 hashes (truncated to 16 chars) of the source content. Same SSML across two courses ⇒ one MP3 on disk. A `pruneOrphanMedia(userId)` sweep reclaims hashes that no manifest references — invoked after every package rewrite and on demand.
 5. **Hard delete via PouchDB tombstones.** `remove()` creates `_deleted: true` tombstone docs; the canonical sync-safe delete. Other replicas apply the removal during replication. No soft-delete `deletedAt` filter complexity.
-6. **Environment agnostic.** A `DataStore` interface abstracts the underlying engine (PouchDB via `pouchdb-node` on the server, plain `pouchdb` in the browser, future HTTP adapter for SaaS).
-7. **userId is a filesystem namespace only — never embedded in data files.** Document IDs, package slugs, media filenames, and all other stored values must not reference the owning `userId`. The directory path `data/users/<userId>/` is the sole binding. This guarantees that any user's entire dataset can be migrated by a plain directory copy (`fs.cp`) or rename — no content patching required. This applies equally to local profiles and future SaaS accounts: local-to-SaaS migration is `cp data/users/<localId>/ data/users/<saasId>/`.
+6. **Environment agnostic.** A `DataStore` interface abstracts the underlying engine (PouchDB via `pouchdb-node` on the server, plain `pouchdb` in the browser, future HTTP adapter for cloud).
+7. **userId is a filesystem namespace only — never embedded in data files.** Document IDs, package slugs, media filenames, and all other stored values must not reference the owning `userId`. The directory path `data/users/<userId>/` is the sole binding. This guarantees that any user's entire dataset can be migrated by a plain directory copy (`fs.cp`) or rename — no content patching required. This applies equally to local profiles and future cloud accounts: local-to-cloud migration is `cp data/users/<localId>/ data/users/<cloudId>/`.
 
 ---
 
@@ -104,7 +104,7 @@ The single-user `local` userId is the default — installs that don't wire up au
 
 Resolved from request via `getUserId(request)` (`src/lib/auth/user.ts`):
 
-1. `X-User-Id` request header (highest priority — SaaS edge proxies)
+1. `X-User-Id` request header (highest priority — cloud edge proxies)
 2. `cf_user_id` cookie (browser persistence)
 3. `COREFIRST_DEFAULT_USER` env (server-side override)
 4. `local` (default)
@@ -185,7 +185,7 @@ Returns `{ok, steps[], errors[]}`. The HTTP route surfaces `207 Multi-Status` wi
 
 ### 7.2 Planned replication
 
-Once a SaaS registry is online:
+Once a cloud registry is online:
 
 1. **Handshake** — client authenticates with the registry, receives the per-user CouchDB endpoint and an access token
 2. **Bidirectional `db.sync`** — three streams in parallel: `states`, `events`, `srs`

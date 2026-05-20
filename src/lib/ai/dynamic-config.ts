@@ -103,7 +103,7 @@ export async function updateAppConfig(patch: Partial<AppConfig>): Promise<void> 
 }
 
 /** 
- * L3: Refresh from SaaS server.
+ * L3: Refresh from cloud server.
  */
 export async function refreshAppConfig(): Promise<void> {
   const serverUrl = process.env.COREFIRST_SERVER_URL;
@@ -125,7 +125,7 @@ export async function refreshAppConfig(): Promise<void> {
     await updateAppConfig(data);
     console.log('[config] Hot update successful: Config synced with CoreFirst server.');
   } catch (error) {
-    console.warn('[config] Could not sync with SaaS server (offline or timeout).');
+    console.warn('[config] Could not sync with cloud server (offline or timeout).');
   }
 }
 

@@ -3,7 +3,7 @@
  *
  * Receives a downloaded textbook .zip from the browser and imports it into
  * the user's local PouchDB / filesystem store. Body is the raw zip bytes;
- * the SaaS download URL itself is fetched client-side because it carries
+ * the cloud download URL itself is fetched client-side because it carries
  * the user's presigned credentials.
  */
 import { NextResponse } from 'next/server';

@@ -4,7 +4,7 @@
  * SECURITY NOTE: `baseUrl` values (x-cf-ollama-url, x-cf-tts-url, x-cf-stt-url) are
  * accepted from client request headers and used to construct AI provider clients. This
  * is safe for self-hosted deployments where the operator controls the client, but in a
- * shared/SaaS context it allows users to point these endpoints at arbitrary servers.
+ * shared/cloud context it allows users to point these endpoints at arbitrary servers.
  * Enforce HTTPS at the reverse-proxy layer; add an allowlist if multi-tenant use is planned.
  */
 import type { LanguageModel } from 'ai';

@@ -34,26 +34,6 @@ describe('readSession', () => {
     expect(s?.user.email).toBe('a@b.com');
   });
 
-  it('migrates legacy cf_saas_* keys on first read', () => {
-    store['cf_saas_access_token']  = 'old-acc';
-    store['cf_saas_refresh_token'] = 'old-ref';
-    store['cf_saas_user']          = JSON.stringify({ id: 'u2', email: 'c@d.com' });
-    const s = readSession();
-    expect(s?.accessToken).toBe('old-acc');
-    expect(s?.user.email).toBe('c@d.com');
-    // Legacy keys must be removed after migration.
-    expect(store['cf_saas_access_token']).toBeUndefined();
-    expect(store['cf_cloud_access_token']).toBe('old-acc');
-  });
-
-  it('does not overwrite new keys with legacy keys when new keys exist', () => {
-    store['cf_cloud_access_token']  = 'new-acc';
-    store['cf_cloud_refresh_token'] = 'new-ref';
-    store['cf_cloud_user']          = JSON.stringify({ id: 'u3', email: 'e@f.com' });
-    store['cf_saas_access_token']   = 'legacy-acc';
-    const s = readSession();
-    expect(s?.accessToken).toBe('new-acc');
-  });
 });
 
 describe('writeSession / clearSession', () => {

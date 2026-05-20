@@ -244,5 +244,5 @@ Local provider errors (Ollama connection refused, CLI not found) do NOT trigger 
 
 - API keys transmitted as HTTP request headers. Requires HTTPS in production.
 - Keys stored in `localStorage` only — never written to server disk.
-- `baseUrl` values from headers are used to construct AI clients without allowlist validation. Safe for self-hosted deployments; add a URL allowlist before enabling in shared/SaaS contexts.
+- `baseUrl` values from headers are used to construct AI clients without allowlist validation. Safe for self-hosted deployments; add a URL allowlist before enabling in shared/cloud contexts.
 - `cf_user_id` cookie is `httpOnly: false` (required for localStorage namespacing). Acceptable for the client-first architecture; document this if hardening for a shared deployment.

@@ -153,4 +153,4 @@ Each `upsertRoleplaySession` call writes/updates the session metadata doc (keyed
 | **Current** | Multi-turn dialogue with full CRST analysis (user + coach), CFLT Build Mode pre-production scaffold, BYOK headers on all sub-calls, per-event PouchDB persistence, session list + rename + cascade delete + per-message delete, voice input + corrected-voice TTS, multi-user partitioning |
 | **Phase 2** | VoiceChallenge on AI replies — pronunciation evaluation of coach-generated text |
 | **Phase 3** | Post-conversation weak-pattern detection → targeted Course suggestions; AI vocabulary → SRS deck capture |
-| **Phase 4** | Live multi-device sync via SaaS registry (PouchDB infrastructure ready; replication endpoint outstanding) |
+| **Phase 4** | Live multi-device sync via cloud registry (PouchDB infrastructure ready; replication endpoint outstanding) |
