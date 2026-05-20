@@ -6,6 +6,8 @@ import { Loader2, AlertCircle, Sparkles, ChevronDown, ChevronRight, Clock, PlayC
 import { CFLTBlock, type CFLTBlockType } from './CFLTBlock';
 import { t as tr, type SupportedLang, localizeLang } from '../src/lib/ui-i18n';
 import { useSettings } from '../hooks/useSettings';
+import { parseAIErrorResponse } from '../src/lib/ai/client-error';
+import { emitAIBillingError } from '../src/lib/ai/billing-broadcast';
 import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 
 interface TransformItem {
@@ -127,6 +129,8 @@ export const TransformHistory = ({ uiLang, refreshKey = 0 }: Props) => {
         headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ text }),
       });
+      const aiCode = await parseAIErrorResponse(response);
+      if (aiCode) { emitAIBillingError(aiCode); return; }
       if (!response.ok) throw new Error('TTS failed');
       const blob = await response.blob();
       url = URL.createObjectURL(blob);

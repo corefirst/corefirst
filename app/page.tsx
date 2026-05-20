@@ -32,6 +32,8 @@ import {
   initialCourseGenProgress,
   reduceCourseGenEvent,
 } from '../components/CourseGenProgress';
+import { parseAIErrorResponse } from '../src/lib/ai/client-error';
+import { onAIBillingError, emitAIBillingError } from '../src/lib/ai/billing-broadcast';
 
 const LANGUAGES = SUPPORTED_LANGS;
 const UI_LANG_STORAGE_KEY = 'corefirst.uiLang';
@@ -179,6 +181,13 @@ export default function Home() {
   // different modes independently.
   const [lessonMode, setLessonMode] = useState<Record<number, 'learn' | 'practice'>>({});
 
+  // Listen for AI billing errors broadcast from deep child components (chat,
+  // voice-challenge, visual, history lists) so a single banner appears at the
+  // page level instead of each component having to wire its own UX.
+  useEffect(() => {
+    return onAIBillingError((code) => setKeyError(code));
+  }, []);
+
   // T3: Restore puzzle completion state from server when a course is loaded
   useEffect(() => {
     const slug = courseResult?.slug ?? courseResult?.packageSlug;
@@ -286,6 +295,11 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ text }),
       });
+      const aiCode = await parseAIErrorResponse(response);
+      if (aiCode) {
+        setKeyError(aiCode);
+        return;
+      }
       if (!response.ok) throw new Error('TTS failed');
       const blob = await response.blob();
       url = URL.createObjectURL(blob);
@@ -395,7 +409,11 @@ export default function Home() {
       }
       if (!response.ok || !response.body) throw new Error('Course generation failed');
 
-      let sawError = false;
+      // Track which terminal event closed the stream. Only when neither
+      // `complete` nor `error` was observed do we surface a generic-failure
+      // banner — otherwise we'd paint a red error message on top of a
+      // successful course or duplicate the explicit error already shown.
+      let terminal: 'complete' | 'error' | null = null;
       // Consume SSE stream and update progress in real time
       await consumeSSE(response.body.getReader(), (event) => {
         // Always feed the progress reducer — handles outline, lesson-*,
@@ -404,11 +422,12 @@ export default function Home() {
         if (event.type === 'step') {
           setCourseGenStep(event.message as string);
         } else if (event.type === 'complete') {
+          terminal = 'complete';
           setCourseResult(event.result as typeof courseResult);
           setCourseHistoryKey((k) => k + 1);
           return true; // stop reading
         } else if (event.type === 'error') {
-          sawError = true;
+          terminal = 'error';
           if (event.code !== 'INSUFFICIENT_CREDITS') {
             // INSUFFICIENT_CREDITS is rendered by CourseGenProgress with a
             // friendly message — don't double up with the generic banner.
@@ -417,9 +436,11 @@ export default function Home() {
           return true; // stop reading
         }
       });
-      if (!sawError) {
-        // Stream closed cleanly without a complete event — surface a generic
-        // failure so the user isn't stuck staring at a spinner forever.
+      if (terminal === null) {
+        // Stream closed without ever emitting a terminal event — the
+        // request was likely aborted (page navigation, network drop). Show
+        // a generic failure ONLY when no prior errorCode was set; an
+        // INSUFFICIENT_CREDITS surfaced via media events should win.
         setCourseGenProgress((s) => (s.errorCode ? s : { ...s, errorMessage: tr(uiLang, 'errorCourse') }));
       }
     } catch (error) {
@@ -961,6 +982,10 @@ export default function Home() {
                                         standardL2={script.standard_l2}
                                         uiLang={uiLang}
                                         onContinue={() => markPuzzleComplete(puzzleId, i, j)}
+                                        onPlayAudio={() => script.audioUrl
+                                          ? playAudioFromUrl(script.audioUrl, `demo-${i}-${j}`)
+                                          : playAudio(script.standard_l2 || script.ssml, `demo-${i}-${j}`)}
+                                        isAudioLoading={audioLoading === `demo-${i}-${j}`}
                                       />
                                     ) : (
                                       <CFLTBuilder

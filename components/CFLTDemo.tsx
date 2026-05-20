@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowDown, Sparkles, ChevronRight } from 'lucide-react';
+import { ArrowDown, Loader2, PlayCircle, Sparkles, ChevronRight } from 'lucide-react';
 import { t, type SupportedLang } from '@/src/lib/ui-i18n';
 
 type BlockType = 'core' | 'reason' | 'space' | 'time';
@@ -22,6 +22,8 @@ interface CFLTDemoProps {
   standardL2: string;
   uiLang: SupportedLang;
   onContinue: () => void;
+  onPlayAudio?: () => void;
+  isAudioLoading?: boolean;
 }
 
 export const CFLTDemo: React.FC<CFLTDemoProps> = ({
@@ -31,6 +33,8 @@ export const CFLTDemo: React.FC<CFLTDemoProps> = ({
   standardL2,
   uiLang,
   onContinue,
+  onPlayAudio,
+  isAudioLoading,
 }) => {
   const parts = useMemo(
     () => cfltL1.split(/[，,]/).map((p) => p.trim()).filter(Boolean).slice(0, 4),
@@ -63,6 +67,18 @@ export const CFLTDemo: React.FC<CFLTDemoProps> = ({
 
   const allRevealed = revealed >= parts.length && parts.length > 0;
   const nativeText = standardL1?.trim() || standardL2;
+
+  // Auto-play the target language standard sentence once all blocks are revealed.
+  const autoPlayedRef = useRef(false);
+  useEffect(() => {
+    if (!allRevealed || !onPlayAudio || autoPlayedRef.current) return;
+    autoPlayedRef.current = true;
+    const timer = setTimeout(() => onPlayAudio(), 500);
+    return () => clearTimeout(timer);
+  }, [allRevealed, onPlayAudio]);
+
+  // Reset auto-play flag when the script changes.
+  useEffect(() => { autoPlayedRef.current = false; }, [standardL2]);
 
   return (
     <div className="bg-gradient-to-b from-slate-50 to-white p-6 rounded-[2rem] border border-slate-100 space-y-6">
@@ -152,8 +168,20 @@ export const CFLTDemo: React.FC<CFLTDemoProps> = ({
               })}
             </div>
           </div>
-          <div className="bg-blue-600 p-5 rounded-2xl text-white text-center shadow-lg shadow-blue-200">
-            <p className="text-2xl font-black italic">"{standardL2}"</p>
+          <div className="bg-blue-600 p-5 rounded-2xl text-white shadow-lg shadow-blue-200 flex items-center justify-between gap-4">
+            <p className="text-2xl font-black italic flex-1 text-center">"{standardL2}"</p>
+            {onPlayAudio && (
+              <button
+                onClick={onPlayAudio}
+                disabled={isAudioLoading}
+                aria-label={t(uiLang, 'ariaPlaySentence')}
+                className="shrink-0 text-white/80 hover:text-white transition-colors disabled:text-white/30"
+              >
+                {isAudioLoading
+                  ? <Loader2 className="w-7 h-7 animate-spin" />
+                  : <PlayCircle className="w-7 h-7" />}
+              </button>
+            )}
           </div>
         </motion.div>
       )}

@@ -3,6 +3,8 @@
 import React, { useState, useCallback } from 'react';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useSettings } from '@/hooks/useSettings';
+import { parseAIErrorResponse } from '@/src/lib/ai/client-error';
+import { emitAIBillingError } from '@/src/lib/ai/billing-broadcast';
 import { Mic, Square, Loader2, Award, Info, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import type { CFLTResponse } from '@/src/types/cflt';
@@ -57,7 +59,12 @@ export const VoiceChallenge: React.FC<VoiceChallengeProps> = ({
         headers: getHeaders(),
         body: formData,
       });
-      if (response.status === 401) { setKeyError(true); return; }
+      const aiCode = await parseAIErrorResponse(response);
+      if (aiCode) {
+        emitAIBillingError(aiCode);
+        if (aiCode !== 'INSUFFICIENT_CREDITS') setKeyError(true);
+        return;
+      }
       if (!response.ok) throw new Error('Evaluation failed');
       const data: EvaluationResult = await response.json();
       setEvaluation(data);

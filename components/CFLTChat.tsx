@@ -6,6 +6,8 @@ import { PlayCircle, Loader2, User, Bot, Send, Info, Mic, Square, Sparkles } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useSettings } from '@/hooks/useSettings';
+import { parseAIErrorResponse } from '@/src/lib/ai/client-error';
+import { emitAIBillingError } from '@/src/lib/ai/billing-broadcast';
 import { t as tr, type SupportedLang, DOMAIN_KEYS, findDomainKey } from '@/src/lib/ui-i18n';
 import { ComboBox } from './ComboBox';
 
@@ -194,14 +196,17 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
         method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, ...(sessionId ? { sessionId } : {}) }),
       });
-      if (response.status === 401) throw new Error('API_KEY');
+      const aiCode = await parseAIErrorResponse(response);
+      if (aiCode) {
+        emitAIBillingError(aiCode);
+        if (aiCode !== 'INSUFFICIENT_CREDITS') setKeyError(true);
+        return;
+      }
       if (!response.ok) throw new Error('Coach unavailable');
       const data: RoleplayApiResponse = await response.json();
       applyRoleplayResponse(assembled, data);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('API_KEY')) setKeyError(true);
-      else setMessages(prev => [...prev, { role: 'assistant', content: tr(uiLang, 'errCoachUnavailable') }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: tr(uiLang, 'errCoachUnavailable') }]);
     } finally { setLoading(false); }
   };
 
@@ -216,6 +221,8 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       formData.append('language', targetLang);
       try {
         const response = await fetch('/api/transcribe', { method: 'POST', headers: getHeaders(), body: formData });
+        const aiCode = await parseAIErrorResponse(response);
+        if (aiCode) { emitAIBillingError(aiCode); return; }
         const data = await response.json();
         if (!response.ok) throw new Error(data.error);
         const text = data.text ?? '';
@@ -236,6 +243,8 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       if (audioFile) url = `/api/media/${audioFile}`;
       else {
         const response = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify({ text }) });
+        const aiCode = await parseAIErrorResponse(response);
+        if (aiCode) { emitAIBillingError(aiCode); return; }
         if (!response.ok) throw new Error('TTS failed');
         const blob = await response.blob();
         url = URL.createObjectURL(blob);
@@ -275,18 +284,18 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
         method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
         body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, audio: audioBase64 ? { data: audioBase64, type: audioType } : undefined, ...(sessionId ? { sessionId } : {}), }),
       });
-      if (response.status === 401) throw new Error('API_KEY');
+      const aiCode = await parseAIErrorResponse(response);
+      if (aiCode) {
+        emitAIBillingError(aiCode);
+        if (aiCode !== 'INSUFFICIENT_CREDITS') setKeyError(true);
+        return;
+      }
       if (!response.ok) throw new Error('Coach unavailable');
       const data: RoleplayApiResponse = await response.json();
       applyRoleplayResponse(originalInput, data);
     } catch (err) {
       console.error(err);
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('401') || msg.includes('API_KEY')) {
-        setKeyError(true);
-      } else {
-        setMessages(prev => [...prev, { role: 'assistant', content: tr(uiLang, 'errCoachUnavailable') }]);
-      }
+      setMessages(prev => [...prev, { role: 'assistant', content: tr(uiLang, 'errCoachUnavailable') }]);
     } finally { setLoading(false); }
   };
 

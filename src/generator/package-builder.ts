@@ -18,6 +18,7 @@ import {
 import { contentHash } from '@/src/lib/storage/hash';
 import type { CoursewareManifest } from '@/src/types/courseware';
 import { classifyAIError } from '@/src/lib/ai/errors';
+import { runUntilHalt } from '@/src/lib/utils/halt-queue';
 
 import type { ProgressEmitter } from './orchestrator';
 // Re-export under the local name for callers who import from package-builder.
@@ -73,137 +74,145 @@ export async function buildAndWritePackage(
   const audioPhase = async () => {
     if (input.generateAudio === false) return;
     const tts = TTSFactory.getProvider(input.ttsOverride);
-    const tasks: Promise<void>[] = [];
-    for (const [lessonIdx, lesson] of packageManifest.lessons.entries()) {
-      for (const [scriptIdx, script] of lesson.scripts.entries()) {
-        tasks.push((async () => {
-          if (creditsExhausted) {
-            emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'skipped' });
-            return;
-          }
-          emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'generating' });
-          const hash = contentHash(script.ssml);
-          const filename = `${hash}.mp3`;
-          const poolFile = sharedMediaPath(filename);
-          let audio: Uint8Array | null = null;
-          try {
-            audio = new Uint8Array(await fs.readFile(poolFile));
-          } catch {
-            try {
-              audio = await tts.generateAudio(script.ssml);
-              await fs.writeFile(poolFile, audio);
-            } catch (err) {
-              if (classifyAIError(err) === 'INSUFFICIENT_CREDITS') {
-                creditsExhausted = true;
-                emit({
-                  type: 'lesson-audio',
-                  lessonIndex: lessonIdx,
-                  scriptIndex: scriptIdx,
-                  status: 'failed',
-                  code: 'INSUFFICIENT_CREDITS',
-                });
-                return;
-              }
-              const msg = (err as Error).message;
-              const cause = (err as { cause?: unknown }).cause;
-              console.error(
-                `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
-                msg,
-                cause ? `| Cause: ${JSON.stringify(cause)}` : '',
-              );
-              emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'failed' });
-              return;
-            }
-          }
-          if (audio) {
-            audioMap.set(`media/${filename}`, audio);
-            script.audioFile = filename;
-            const audioUrl = `/api/media/${filename}`;
-            if (input.manifest.lessons[lessonIdx]?.cflt_scripts[scriptIdx]) {
-              input.manifest.lessons[lessonIdx].cflt_scripts[scriptIdx].audioUrl = audioUrl;
-            }
+    // Flatten (lesson, script) pairs so the worker pool can dequeue across
+    // lessons. The halt-aware queue checks `creditsExhausted` between each
+    // dispatch — fixes the prior fan-out bug where in-flight tasks past the
+    // guard kept calling the provider after the wall was already hit.
+    const scripts = packageManifest.lessons.flatMap((lesson, lessonIdx) =>
+      lesson.scripts.map((script, scriptIdx) => ({ lesson, lessonIdx, script, scriptIdx })),
+    );
+    await runUntilHalt(scripts, () => creditsExhausted, async ({ lessonIdx, scriptIdx, script }, _i, halted) => {
+      if (halted) {
+        emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'skipped' });
+        return;
+      }
+      emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'generating' });
+      const hash = contentHash(script.ssml);
+      const filename = `${hash}.mp3`;
+      const poolFile = sharedMediaPath(filename);
+      let audio: Uint8Array | null = null;
+      try {
+        audio = new Uint8Array(await fs.readFile(poolFile));
+      } catch {
+        try {
+          audio = await tts.generateAudio(script.ssml);
+          await fs.writeFile(poolFile, audio);
+        } catch (err) {
+          if (classifyAIError(err) === 'INSUFFICIENT_CREDITS') {
+            creditsExhausted = true;
             emit({
               type: 'lesson-audio',
               lessonIndex: lessonIdx,
               scriptIndex: scriptIdx,
-              status: 'done',
-              audioUrl,
+              status: 'failed',
+              code: 'INSUFFICIENT_CREDITS',
             });
+            return;
           }
-        })());
+          const msg = (err as Error).message;
+          const cause = (err as { cause?: unknown }).cause;
+          console.error(
+            `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
+            msg,
+            cause ? `| Cause: ${JSON.stringify(cause)}` : '',
+          );
+          emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'failed' });
+          return;
+        }
       }
-    }
-    await Promise.all(tasks);
+      if (audio) {
+        audioMap.set(`media/${filename}`, audio);
+        script.audioFile = filename;
+        const audioUrl = `/api/media/${filename}`;
+        if (input.manifest.lessons[lessonIdx]?.cflt_scripts[scriptIdx]) {
+          input.manifest.lessons[lessonIdx].cflt_scripts[scriptIdx].audioUrl = audioUrl;
+        }
+        emit({
+          type: 'lesson-audio',
+          lessonIndex: lessonIdx,
+          scriptIndex: scriptIdx,
+          status: 'done',
+          audioUrl,
+        });
+      }
+    });
   };
 
   const imagePhase = async () => {
     if (input.generateImages === false) return;
     const visuals = VisualFactory.getProvider(input.imageOverride);
-    const tasks: Promise<void>[] = [];
+    // Build the (lesson, prompt) work list — lessons without a prompt get a
+    // synthetic `skipped` emit upfront so the UI's lesson row resolves out of
+    // its `waiting` state instead of hanging forever (fix #9).
+    const work: Array<{ lessonIdx: number; lesson: typeof packageManifest.lessons[number]; prompt: string }> = [];
     for (const [lessonIdx, lesson] of packageManifest.lessons.entries()) {
       const prompt = lesson.visual_generation_prompts[0];
-      if (!prompt) continue;
-      tasks.push((async () => {
-        if (creditsExhausted) {
-          emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'skipped' });
-          return;
-        }
-        emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'generating' });
-        // Same hash key as api/generate-image (prompt + default size) so a
-        // lesson regeneration reuses the cached image.
-        const hash = contentHash(`${prompt}:1024x1024`);
-        const filename = `${hash}.webp`;
-        const poolFile = sharedMediaPath(filename);
-        let image: Uint8Array | null = null;
+      if (!prompt) {
+        emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'skipped' });
+        continue;
+      }
+      work.push({ lessonIdx, lesson, prompt });
+    }
+
+    await runUntilHalt(work, () => creditsExhausted, async ({ lessonIdx, lesson, prompt }, _i, halted) => {
+      if (halted) {
+        emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'skipped' });
+        return;
+      }
+      emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'generating' });
+      // Same hash key as api/generate-image (prompt + default size) so a
+      // lesson regeneration reuses the cached image.
+      const hash = contentHash(`${prompt}:1024x1024`);
+      const filename = `${hash}.webp`;
+      const poolFile = sharedMediaPath(filename);
+      let image: Uint8Array | null = null;
+      try {
+        image = new Uint8Array(await fs.readFile(poolFile));
+      } catch {
         try {
-          image = new Uint8Array(await fs.readFile(poolFile));
-        } catch {
-          try {
-            const dataUrl = await visuals.generateImage(prompt);
-            const bytes = decodeDataUrl(dataUrl);
-            if (bytes) {
-              image = bytes;
-              await fs.writeFile(poolFile, bytes);
-            }
-          } catch (err) {
-            if (classifyAIError(err) === 'INSUFFICIENT_CREDITS') {
-              creditsExhausted = true;
-              emit({
-                type: 'lesson-image',
-                lessonIndex: lessonIdx,
-                status: 'failed',
-                code: 'INSUFFICIENT_CREDITS',
-              });
-              return;
-            }
-            const msg = (err as Error).message;
-            const cause = (err as { cause?: unknown }).cause;
-            console.error(
-              `[package-builder] Image generation failed for lesson ${lesson.lessonIndex}:`,
-              msg,
-              cause ? `| Cause: ${JSON.stringify(cause)}` : '',
-            );
-            emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'failed' });
+          const dataUrl = await visuals.generateImage(prompt);
+          const bytes = decodeDataUrl(dataUrl);
+          if (bytes) {
+            image = bytes;
+            await fs.writeFile(poolFile, bytes);
+          }
+        } catch (err) {
+          if (classifyAIError(err) === 'INSUFFICIENT_CREDITS') {
+            creditsExhausted = true;
+            emit({
+              type: 'lesson-image',
+              lessonIndex: lessonIdx,
+              status: 'failed',
+              code: 'INSUFFICIENT_CREDITS',
+            });
             return;
           }
+          const msg = (err as Error).message;
+          const cause = (err as { cause?: unknown }).cause;
+          console.error(
+            `[package-builder] Image generation failed for lesson ${lesson.lessonIndex}:`,
+            msg,
+            cause ? `| Cause: ${JSON.stringify(cause)}` : '',
+          );
+          emit({ type: 'lesson-image', lessonIndex: lessonIdx, status: 'failed' });
+          return;
         }
-        if (image) {
-          imageMap.set(`media/${filename}`, image);
-          lesson.imageFile = filename;
-          const imageUrl = `/api/media/${filename}`;
-          if (input.manifest.lessons[lessonIdx]) {
-            input.manifest.lessons[lessonIdx].imageUrl = imageUrl;
-          }
-          emit({
-            type: 'lesson-image',
-            lessonIndex: lessonIdx,
-            status: 'done',
-            imageUrl,
-          });
+      }
+      if (image) {
+        imageMap.set(`media/${filename}`, image);
+        lesson.imageFile = filename;
+        const imageUrl = `/api/media/${filename}`;
+        if (input.manifest.lessons[lessonIdx]) {
+          input.manifest.lessons[lessonIdx].imageUrl = imageUrl;
         }
-      })());
-    }
-    await Promise.all(tasks);
+        emit({
+          type: 'lesson-image',
+          lessonIndex: lessonIdx,
+          status: 'done',
+          imageUrl,
+        });
+      }
+    });
   };
 
   // Audio + images run concurrently — they target independent providers,

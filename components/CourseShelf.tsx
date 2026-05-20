@@ -114,6 +114,12 @@ export const CourseShelf = ({
     }
   }, [expanded]);
 
+  // Tracks whether we've already auto-opened the form on first-load. We only
+  // auto-expand for the very first empty-history fetch; a subsequent refresh
+  // (e.g. after the user deletes their last course) should not yank the form
+  // back open underneath them.
+  const autoExpandedRef = useRef(false);
+
   useEffect(() => {
     let cancelled = false;
     setHistoryLoading(true);
@@ -123,7 +129,16 @@ export const CourseShelf = ({
         const res = await fetch('/api/history/courses', { signal: AbortSignal.timeout(10_000) });
         if (!res.ok) throw new Error('failed');
         const payload: { courses: CourseSummary[] } = await res.json();
-        if (!cancelled) setItems(payload.courses);
+        if (!cancelled) {
+          setItems(payload.courses);
+          // First-time visitor with no courses → open the creation form so
+          // they have somewhere to start. Returning users with at least one
+          // book see the shelf in its compact form.
+          if (!autoExpandedRef.current && payload.courses.length === 0) {
+            autoExpandedRef.current = true;
+            setExpanded(true);
+          }
+        }
       } catch {
         if (!cancelled) setHasError(true);
       } finally {
@@ -370,16 +385,18 @@ export const CourseShelf = ({
                 </p>
               )}
 
-              {keyError && (
+              {/* Suppress this banner if the course-gen progress panel is
+                  already showing the same INSUFFICIENT_CREDITS state —
+                  otherwise the learner sees two identical "credits
+                  exhausted" messages stacked on top of each other. */}
+              {keyError && !(keyError === 'INSUFFICIENT_CREDITS' && courseGenProgress?.errorCode === 'INSUFFICIENT_CREDITS') && (
                 <div className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm">
                   <span className="text-amber-800">
                     {keyError === 'API_KEY_REQUIRED'
                       ? tr(uiLang, 'errNoApiKey')
                       : keyError === 'INVALID_API_KEY'
                         ? tr(uiLang, 'errApiKeyInvalid')
-                        : uiLang === 'Chinese'
-                          ? '额度不足。请充值或在「设置」中填入自己的 API Key。'
-                          : 'Credits exhausted. Top up or add your own API key in Settings.'}
+                        : tr(uiLang, 'errInsufficientCredits')}
                   </span>
                   <button
                     onClick={() => { onClearKeyError(); onOpenSettings(); }}

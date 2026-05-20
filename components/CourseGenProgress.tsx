@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Check, Loader2, AlertCircle, Circle, X as XIcon } from 'lucide-react';
+import { t as tr } from '../src/lib/ui-i18n';
 
 export type AssetStatus = 'waiting' | 'generating' | 'done' | 'failed' | 'skipped';
 
@@ -39,8 +40,6 @@ const LABELS: Record<string, LabelDict> = {
     done: 'Done',
     failed: 'Failed',
     skipped: 'Skipped',
-    insufficientCredits:
-      'Credits exhausted. Top up your account or add your own API key in Settings to keep going.',
     continueLater: 'Continue (after top-up)',
     progressLine: (m: number, n: number) => `${m}/${n} chapters with text complete`,
   },
@@ -54,8 +53,6 @@ const LABELS: Record<string, LabelDict> = {
     done: '已完成',
     failed: '失败',
     skipped: '已跳过',
-    insufficientCredits:
-      '额度不足，已停止。请充值或在「设置」中填入自己的 API Key 继续。',
     continueLater: '继续生成（充值后）',
     progressLine: (m: number, n: number) => `已完成 ${m}/${n} 章的文字内容`,
   },
@@ -156,7 +153,7 @@ export const CourseGenProgress: React.FC<CourseGenProgressProps> = ({ uiLang, st
       {insufficient && (
         <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
           <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
-          <span>{l(uiLang, 'insufficientCredits')}</span>
+          <span>{tr(uiLang, 'errInsufficientCredits')}</span>
         </div>
       )}
 

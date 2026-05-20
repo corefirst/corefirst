@@ -33,9 +33,13 @@ export function classifyAIError(err: unknown): AIErrorCode {
   if (msg.includes('is disabled') || msg.includes('Set GLOBAL_PROVIDER') || msg.includes('_PROVIDER to enable')) {
     return 'API_KEY_REQUIRED';
   }
+  // Auth detection: prefer the numeric status (from APICallError.statusCode or
+  // a cause-chained status field). Substring matches on bare `'401'`/`'403'`
+  // false-fire on timing logs, request IDs, model names like `gpt-4-0314`,
+  // and excerpts of upstream prose — so only the explicit invalid-key phrases
+  // are checked, never digits alone.
+  if (status === 401 || status === 403) return 'INVALID_API_KEY';
   if (
-    msg.includes('401') ||
-    msg.includes('403') ||
     msg.includes('Unauthorized') ||
     msg.includes('invalid_api_key') ||
     msg.includes('Invalid API key') ||

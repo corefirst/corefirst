@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { t as tr, type SupportedLang, localizeLang } from '../src/lib/ui-i18n';
 import { useSettings } from '../hooks/useSettings';
+import { parseAIErrorResponse } from '../src/lib/ai/client-error';
+import { emitAIBillingError } from '../src/lib/ai/billing-broadcast';
 import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 
 interface Slot { content: string; is_inferred: boolean }
@@ -182,6 +184,8 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
       formData.append('audio', blob);
       formData.append('language', sourceLang);
       const transcribeRes = await fetch('/api/transcribe', { method: 'POST', body: formData });
+      const aiCode = await parseAIErrorResponse(transcribeRes);
+      if (aiCode) { emitAIBillingError(aiCode); return; }
       if (!transcribeRes.ok) throw new Error('transcribe failed');
       const { text } = await transcribeRes.json();
       if (!text) return;
@@ -243,6 +247,8 @@ export const RoleplayHistory = ({ uiLang }: Props) => {
       if (audioFile) url = `/api/media/${audioFile}`;
       else {
         const response = await fetch('/api/tts', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify({ text }) });
+        const aiCode = await parseAIErrorResponse(response);
+        if (aiCode) { emitAIBillingError(aiCode); return; }
         if (!response.ok) throw new Error('TTS failed');
         const blob = await response.blob();
         url = URL.createObjectURL(blob);

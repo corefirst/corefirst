@@ -5,6 +5,8 @@ import { Image as ImageIcon, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 import { useSettings } from '@/hooks/useSettings';
+import { parseAIErrorResponse } from '@/src/lib/ai/client-error';
+import { emitAIBillingError } from '@/src/lib/ai/billing-broadcast';
 
 interface CFLTVisualProps {
   prompt: string;
@@ -43,6 +45,14 @@ export const CFLTVisual: React.FC<CFLTVisualProps> = ({ prompt, uiLang, imageUrl
           body: JSON.stringify({ prompt }),
           signal: controller.signal,
         });
+        const aiCode = await parseAIErrorResponse(response);
+        if (aiCode) {
+          if (!cancelled) {
+            emitAIBillingError(aiCode);
+            setError(true);
+          }
+          return;
+        }
         if (!response.ok) throw new Error('Image generation failed');
         const data = await response.json();
         if (!cancelled) {

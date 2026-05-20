@@ -29,9 +29,29 @@ describe('classifyAIError', () => {
     expect(classifyAIError(wrapped)).toBe('INSUFFICIENT_CREDITS');
   });
 
-  it('classifies a 401 as INVALID_API_KEY', () => {
-    const err = new Error('401 Unauthorized');
+  it('classifies a 401 as INVALID_API_KEY via numeric status', () => {
+    const err = Object.assign(new Error('Unauthorized'), { statusCode: 401 });
     expect(classifyAIError(err)).toBe('INVALID_API_KEY');
+  });
+
+  it('classifies a 403 as INVALID_API_KEY via numeric status', () => {
+    const err = Object.assign(new Error('Forbidden'), { statusCode: 403 });
+    expect(classifyAIError(err)).toBe('INVALID_API_KEY');
+  });
+
+  it('does NOT mis-classify generic errors whose message merely contains "401"/"403"', () => {
+    // Regression: "401"/"403" substring matches used to false-fire on
+    // timing logs, request IDs, model names like "gpt-4-0314", etc.
+    expect(classifyAIError(new Error('Took 4015 ms'))).toBe('AI_ERROR');
+    expect(classifyAIError(new Error('request id req-0314-4019, status 500'))).toBe('AI_ERROR');
+    expect(classifyAIError(new Error('gpt-4-0314 returned malformed response'))).toBe('AI_ERROR');
+  });
+
+  it('still classifies via explicit invalid-key phrases in messages', () => {
+    expect(classifyAIError(new Error('invalid_api_key provided'))).toBe('INVALID_API_KEY');
+    expect(classifyAIError(new Error('Invalid API key'))).toBe('INVALID_API_KEY');
+    expect(classifyAIError(new Error('Unauthorized'))).toBe('INVALID_API_KEY');
+    expect(classifyAIError(new Error('Forbidden'))).toBe('INVALID_API_KEY');
   });
 
   it('classifies provider-disabled errors as API_KEY_REQUIRED', () => {
