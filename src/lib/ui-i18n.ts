@@ -400,7 +400,7 @@ const en: Dict = {
 };
 
 const zh: Dict = {
-  btnBuild: 'CRST 标准输入',
+  btnBuild: 'CRST 结构输入',
   btnPlayCorrected: '播放纠正发音', btnRetranscribe: '重新识别', btnRetranscribeHint: '重新识别录音文字',
 
   statusRecording: '正在录音...',
@@ -636,7 +636,7 @@ const zh: Dict = {
 
 
 const ja: Dict = {
-  btnBuild: 'CRST 標準入力',
+  btnBuild: 'CRST 構造入力',
   btnPlayCorrected: '修正された発音を再生', btnRetranscribe: '再文字起こし', btnRetranscribeHint: '録音した音声を再文字起こし',
 
   statusRecording: '録音中...',
@@ -809,7 +809,7 @@ const ja: Dict = {
 };
 
 const ko: Dict = {
-  btnBuild: 'CRST 표준 입력',
+  btnBuild: 'CRST 구조 입력',
   btnPlayCorrected: '교정된 발음 재생', btnRetranscribe: '다시 전사', btnRetranscribeHint: '녹음된 오디오 다시 전사',
 
   statusRecording: '녹음 중...',
@@ -982,7 +982,7 @@ const ko: Dict = {
 };
 
 const vi: Dict = {
-  btnBuild: 'CRST chuẩn',
+  btnBuild: 'CRST cấu trúc',
   btnPlayCorrected: 'Phát âm thanh đã sửa', btnRetranscribe: 'Chuyển âm lại', btnRetranscribeHint: 'Chuyển âm lại đoạn ghi âm',
 
   statusRecording: 'Đang ghi âm...',
@@ -1154,7 +1154,7 @@ const vi: Dict = {
 };
 
 const es: Dict = {
-  btnBuild: 'CRST estándar',
+  btnBuild: 'CRST estructurado',
   btnPlayCorrected: 'Reproducir pronunciación corregida', btnRetranscribe: 'Volver a transcribir', btnRetranscribeHint: 'Volver a transcribir el audio grabado',
 
   statusRecording: 'Grabando...',
@@ -1326,7 +1326,7 @@ const es: Dict = {
 };
 
 const fr: Dict = {
-  btnBuild: 'CRST standard',
+  btnBuild: 'CRST structuré',
   btnPlayCorrected: 'Lire la prononciation corrigée', btnRetranscribe: 'Retranscrire', btnRetranscribeHint: "Retranscrire l'audio enregistré",
 
   statusRecording: 'Enregistrement...',
@@ -1498,7 +1498,7 @@ const fr: Dict = {
 };
 
 const de: Dict = {
-  btnBuild: 'CRST Standard',
+  btnBuild: 'CRST Struktur',
   btnExport: 'Exportieren',
   builderHeader: 'Logikrätsel: Blöcke neu anordnen',
   builderVerify: 'Logik prüfen',
