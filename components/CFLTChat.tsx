@@ -2,14 +2,13 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { CFLTBlock } from './CFLTBlock';
-import { PlayCircle, Loader2, User, Bot, Send, Info, Mic, Square, Sparkles } from 'lucide-react';
+import { PlayCircle, Loader2, User, Bot, Send, Info, Mic, Square, Sparkles, Pencil, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRecorder } from '@/hooks/useRecorder';
 import { useSettings } from '@/hooks/useSettings';
 import { parseAIErrorResponse } from '@/src/lib/ai/client-error';
 import { emitAIBillingError } from '@/src/lib/ai/billing-broadcast';
-import { t as tr, type SupportedLang, DOMAIN_KEYS, findDomainKey } from '@/src/lib/ui-i18n';
-import { ComboBox } from './ComboBox';
+import { t as tr, localizeLang, SUPPORTED_LANGS, type SupportedLang } from '@/src/lib/ui-i18n';
 
 interface Slot { content: string; is_inferred: boolean; }
 interface Crst { core: Slot; reason: Slot; space: Slot; time: Slot; }
@@ -77,42 +76,36 @@ const CrstStrip: React.FC<{ crst: Crst, uiLang: string }> = ({ crst, uiLang }) =
 const HISTORY_WARN_MSGS = 12;
 const HISTORY_MAX_MSGS = 20;
 
-const DEFAULT_SCENARIO = 'General / Life';
+const DEFAULT_SCENARIO = '';
 
 interface PackListItem {
   id: string;
   name: string;
-  description: string;
   domain: string;
-  targetLang: string;
-  authorLang: string;
+  sourceLang: string;
+  defaultInputMode: 'free' | 'crst';
+  promptPreview: string;
   source: 'user' | 'shared';
-  scenarios: { id: string; title: string; description: string }[];
-  personas: { id: string; role: string; formality: string }[];
 }
 
-export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSlug, packageId, onOpenSettings }: {
+export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSlug, packageId, onOpenSettings, onTargetLangChange }: {
   sourceLang: string;
   targetLang: string;
   uiLang?: SupportedLang;
   packageSlug?: string;
   packageId?: string;
   onOpenSettings?: () => void;
+  onTargetLangChange?: (lang: SupportedLang) => void;
 }) => {
   const uiLang: SupportedLang = uiLangProp ?? 'English';
 
-  // scenarioInput: live value while typing; scenario: committed value that drives the prompt/greeting
-  const [scenarioInput, setScenarioInput] = useState(DEFAULT_SCENARIO);
   const [scenario, setScenario] = useState(DEFAULT_SCENARIO);
 
-  // Roleplay Pack state — when packId is empty, free-text scenario behavior is preserved.
   const [packs, setPacks] = useState<PackListItem[]>([]);
   const [selectedPackId, setSelectedPackId] = useState<string>('');
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string>('');
-  const [selectedPersonaId, setSelectedPersonaId] = useState<string>('');
 
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: tr(uiLang, 'roleplayGreeting', targetLang, scenario) }
+    { role: 'assistant', content: tr(uiLang, 'roleplayGreeting', localizeLang(targetLang, uiLang), scenario) }
   ]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -121,8 +114,10 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
   const [lastAudioBlob, setLastAudioBlob] = useState<Blob | null>(null);
   const [lastTranscribedText, setLastTranscribedText] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [analysisEnabled, setAnalysisEnabled] = useState(false);
   const [keyError, setKeyError] = useState(false);
+  const [promptEditing, setPromptEditing] = useState(false);
+  const [promptDraft, setPromptDraft] = useState('');
+  const [promptSaving, setPromptSaving] = useState(false);
   const { getHeaders } = useSettings();
   // T1: CFLT Build Mode — guide user to structure before speaking
   const [buildMode, setBuildMode] = useState(false);
@@ -141,10 +136,6 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
 
   useEffect(() => {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') setSessionId(crypto.randomUUID());
-    try {
-      const stored = window.localStorage.getItem('corefirst.roleplay.analysisEnabled');
-      if (stored === 'true') setAnalysisEnabled(true);
-    } catch {}
   }, []);
 
   useEffect(() => {
@@ -162,39 +153,63 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
   }, [getHeaders]);
 
   const activePack = packs.find((p) => p.id === selectedPackId);
-  const activeScenario = activePack?.scenarios.find((s) => s.id === selectedScenarioId);
+  const analysisEnabled = selectedPackId !== '';
 
   useEffect(() => {
     if (!activePack) return;
-    if (activeScenario) {
-      const derived = `${activeScenario.title} — ${activeScenario.description}`;
-      if (derived !== scenario) setScenario(derived);
-    } else {
-      const derived = `${activePack.name}`;
-      if (derived !== scenario) setScenario(derived);
-    }
-  }, [activePack, activeScenario, scenario]);
+    const derived = activePack.name;
+    if (derived !== scenario) setScenario(derived);
+  }, [activePack?.id]);
 
   // Reset session when the committed scenario or target language changes.
   useEffect(() => {
     setMessages([{
       role: 'assistant',
-      content: tr(uiLang, 'roleplayGreeting', targetLang, scenario),
+      content: tr(uiLang, 'roleplayGreeting', localizeLang(targetLang, uiLang), scenario),
     }]);
     if (typeof crypto !== 'undefined') setSessionId(crypto.randomUUID());
   }, [scenario, targetLang, uiLang]);
 
-  const toggleAnalysis = (next: boolean) => {
-    setAnalysisEnabled(next);
-    try { window.localStorage.setItem('corefirst.roleplay.analysisEnabled', next ? 'true' : 'false'); } catch {}
-  };
+  useEffect(() => {
+    setBuildMode(activePack?.defaultInputMode === 'crst');
+    if (!selectedPackId) setScenario(DEFAULT_SCENARIO);
+  }, [selectedPackId, activePack]);
 
   const resetSession = () => {
-    setMessages([{ role: 'assistant', content: tr(uiLang, 'roleplayGreeting', targetLang, scenario) }]);
+    setMessages([{ role: 'assistant', content: tr(uiLang, 'roleplayGreeting', localizeLang(targetLang, uiLang), scenario) }]);
     setInput('');
     setKeyError(false);
     setCfltSlots({ core: '', reason: '', space: '', time: '' });
     if (typeof crypto !== 'undefined') setSessionId(crypto.randomUUID());
+  };
+
+  const handlePromptSave = async () => {
+    const draft = promptDraft.trim();
+    if (!draft) { setPromptEditing(false); return; }
+    setPromptSaving(true);
+    try {
+      if (selectedPackId && activePack) {
+        const updated = { schemaVersion: '2.0' as const, id: activePack.id, name: activePack.name, domain: activePack.domain, sourceLang: activePack.sourceLang, defaultInputMode: activePack.defaultInputMode, prompt: draft };
+        await fetch(`/api/roleplay-packs/${encodeURIComponent(selectedPackId)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify(updated) });
+        const r = await fetch('/api/roleplay-packs', { headers: getHeaders() });
+        if (r.ok) { const d = await r.json(); if (Array.isArray(d.packs)) setPacks(d.packs); }
+      } else {
+        const ar = await fetch('/api/roleplay-packs/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify({ prompt: draft }) });
+        const { name, domain } = ar.ok ? await ar.json() : { name: 'My Pack', domain: 'General / Life' };
+        const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
+        const newPack = { schemaVersion: '2.0' as const, id, name, domain, sourceLang, prompt: draft, defaultInputMode: 'free' as const };
+        await fetch('/api/roleplay-packs', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify(newPack) });
+        const r = await fetch('/api/roleplay-packs', { headers: getHeaders() });
+        if (r.ok) { const d = await r.json(); if (Array.isArray(d.packs)) setPacks(d.packs); }
+        setSelectedPackId(id);
+      }
+      setPromptEditing(false);
+      resetSession();
+    } catch (err) {
+      console.error('[CFLTChat] prompt save failed', err);
+    } finally {
+      setPromptSaving(false);
+    }
   };
 
   // Shared helper: annotates the last user message matching `sentContent` with
@@ -240,7 +255,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     try {
       const response = await fetch('/api/roleplay', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, ...(sessionId ? { sessionId } : {}), ...(selectedPackId ? { packId: selectedPackId } : {}), ...(selectedScenarioId ? { scenarioId: selectedScenarioId } : {}), ...(selectedPersonaId ? { personaId: selectedPersonaId } : {}) }),
+        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, ...(sessionId ? { sessionId } : {}), ...(selectedPackId ? { packId: selectedPackId } : {}) }),
       });
       const aiCode = await parseAIErrorResponse(response);
       if (aiCode) {
@@ -328,7 +343,7 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     try {
       const response = await fetch('/api/roleplay', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, audio: audioBase64 ? { data: audioBase64, type: audioType } : undefined, ...(sessionId ? { sessionId } : {}), ...(selectedPackId ? { packId: selectedPackId } : {}), ...(selectedScenarioId ? { scenarioId: selectedScenarioId } : {}), ...(selectedPersonaId ? { personaId: selectedPersonaId } : {}) }),
+        body: JSON.stringify({ messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })), sourceLang, targetLang, analysisEnabled, packageSlug, context: scenario, audio: audioBase64 ? { data: audioBase64, type: audioType } : undefined, ...(sessionId ? { sessionId } : {}), ...(selectedPackId ? { packId: selectedPackId } : {}) }),
       });
       const aiCode = await parseAIErrorResponse(response);
       if (aiCode) {
@@ -356,10 +371,6 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <button onClick={() => toggleAnalysis(!analysisEnabled)} className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-colors ${analysisEnabled ? 'bg-blue-500 text-white' : 'bg-slate-700 text-slate-300'}`}>
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{tr(uiLang, 'roleplayAnalysisToggle')}</span>
-          </button>
           <button onClick={resetSession} title={tr(uiLang, 'roleplayNewSession')} className="p-2 rounded-xl bg-slate-700 text-slate-300 hover:bg-slate-600 transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
           </button>
@@ -368,14 +379,21 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
 
       {/* Pack picker + scenario selector */}
       <div className="px-4 py-2 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center gap-2">
+        <select
+          value={targetLang}
+          onChange={(e) => onTargetLangChange?.(e.target.value as SupportedLang)}
+          className="text-xs font-semibold text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          title="Practice language"
+        >
+          {SUPPORTED_LANGS.map((l) => (
+            <option key={l} value={l}>{localizeLang(l, uiLang)}</option>
+          ))}
+        </select>
+        <span className="text-slate-600 text-xs shrink-0">·</span>
         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">Pack</label>
         <select
           value={selectedPackId}
-          onChange={(e) => {
-            setSelectedPackId(e.target.value);
-            setSelectedScenarioId('');
-            setSelectedPersonaId('');
-          }}
+          onChange={(e) => setSelectedPackId(e.target.value)}
           className="text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
         >
           <option value="">No pack (free-text)</option>
@@ -386,58 +404,12 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
           ))}
         </select>
 
-        {activePack ? (
-          <>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">Scenario</label>
-            <select
-              value={selectedScenarioId}
-              onChange={(e) => setSelectedScenarioId(e.target.value)}
-              className="text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-[140px]"
-            >
-              <option value="">— Any scenario —</option>
-              {activePack.scenarios.map((s) => (
-                <option key={s.id} value={s.id}>{s.title}</option>
-              ))}
-            </select>
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">Persona</label>
-            <select
-              value={selectedPersonaId}
-              onChange={(e) => setSelectedPersonaId(e.target.value)}
-              className="text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-[140px]"
-            >
-              <option value="">— Default voice —</option>
-              {activePack.personas.map((p) => (
-                <option key={p.id} value={p.id}>{p.role}</option>
-              ))}
-            </select>
-          </>
-        ) : (
-          <>
-            <label htmlFor="scenario-input" className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
-              {tr(uiLang, 'historyContextLabel')}
-            </label>
-            <ComboBox
-              uiLang={uiLang}
-              id="scenario-input"
-              options={DOMAIN_KEYS.map(key => ({
-                value: tr('English', key),
-                label: tr(uiLang, key),
-              }))}
-              value={findDomainKey(scenarioInput) ? tr(uiLang, findDomainKey(scenarioInput)!) : scenarioInput}
-              onChange={(val) => setScenarioInput(val)}
-              onCommit={(val) => {
-                const trimmed = val.trim();
-                const matchedKey = findDomainKey(trimmed);
-                const committed = matchedKey ? tr('English', matchedKey) : (trimmed || DEFAULT_SCENARIO);
-                setScenarioInput(committed);
-                if (committed !== scenario) setScenario(committed);
-              }}
-              placeholder={tr(uiLang, 'comboSearchPlaceholder')}
-              className="flex-1"
-              inputClassName="w-full text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder:text-slate-500"
-            />
-          </>
+        {activePack && (
+          <span className="text-[10px] text-slate-400 truncate max-w-[200px]">{activePack.domain}</span>
         )}
+        <span className={`ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 ${selectedPackId ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-600/40 text-slate-400'}`}>
+          {selectedPackId ? 'Pack' : 'Free'}
+        </span>
       </div>
 
       {historyNearLimit && (
@@ -467,8 +439,47 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
               {m.role === 'assistant' && (<div className="w-8 h-8 rounded-full bg-slate-200 flex-shrink-0 flex items-center justify-center"><Bot className="w-4 h-4 text-slate-500" /></div>)}
               <div className="space-y-2 max-w-[80%]">
                 <div className={`p-4 rounded-2xl shadow-sm ${m.role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white text-slate-800 rounded-tl-none border border-slate-100'}`}>
-                  <p className="font-bold leading-relaxed text-lg">{m.content}</p>
-                  <button onClick={() => playAudio(m.ssml || m.content, `msg-${i}`, m.audioFile)} disabled={audioLoading === `msg-${i}`} className={`mt-2 ${m.role === 'user' ? 'text-blue-200 hover:text-white' : 'text-slate-400 hover:text-blue-500'}`}>{audioLoading === `msg-${i}` ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}</button>
+                  {i === 0 && m.role === 'assistant' && promptEditing ? (
+                    <div className="space-y-2">
+                      <textarea
+                        value={promptDraft}
+                        onChange={(e) => setPromptDraft(e.target.value)}
+                        rows={5}
+                        className="w-full text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none"
+                        placeholder="Describe how the AI coach should behave..."
+                      />
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => setPromptEditing(false)} className="flex items-center gap-1 px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700 rounded-lg hover:bg-slate-100">
+                          <X className="w-3 h-3" /> Cancel
+                        </button>
+                        <button onClick={handlePromptSave} disabled={promptSaving} className="flex items-center gap-1 px-2.5 py-1 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50">
+                          {promptSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                          {promptSaving ? 'Saving…' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="font-bold leading-relaxed text-lg">{m.content}</p>
+                      <div className="flex items-center justify-between mt-2">
+                        <button onClick={() => playAudio(m.ssml || m.content, `msg-${i}`, m.audioFile)} disabled={audioLoading === `msg-${i}`} className={`${m.role === 'user' ? 'text-blue-200 hover:text-white' : 'text-slate-400 hover:text-blue-500'}`}>{audioLoading === `msg-${i}` ? <Loader2 className="w-5 h-5 animate-spin" /> : <PlayCircle className="w-5 h-5" />}</button>
+                        {i === 0 && m.role === 'assistant' && (
+                          <button onClick={async () => {
+                            if (selectedPackId) {
+                              const r = await fetch(`/api/roleplay-packs/${encodeURIComponent(selectedPackId)}`, { headers: getHeaders() });
+                              const d = r.ok ? await r.json() : {};
+                              setPromptDraft(d.pack?.prompt ?? '');
+                            } else {
+                              setPromptDraft('');
+                            }
+                            setPromptEditing(true);
+                          }} className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-blue-500 transition-colors">
+                            <Pencil className="w-3 h-3" /> {activePack ? 'Edit prompt' : 'Set prompt'}
+                          </button>
+                        )}
+                      </div>
+                    </>
+                  )}
                 </div>
                 {m.role === 'user' && m.userAnalysis && (
                   <div className="bg-white p-3 rounded-xl border border-slate-100 space-y-2 text-left shadow-sm">
@@ -519,23 +530,25 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
       </div>
 
       <div className="bg-white border-t border-slate-100">
-        {/* Input mode toggle */}
-        <div className="px-4 pt-3">
-          <div className="flex bg-slate-100 rounded-xl p-0.5 text-[11px] font-black uppercase tracking-wider">
-            <button
-              onClick={() => setBuildMode(false)}
-              className={`flex-1 py-1.5 rounded-[10px] transition-colors ${!buildMode ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              {tr(uiLang, 'btnFreeText')}
-            </button>
-            <button
-              onClick={() => setBuildMode(true)}
-              className={`flex-1 py-1.5 rounded-[10px] transition-colors ${buildMode ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
-            >
-              {tr(uiLang, 'btnBuild')}
-            </button>
+        {/* Input mode toggle — only available in pack mode */}
+        {selectedPackId && (
+          <div className="px-4 pt-3">
+            <div className="flex bg-slate-100 rounded-xl p-0.5 text-[11px] font-black uppercase tracking-wider">
+              <button
+                onClick={() => setBuildMode(false)}
+                className={`flex-1 py-1.5 rounded-[10px] transition-colors ${!buildMode ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {tr(uiLang, 'btnFreeText')}
+              </button>
+              <button
+                onClick={() => setBuildMode(true)}
+                className={`flex-1 py-1.5 rounded-[10px] transition-colors ${buildMode ? 'bg-emerald-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                {tr(uiLang, 'btnBuild')}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
 
         {buildMode ? (
           /* T1: CFLT Build Mode — 4 structured slots */

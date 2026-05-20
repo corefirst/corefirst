@@ -722,6 +722,7 @@ export default function Home() {
                 packageSlug={courseResult?.slug}
                 packageId={courseResult?.packageId}
                 onOpenSettings={() => setShowSettings(true)}
+                onTargetLangChange={handleTargetLangChange}
               />
               <RoleplayHistory uiLang={uiLang} />
             </>

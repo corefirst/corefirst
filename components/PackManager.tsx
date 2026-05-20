@@ -9,63 +9,35 @@ import type { SupportedLang } from '@/src/lib/ui-i18n';
 interface PackListItem {
   id: string;
   name: string;
-  description: string;
-  version: string;
   domain: string;
-  targetLang: string;
-  authorLang: string;
+  sourceLang: string;
+  defaultInputMode: 'free' | 'crst';
+  promptPreview: string;
   source: 'user' | 'shared';
-  scenarios: { id: string; title: string }[];
-  personas: { id: string; role: string }[];
 }
 
-type EditorMode = 'list' | 'create' | 'edit';
+type EditorMode = 'list' | 'edit';
 
-function buildTemplate(authorLang: string): string {
-  return `{
-  "schemaVersion": "1.0",
-  "id": "my-pack",
-  "name": "My Pack",
-  "description": "Describe what this pack covers.",
-  "version": "1.0.0",
-  "domain": "Custom",
-  "targetLang": "English",
-  "authorLang": ${JSON.stringify(authorLang)},
-  "vocabulary": [
-    {
-      "term": "example",
-      "pos": "noun",
-      "priority": "must_appear",
-      "gloss": "A representative case."
-    }
-  ],
-  "scenarios": [
-    {
-      "id": "intro",
-      "title": "Introduction",
-      "description": "A short opening exchange.",
-      "roleplay_seed": "Hi, can you walk me through this?"
-    }
-  ],
-  "personas": [
-    {
-      "id": "default-host",
-      "role": "Friendly Host",
-      "formality": "neutral",
-      "typical_phrases": ["Glad you're here."]
-    }
-  ]
-}
-`;
+interface FormState {
+  id: string;
+  name: string;
+  domain: string;
+  sourceLang: string;
+  defaultInputMode: 'free' | 'crst';
+  prompt: string;
 }
 
-export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) {
+function emptyForm(sourceLang: string): FormState {
+  return { id: '', name: '', domain: '', sourceLang, defaultInputMode: 'free', prompt: '' };
+}
+
+export function PackManager({ uiLang = 'English', sourceLang = 'Chinese' }: { uiLang?: SupportedLang; sourceLang?: string }) {
   const { getHeaders } = useSettings();
   const [packs, setPacks] = useState<PackListItem[]>([]);
   const [mode, setMode] = useState<EditorMode>('list');
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editorText, setEditorText] = useState<string>(() => buildTemplate(uiLang));
-  const [validationIssues, setValidationIssues] = useState<string[]>([]);
+  const [form, setForm] = useState<FormState>(() => emptyForm(sourceLang));
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [statusMsg, setStatusMsg] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -80,34 +52,26 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
     }
   }, [getHeaders]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  useEffect(() => { refresh(); }, [refresh]);
 
-  const validate = useCallback(() => {
-    setValidationIssues([]);
-    try {
-      const parsed = JSON.parse(editorText);
-      const result = RoleplayPackSchema.safeParse(parsed);
-      if (!result.success) {
-        setValidationIssues(
-          result.error.issues.map((i) => `${i.path.join('.') || '(root)'}: ${i.message}`),
-        );
-        return false;
-      }
-      return true;
-    } catch (err) {
-      setValidationIssues([`Invalid JSON: ${(err as Error).message}`]);
-      return false;
-    }
-  }, [editorText]);
+  const validate = (): boolean => {
+    const e: Record<string, string> = {};
+    if (!form.id.trim()) e.id = 'Required';
+    else if (!/^[a-z0-9][a-z0-9-]*$/.test(form.id.trim())) e.id = 'Lowercase letters, numbers, hyphens only';
+    if (!form.name.trim()) e.name = 'Required';
+    if (!form.domain.trim()) e.domain = 'Required';
+    if (!form.sourceLang.trim()) e.sourceLang = 'Required';
+    if (!form.prompt.trim()) e.prompt = 'Required';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
 
   const openCreate = () => {
-    setMode('create');
-    setEditingId(null);
-    setEditorText(buildTemplate(uiLang));
-    setValidationIssues([]);
+    setForm(emptyForm(sourceLang));
+    setErrors({});
     setStatusMsg(null);
+    setEditingId(null);
+    setMode('edit');
   };
 
   const openEdit = async (id: string) => {
@@ -117,10 +81,44 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
       const r = await fetch(`/api/roleplay-packs/${encodeURIComponent(id)}`, { headers: getHeaders() });
       if (!r.ok) throw new Error(`Read failed (${r.status})`);
       const data = await r.json();
-      setEditorText(JSON.stringify(data.pack, null, 2));
-      setMode('edit');
+      const p = data.pack;
+      setForm({
+        id: p.id,
+        name: p.name,
+        domain: p.domain,
+        sourceLang: p.sourceLang,
+        defaultInputMode: p.defaultInputMode ?? 'free',
+        prompt: p.prompt,
+      });
+      setErrors({});
       setEditingId(id);
-      setValidationIssues([]);
+      setMode('edit');
+    } catch (err) {
+      setStatusMsg({ kind: 'err', text: (err as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const openFork = async (id: string) => {
+    setBusy(true);
+    setStatusMsg(null);
+    try {
+      const r = await fetch(`/api/roleplay-packs/${encodeURIComponent(id)}`, { headers: getHeaders() });
+      if (!r.ok) throw new Error(`Read failed (${r.status})`);
+      const data = await r.json();
+      const p = data.pack;
+      setForm({
+        id: `${p.id}-copy`,
+        name: `${p.name} (copy)`,
+        domain: p.domain,
+        sourceLang: p.sourceLang,
+        defaultInputMode: p.defaultInputMode ?? 'free',
+        prompt: p.prompt,
+      });
+      setErrors({});
+      setEditingId(null);
+      setMode('edit');
     } catch (err) {
       setStatusMsg({ kind: 'err', text: (err as Error).message });
     } finally {
@@ -133,15 +131,13 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
     setBusy(true);
     setStatusMsg(null);
     try {
-      const parsed = JSON.parse(editorText);
-      const url = mode === 'edit' && editingId
-        ? `/api/roleplay-packs/${encodeURIComponent(editingId)}`
-        : '/api/roleplay-packs';
-      const method = mode === 'edit' ? 'PUT' : 'POST';
+      const payload = { schemaVersion: '2.0', ...form };
+      const url = editingId ? `/api/roleplay-packs/${encodeURIComponent(editingId)}` : '/api/roleplay-packs';
+      const method = editingId ? 'PUT' : 'POST';
       const r = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify(parsed),
+        body: JSON.stringify(payload),
       });
       if (!r.ok) {
         const data = await r.json().catch(() => ({}));
@@ -161,10 +157,7 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
     if (!confirm(`Delete pack "${id}"? This cannot be undone.`)) return;
     setBusy(true);
     try {
-      const r = await fetch(`/api/roleplay-packs/${encodeURIComponent(id)}`, {
-        method: 'DELETE',
-        headers: getHeaders(),
-      });
+      const r = await fetch(`/api/roleplay-packs/${encodeURIComponent(id)}`, { method: 'DELETE', headers: getHeaders() });
       if (!r.ok) {
         const data = await r.json().catch(() => ({}));
         throw new Error(data.error || `Delete failed (${r.status})`);
@@ -186,9 +179,7 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
       const blob = new Blob([JSON.stringify(data.pack, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `${id}.json`;
-      a.click();
+      a.href = url; a.download = `${id}.json`; a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       setStatusMsg({ kind: 'err', text: (err as Error).message });
@@ -200,10 +191,14 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
     setStatusMsg(null);
     try {
       const text = await file.text();
-      setEditorText(text);
-      setMode('create');
+      const parsed = JSON.parse(text);
+      const result = RoleplayPackSchema.safeParse(parsed);
+      if (!result.success) throw new Error(result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));
+      const p = result.data;
+      setForm({ id: p.id, name: p.name, domain: p.domain, sourceLang: p.sourceLang, defaultInputMode: p.defaultInputMode, prompt: p.prompt });
+      setErrors({});
       setEditingId(null);
-      setValidationIssues([]);
+      setMode('edit');
     } catch (err) {
       setStatusMsg({ kind: 'err', text: (err as Error).message });
     } finally {
@@ -211,27 +206,24 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
     }
   };
 
+  const field = (key: keyof FormState) => ({
+    value: form[key] as string,
+    onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm(f => ({ ...f, [key]: e.target.value })),
+  });
+
   if (mode === 'list') {
     return (
       <div>
         <div className="flex items-center justify-between mb-4">
-          <p className="text-xs text-gray-400">
-            Roleplay packs are vocabulary + scenario + persona bundles. Bundled packs are read-only; user packs (★) can be edited.
-          </p>
+          <p className="text-xs text-gray-400">Roleplay packs are prompt presets. Bundled packs are read-only; user packs (★) can be edited.</p>
           <div className="flex gap-2 shrink-0">
             <label className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 cursor-pointer">
               <Upload size={14} /> Import
-              <input
-                type="file"
-                accept="application/json,.json"
-                className="hidden"
-                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImport(f); e.target.value = ''; }}
-              />
+              <input type="file" accept="application/json,.json" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImport(f); e.target.value = ''; }} />
             </label>
-            <button
-              onClick={openCreate}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg"
-            >
+            <button onClick={openCreate} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg">
               <Plus size={14} /> New pack
             </button>
           </div>
@@ -245,9 +237,7 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
         )}
 
         <ul className="space-y-2">
-          {packs.length === 0 && (
-            <li className="text-center text-xs text-gray-400 py-8">No packs installed yet.</li>
-          )}
+          {packs.length === 0 && <li className="text-center text-xs text-gray-400 py-8">No packs installed yet.</li>}
           {packs.map((p) => (
             <li key={p.id} className="flex items-start gap-3 p-3 border border-gray-200 rounded-xl hover:border-gray-300 transition-colors">
               <div className="flex-1 min-w-0">
@@ -255,23 +245,10 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
                   <span className="text-sm font-semibold text-gray-900">{p.name}</span>
                   {p.source === 'user' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">★ USER</span>}
                   {p.source === 'shared' && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">BUNDLED</span>}
-                  <span className="text-[10px] text-gray-400">v{p.version}</span>
+                  <span className="text-[10px] text-gray-400">{p.defaultInputMode === 'crst' ? 'CRST' : 'Free'}</span>
                 </div>
-                <p className="text-xs text-gray-500 truncate">{p.description}</p>
-                <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1.5 flex-wrap">
-                  <span>{p.domain}</span>
-                  <span>·</span>
-                  <span>learn {p.targetLang}</span>
-                  <span>·</span>
-                  <span
-                    className={p.authorLang !== uiLang ? 'text-amber-700 font-semibold' : ''}
-                    title={p.authorLang !== uiLang ? `Descriptions are in ${p.authorLang}, your UI is in ${uiLang}` : undefined}
-                  >
-                    📝 {p.authorLang}{p.authorLang !== uiLang ? ' ⚠' : ''}
-                  </span>
-                  <span>·</span>
-                  <span>{p.scenarios.length} scenarios · {p.personas.length} personas</span>
-                </p>
+                <p className="text-xs text-gray-500 truncate">{p.promptPreview}</p>
+                <p className="text-[10px] text-gray-400 mt-1">{p.domain} · {p.sourceLang}</p>
               </div>
               <div className="flex gap-1 shrink-0">
                 <button onClick={() => handleExport(p.id)} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded" title="Export">
@@ -286,9 +263,7 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
                   </>
                 )}
                 {p.source === 'shared' && (
-                  <button onClick={() => { handleExport(p.id); }} className="px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded" title="Download & customize">
-                    Fork
-                  </button>
+                  <button onClick={() => openFork(p.id)} className="px-2 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded">Fork</button>
                 )}
               </div>
             </li>
@@ -298,47 +273,72 @@ export function PackManager({ uiLang = 'English' }: { uiLang?: SupportedLang }) 
     );
   }
 
+  // Edit / Create form
+  const isCreate = !editingId;
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-4">
         <button onClick={() => { setMode('list'); setStatusMsg(null); }} className="flex items-center gap-1 text-xs font-semibold text-gray-600 hover:text-gray-900">
           <ChevronLeft size={14} /> Back
         </button>
-        <div className="flex gap-2">
-          <button onClick={validate} className="px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
-            Validate
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={busy}
-            className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 flex items-center gap-1.5"
-          >
-            {busy && <Loader2 size={14} className="animate-spin" />}
-            {mode === 'edit' ? 'Save changes' : 'Create pack'}
-          </button>
+        <button onClick={handleSave} disabled={busy}
+          className="px-3 py-1.5 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg disabled:opacity-50 flex items-center gap-1.5">
+          {busy && <Loader2 size={14} className="animate-spin" />}
+          {isCreate ? 'Create pack' : 'Save changes'}
+        </button>
+      </div>
+
+      <div className="space-y-4">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">ID</label>
+            <input {...field('id')} disabled={!isCreate} placeholder="my-pack-id"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:bg-gray-50 disabled:text-gray-400" />
+            {errors.id && <p className="text-[10px] text-red-600 mt-0.5">{errors.id}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Name</label>
+            <input {...field('name')} placeholder="Job Interview Practice"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            {errors.name && <p className="text-[10px] text-red-600 mt-0.5">{errors.name}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Domain</label>
+            <input {...field('domain')} placeholder="Career / Interview"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            {errors.domain && <p className="text-[10px] text-red-600 mt-0.5">{errors.domain}</p>}
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-600 mb-1">Source Language</label>
+            <input {...field('sourceLang')} placeholder="Chinese"
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
+            {errors.sourceLang && <p className="text-[10px] text-red-600 mt-0.5">{errors.sourceLang}</p>}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1">Default Input Mode</label>
+          <div className="flex gap-3">
+            {(['free', 'crst'] as const).map(m => (
+              <label key={m} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                <input type="radio" name="inputMode" value={m} checked={form.defaultInputMode === m}
+                  onChange={() => setForm(f => ({ ...f, defaultInputMode: m }))} />
+                <span className="font-semibold uppercase">{m}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1">Prompt</label>
+          <textarea {...field('prompt')} rows={10} placeholder="Describe how the AI coach should behave in this roleplay session..."
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400 resize-y" />
+          {errors.prompt && <p className="text-[10px] text-red-600 mt-0.5">{errors.prompt}</p>}
         </div>
       </div>
 
-      <textarea
-        value={editorText}
-        onChange={(e) => { setEditorText(e.target.value); setValidationIssues([]); }}
-        className="w-full h-[400px] font-mono text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-        spellCheck={false}
-      />
-
-      {validationIssues.length > 0 && (
-        <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-3">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-red-700 mb-1">
-            <AlertCircle size={14} /> Validation errors
-          </div>
-          <ul className="text-xs text-red-700 space-y-0.5 list-disc list-inside">
-            {validationIssues.map((issue, i) => (<li key={i}>{issue}</li>))}
-          </ul>
-        </div>
-      )}
-
       {statusMsg && (
-        <div className={`mt-2 flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${statusMsg.kind === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
+        <div className={`mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${statusMsg.kind === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
           {statusMsg.kind === 'ok' ? <CheckCircle2 size={14} /> : <AlertCircle size={14} />}
           {statusMsg.text}
         </div>

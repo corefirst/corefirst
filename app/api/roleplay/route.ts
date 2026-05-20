@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     if (packId) {
       const entry = await readPack(userId, packId);
       if (entry) {
-        const rendered = renderForRoleplay(entry.pack, scenarioId, personaId);
+        const rendered = renderForRoleplay(entry.pack);
         packSection = rendered.packSection;
         if (!effectiveContext) effectiveContext = rendered.derivedContext;
       } else {
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const safeContext = (effectiveContext ?? 'General daily life').replace(/[\x00-\x1F\x7F]/g, '').slice(0, MAX_CONTEXT_LEN);
+    const safeContext = (effectiveContext || 'General daily life').replace(/[\x00-\x1F\x7F]/g, '').slice(0, MAX_CONTEXT_LEN);
 
     const baseSystemInstructions = await loadSkill('roleplay-coach', {
       SOURCE_LANG: sourceLang,

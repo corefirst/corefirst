@@ -176,7 +176,7 @@ const en: Dict = {
   roleplayHistoryTip: 'Tip: the AI uses only the last 10 messages — start a new session for a fresh topic.',
 
   errCoachUnavailable: 'Coach unavailable. Please try again.',
-  roleplayGreeting: (target, scenario) => 'Hello! I am your Core First coach. Today we are practicing ' + target + (scenario ? ' for ' + scenario : '') + '.',
+  roleplayGreeting: (target, scenario) => scenario ? 'Hello! I am your Core First coach. Today we are practicing ' + target + ' — ' + scenario + '.' : 'Hello! I am your Core First coach. Feel free to chat with me in ' + target + '!',
   roleplayModeCasual: 'Casual Chat Mode',
   roleplayModeAnalysis: 'CRST Analysis Mode',
   buildModeHeader: 'Structure your thought first · CFLT order',
@@ -411,7 +411,7 @@ const zh: Dict = {
   roleplayHistoryTip: '提示：AI 只使用最后 10 条消息 —— 开启新会话以开始新主题。',
 
   errCoachUnavailable: '教练暂时不可用，请稍后再试。',
-  roleplayGreeting: (target, scenario) => '你好！我是你的核心先行教练。今天我们要练习' + target + (scenario ? '的' + scenario + '场景' : '') + '。',
+  roleplayGreeting: (target, scenario) => scenario ? '你好！我是你的核心先行教练。今天我们来练习' + target + '的「' + scenario + '」场景。' : '你好！我是你的核心先行教练，随时用' + target + '和我聊聊吧！',
   roleplayModeCasual: '休闲聊天模式',
   roleplayModeAnalysis: 'CRST 分析模式',
   buildModeHeader: '先梳理思路 · CFLT 顺序',
@@ -647,7 +647,7 @@ const ja: Dict = {
   roleplayHistoryTip: 'ヒント：AIは直近の10メッセージのみを使用します — 新しいトピックを始めるには新しいセッションを開始してください。',
 
   errCoachUnavailable: 'コーチは現在利用できません。もう一度お試しください。',
-  roleplayGreeting: (target, scenario) => 'こんにちは！あなたのCore Firstコーチです。今日は' + target + (scenario ? '（' + scenario + '）' : '') + 'の練習をしましょう。',
+  roleplayGreeting: (target, scenario) => scenario ? 'こんにちは！あなたのCore Firstコーチです。今日は' + target + '（' + scenario + '）の練習をしましょう。' : 'こんにちは！あなたのCore Firstコーチです。' + target + 'で自由に話しかけてください！',
   roleplayModeCasual: 'カジュアルチャットモード',
   roleplayModeAnalysis: 'CRST 分析モード',
   buildModeHeader: '思考を構成する · CFLT の順序',
@@ -820,7 +820,7 @@ const ko: Dict = {
   roleplayHistoryTip: '팁: AI는 마지막 10개의 메시지만 사용합니다 — 새로운 주제를 시작하려면 새 세션을 시작하세요.',
 
   errCoachUnavailable: '코치를 지금 이용할 수 없습니다. 다시 시도해 주세요.',
-  roleplayGreeting: (target, scenario) => '안녕하세요! 코어 퍼스트 코치입니다. 오늘은 ' + target + (scenario ? ' (' + scenario + ')' : '') + ' 연습을 할 예정입니다.',
+  roleplayGreeting: (target, scenario) => scenario ? '안녕하세요! 코어 퍼스트 코치입니다. 오늘은 ' + target + ' (' + scenario + ') 연습을 할 예정입니다.' : '안녕하세요! 코어 퍼스트 코치입니다. ' + target + '로 자유롭게 대화해 보세요!',
   roleplayModeCasual: '캐주얼 채팅 모드',
   roleplayModeAnalysis: 'CRST 분석 모드',
   buildModeHeader: '먼저 생각을 구성하세요 · CFLT 순서',
@@ -993,7 +993,7 @@ const vi: Dict = {
   roleplayHistoryTip: 'Mẹo: AI chỉ sử dụng 10 tin nhắn cuối cùng — hãy bắt đầu phiên mới cho chủ đề mới.',
 
   errCoachUnavailable: 'Huấn luyện viên hiện không có sẵn. Vui lòng thử lại.',
-  roleplayGreeting: (target, scenario) => 'Xin chào! Tôi là huấn luyện viên Core First của bạn. Hôm nay chúng ta sẽ luyện tập ' + target + (scenario ? ' cho chủ đề ' + scenario : '') + '.',
+  roleplayGreeting: (target, scenario) => scenario ? 'Xin chào! Tôi là huấn luyện viên Core First của bạn. Hôm nay chúng ta sẽ luyện tập ' + target + ' — ' + scenario + '.' : 'Xin chào! Tôi là huấn luyện viên Core First của bạn. Hãy thoải mái trò chuyện bằng ' + target + ' với tôi nhé!',
   roleplayModeCasual: 'Chế độ trò chuyện thông thường',
   roleplayModeAnalysis: 'Chế độ phân tích CRST',
   buildModeHeader: 'Cấu trúc suy nghĩ của bạn trước · Thứ tự CFLT',
@@ -1165,7 +1165,7 @@ const es: Dict = {
   roleplayHistoryTip: 'Consejo: la IA solo usa los últimos 10 mensajes; inicia una nueva sesión para un tema nuevo.',
 
   errCoachUnavailable: 'Entrenador no disponible. Por favor, inténtelo de nuevo.',
-  roleplayGreeting: (target, scenario) => '¡Hola! Soy tu entrenador de Core First. Hoy estamos practicando ' + target + (scenario ? ' para ' + scenario : '') + '.',
+  roleplayGreeting: (target, scenario) => scenario ? '¡Hola! Soy tu entrenador de Core First. Hoy practicamos ' + target + ' — ' + scenario + '.' : '¡Hola! Soy tu entrenador de Core First. ¡Chatea conmigo en ' + target + ' cuando quieras!',
   roleplayModeCasual: 'Modo de chat casual',
   roleplayModeAnalysis: 'Modo de análisis CRST',
   buildModeHeader: 'Estructura tu pensamiento primero · Orden CFLT',
@@ -1337,7 +1337,7 @@ const fr: Dict = {
   roleplayHistoryTip: 'Astuce : l\'IA n\'utilise que les 10 derniers messages — commencez une nouvelle session pour un nouveau sujet.',
 
   errCoachUnavailable: 'Coach indisponible. Veuillez réessayer.',
-  roleplayGreeting: (target, scenario) => 'Bonjour ! Je suis votre coach Core First. Aujourd\'hui, nous pratiquons ' + target + (scenario ? ' pour ' + scenario : '') + '.',
+  roleplayGreeting: (target, scenario) => scenario ? 'Bonjour ! Je suis votre coach Core First. Aujourd\'hui, nous pratiquons ' + target + ' — ' + scenario + '.' : 'Bonjour ! Je suis votre coach Core First. Chattez librement avec moi en ' + target + ' !',
   roleplayModeCasual: 'Mode de discussion occasionnelle',
   roleplayModeAnalysis: 'Mode d\'analyse CRST',
   buildModeHeader: 'Structurez d\'abord votre pensée · Ordre CFLT',
@@ -1522,7 +1522,7 @@ const de: Dict = {
   roleplayHistoryTip: 'Tipp: Die KI verwendet nur die letzten 10 Nachrichten — starten Sie eine neue Sitzung für ein neues Thema.',
 
   errCoachUnavailable: 'Trainer nicht verfügbar. Bitte versuchen Sie es erneut.',
-  roleplayGreeting: (target, scenario) => 'Hallo! Ich bin dein Core First Trainer. Heute üben wir ' + target + (scenario ? ' für ' + scenario : '') + '.',
+  roleplayGreeting: (target, scenario) => scenario ? 'Hallo! Ich bin dein Core First Trainer. Heute üben wir ' + target + ' — ' + scenario + '.' : 'Hallo! Ich bin dein Core First Trainer. Chatte einfach auf ' + target + ' mit mir!',
   roleplayModeCasual: 'Zwangloser Chat-Modus',
   roleplayModeAnalysis: 'CRST-Analysemodus',
   buildModeHeader: 'Strukturieren Sie zuerst Ihren Gedanken · CFLT-Reihenfolge',

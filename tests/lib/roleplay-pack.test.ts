@@ -1,66 +1,62 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { readFileSync, rmSync, mkdtempSync } from 'fs';
+import { rmSync, mkdtempSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { RoleplayPackSchema, type RoleplayPack } from '@/src/types/roleplay-pack';
 import { listPacks, readPack, writePack, deletePack, validatePackJSON } from '@/src/lib/roleplay-pack/loader';
 import { renderForRoleplay } from '@/src/lib/roleplay-pack/injector';
 
-const BUNDLED_PACK_PATH = join(process.cwd(), 'data/shared/roleplay-packs/it-software-en.json');
+const makeMinimalPack = (id: string): RoleplayPack => ({
+  schemaVersion: '2.0',
+  id,
+  name: `Test Pack ${id}`,
+  domain: 'Testing',
+  sourceLang: 'Chinese',
+  prompt: 'You are a test coach. Keep it simple.',
+  defaultInputMode: 'free',
+});
 
 describe('RoleplayPackSchema', () => {
-  it('parses the bundled it-software-en pack', () => {
-    const raw = JSON.parse(readFileSync(BUNDLED_PACK_PATH, 'utf8'));
-    const result = RoleplayPackSchema.safeParse(raw);
+  it('parses a valid v2.0 pack', () => {
+    const result = RoleplayPackSchema.safeParse(makeMinimalPack('valid-pack'));
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.id).toBe('it-software-en');
-      expect(result.data.vocabulary.length).toBeGreaterThan(0);
-      expect(result.data.scenarios.length).toBeGreaterThan(0);
-      expect(result.data.personas.length).toBeGreaterThan(0);
-    }
   });
 
   it('rejects packs with invalid id format', () => {
-    const raw = JSON.parse(readFileSync(BUNDLED_PACK_PATH, 'utf8'));
-    raw.id = 'Has Spaces';
-    const result = RoleplayPackSchema.safeParse(raw);
+    const result = RoleplayPackSchema.safeParse({ ...makeMinimalPack('bad'), id: 'Has Spaces' });
     expect(result.success).toBe(false);
   });
 
-  it('rejects packs with non-semver version', () => {
-    const raw = JSON.parse(readFileSync(BUNDLED_PACK_PATH, 'utf8'));
-    raw.version = '1.0';
-    const result = RoleplayPackSchema.safeParse(raw);
+  it('rejects packs missing prompt', () => {
+    const { prompt: _, ...noprompt } = makeMinimalPack('no-prompt');
+    const result = RoleplayPackSchema.safeParse(noprompt);
     expect(result.success).toBe(false);
   });
 
-  it('rejects packs missing authorLang', () => {
-    const raw = JSON.parse(readFileSync(BUNDLED_PACK_PATH, 'utf8'));
-    delete raw.authorLang;
-    const result = RoleplayPackSchema.safeParse(raw);
+  it('rejects packs missing sourceLang', () => {
+    const { sourceLang: _, ...noLang } = makeMinimalPack('no-lang');
+    const result = RoleplayPackSchema.safeParse(noLang);
     expect(result.success).toBe(false);
   });
 
-  it('applies default coverageTargets when missing', () => {
-    const raw = JSON.parse(readFileSync(BUNDLED_PACK_PATH, 'utf8'));
-    delete raw.coverageTargets;
-    const result = RoleplayPackSchema.safeParse(raw);
+  it('defaults defaultInputMode to free when omitted', () => {
+    const { defaultInputMode: _, ...noMode } = makeMinimalPack('no-mode');
+    const result = RoleplayPackSchema.safeParse(noMode);
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.coverageTargets.suggested_terms_per_session).toBe(6);
-      expect(result.data.coverageTargets.suggested_per_turn_max).toBe(2);
-    }
+    if (result.success) expect(result.data.defaultInputMode).toBe('free');
   });
 });
 
 describe('validatePackJSON', () => {
   it('returns structured errors for invalid input', () => {
-    const result = validatePackJSON({ schemaVersion: '1.0', id: 'BAD ID' });
+    const result = validatePackJSON({ schemaVersion: '2.0', id: 'BAD ID' });
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.issues.length).toBeGreaterThan(0);
-    }
+    if (!result.ok) expect(result.issues.length).toBeGreaterThan(0);
+  });
+
+  it('accepts a valid pack', () => {
+    const result = validatePackJSON(makeMinimalPack('ok-pack'));
+    expect(result.ok).toBe(true);
   });
 });
 
@@ -78,37 +74,6 @@ describe('writePack / readPack / deletePack / listPacks', () => {
     rmSync(dataDir, { recursive: true, force: true });
   });
 
-  const makeMinimalPack = (id: string): RoleplayPack => ({
-    schemaVersion: '1.0',
-    id,
-    name: `Test Pack ${id}`,
-    description: 'Minimal test pack',
-    version: '1.0.0',
-    domain: 'Testing',
-    targetLang: 'English',
-    authorLang: 'English',
-    ageGroups: [],
-    license: 'CC-BY-4.0',
-    vocabulary: [
-      {
-        term: 'merge',
-        pos: 'verb',
-        priority: 'must_appear',
-        register: 'neutral',
-        gloss: 'Combine branches',
-        collocations: [],
-        contexts: [],
-        examples: [],
-        aliases: [],
-        tags: [],
-      },
-    ],
-    scenarios: [],
-    personas: [],
-    avoidTerms: [],
-    coverageTargets: { suggested_terms_per_session: 6, suggested_per_turn_max: 2 },
-  });
-
   it('writes and reads a user pack', async () => {
     const pack = makeMinimalPack('test-pack');
     await writePack(userId, pack);
@@ -116,7 +81,7 @@ describe('writePack / readPack / deletePack / listPacks', () => {
     expect(entry).not.toBeNull();
     expect(entry?.source).toBe('user');
     expect(entry?.pack.id).toBe('test-pack');
-    expect(entry?.pack.vocabulary[0].term).toBe('merge');
+    expect(entry?.pack.prompt).toBe(pack.prompt);
   });
 
   it('round-trips through write+read without data loss', async () => {
@@ -149,43 +114,16 @@ describe('writePack / readPack / deletePack / listPacks', () => {
 });
 
 describe('renderForRoleplay injector', () => {
-  const bundled = (() => {
-    const raw = JSON.parse(readFileSync(BUNDLED_PACK_PATH, 'utf8'));
-    return RoleplayPackSchema.parse(raw);
-  })();
-
-  it('produces a non-empty fragment with persona and scenario', () => {
-    const result = renderForRoleplay(bundled, 'code-review', 'tech-lead');
-    expect(result.packSection.length).toBeGreaterThan(50);
-    expect(result.packSection).toContain('Tech Lead');
-    expect(result.packSection).toContain('Code Review Discussion');
+  it('returns the pack prompt as packSection', () => {
+    const pack = makeMinimalPack('render-test');
+    const result = renderForRoleplay(pack);
+    expect(result.packSection).toBe(pack.prompt);
   });
 
-  it('includes must_appear vocabulary terms', () => {
-    const result = renderForRoleplay(bundled, 'code-review', 'tech-lead');
-    expect(result.packSection).toContain('deploy');
-    expect(result.packSection).toContain('refactor');
-  });
-
-  it('includes avoid terms', () => {
-    const result = renderForRoleplay(bundled);
-    expect(result.packSection).toContain('synergy');
-  });
-
-  it('returns scenario roleplay_seed when scenario selected', () => {
-    const result = renderForRoleplay(bundled, 'code-review', 'tech-lead');
-    expect(result.seed).toBeDefined();
-    expect(result.seed?.length).toBeGreaterThan(0);
-  });
-
-  it('omits scenario block when no scenarioId provided', () => {
-    const result = renderForRoleplay(bundled);
-    expect(result.packSection).not.toContain('### Scenario:');
-    expect(result.seed).toBeUndefined();
-  });
-
-  it('derives context from scenario when available', () => {
-    const result = renderForRoleplay(bundled, 'incident-response');
-    expect(result.derivedContext).toContain('Production Incident');
+  it('derives context from pack name and domain', () => {
+    const pack = makeMinimalPack('ctx-test');
+    const result = renderForRoleplay(pack);
+    expect(result.derivedContext).toContain(pack.name);
+    expect(result.derivedContext).toContain(pack.domain);
   });
 });

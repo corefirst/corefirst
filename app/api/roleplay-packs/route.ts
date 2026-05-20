@@ -8,14 +8,11 @@ export async function GET(request: Request) {
   const list = entries.map(({ pack, source }) => ({
     id: pack.id,
     name: pack.name,
-    description: pack.description,
-    version: pack.version,
     domain: pack.domain,
-    targetLang: pack.targetLang,
-    authorLang: pack.authorLang,
+    sourceLang: pack.sourceLang,
+    defaultInputMode: pack.defaultInputMode,
+    promptPreview: pack.prompt.slice(0, 80) + (pack.prompt.length > 80 ? '…' : ''),
     source,
-    scenarios: pack.scenarios.map((s) => ({ id: s.id, title: s.title, description: s.description })),
-    personas: pack.personas.map((p) => ({ id: p.id, role: p.role, formality: p.formality })),
   }));
   return NextResponse.json({ packs: list });
 }

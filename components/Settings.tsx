@@ -6,8 +6,6 @@ import {
 } from 'lucide-react';
 import { SkillsContent } from '@/components/SkillsPanel';
 import { MembershipPanel } from '@/components/MembershipPanel';
-import { PackManager } from '@/components/PackManager';
-import { Package } from 'lucide-react';
 import { useSettings, type UserSettings, type SettingsMode } from '@/hooks/useSettings';
 import { useProfile } from '@/hooks/useProfile';
 import { useCloudAuth } from '@/hooks/useCloudAuth';
@@ -16,7 +14,7 @@ import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
 interface Props { onClose: () => void; uiLang: SupportedLang; }
 
-type Tab = 'providers' | 'skills' | 'packs' | 'profile';
+type Tab = 'providers' | 'skills' | 'profile';
 type VerifyState = 'idle' | 'loading' | 'ok' | 'error';
 
 // === Provider definitions =================================================
@@ -256,7 +254,7 @@ export function Settings({ onClose, uiLang }: Props) {
         </div>
 
         <div role="tablist" className="flex border-b border-gray-100 px-6 shrink-0">
-          {([['providers', Cpu, tr(uiLang, 'providers')], ['skills', Zap, tr(uiLang, 'skills')], ['packs', Package, 'Packs'], ['profile', User, tr(uiLang, 'profile')]] as const).map(([id, Icon, label]) => (
+          {([['providers', Cpu, tr(uiLang, 'providers')], ['skills', Zap, tr(uiLang, 'skills')], ['profile', User, tr(uiLang, 'profile')]] as const).map(([id, Icon, label]) => (
             <button
               key={id}
               role="tab"
@@ -716,10 +714,6 @@ export function Settings({ onClose, uiLang }: Props) {
               </p>
               <SkillsContent uiLang={uiLang} />
             </div>
-          )}
-
-          {tab === 'packs' && (
-            <PackManager uiLang={uiLang} />
           )}
 
           {tab === 'profile' && (
