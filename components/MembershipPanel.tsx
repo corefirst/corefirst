@@ -6,7 +6,7 @@ import { cloudForgotPassword } from '@/src/lib/cloud/auth';
 import { getCloudBaseUrl, CloudError } from '@/src/lib/cloud/client';
 import { listTransactions, type CloudTransaction } from '@/src/lib/cloud/transactions';
 import { fetchBalance, listPackages, startCheckout, type CreditBalanceSummary, type CreditPackage } from '@/src/lib/cloud/credits';
-import { beginOAuthLogin, beginLinkExternalAccount, listMyIdentities, unlinkIdentity, type BoundIdentity } from '@/src/lib/cloud/identities';
+import { beginOAuthLogin, beginLinkExternalAccount, listMyIdentities, unlinkIdentity, type BoundIdentity, type IdentityProvider } from '@/src/lib/cloud/identities';
 
 type Mode = 'login' | 'register';
 
@@ -159,13 +159,6 @@ export function MembershipPanel() {
         >
           <GoogleGlyph /> 用 Google 登录
         </button>
-        <button
-          type="button"
-          onClick={() => beginOAuthLogin('github')}
-          className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white py-2 rounded-xl text-sm hover:bg-black"
-        >
-          <GitHubGlyph /> 用 GitHub 登录
-        </button>
       </div>
 
       <p className="text-[11px] text-gray-400 text-center leading-relaxed">
@@ -183,13 +176,6 @@ function GoogleGlyph() {
       <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.5 6.1 29.6 4 24 4 16 4 9.1 8.6 6.3 14.7z"/>
       <path fill="#4CAF50" d="M24 44c5.5 0 10.4-2.1 14.1-5.6l-6.5-5.5C29.5 34.6 26.9 36 24 36c-5.3 0-9.7-3.4-11.3-8l-6.6 5.1C9 39.4 16 44 24 44z"/>
       <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.7l6.5 5.5C42 35.9 44 30.4 44 24c0-1.3-.1-2.4-.4-3.5z"/>
-    </svg>
-  );
-}
-function GitHubGlyph() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
-      <path d="M12 .5C5.7.5.5 5.7.5 12c0 5.1 3.3 9.4 7.9 10.9.6.1.8-.3.8-.6v-2.1c-3.2.7-3.9-1.4-3.9-1.4-.5-1.3-1.3-1.7-1.3-1.7-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.7 1.3 3.4 1 .1-.8.4-1.3.8-1.6-2.6-.3-5.3-1.3-5.3-5.7 0-1.3.4-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.3 1.2 1-.3 2-.4 3-.4s2 .1 3 .4c2.3-1.5 3.3-1.2 3.3-1.2.6 1.6.2 2.8.1 3.1.7.8 1.2 1.8 1.2 3.1 0 4.4-2.7 5.4-5.3 5.7.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6 4.6-1.5 7.9-5.8 7.9-10.9C23.5 5.7 18.3.5 12 .5z"/>
     </svg>
   );
 }
@@ -346,7 +332,7 @@ function BoundIdentities() {
   async function handleUnlink(provider: string) {
     setBusy(provider); setError('');
     try {
-      await unlinkIdentity(provider);
+      await unlinkIdentity(provider as IdentityProvider);
       await reload();
     } catch (e: any) {
       if (e instanceof CloudError && e.code === 'LAST_CREDENTIAL') {
@@ -364,7 +350,7 @@ function BoundIdentities() {
   const loginIdentities = items.filter(i => i.provider !== 'stripe');
   const linkedSet = new Set(loginIdentities.map(i => i.provider));
 
-  async function handleLink(provider: 'google' | 'github') {
+  async function handleLink(provider: 'google') {
     try {
       await beginLinkExternalAccount(provider);
     } catch (e: any) {
@@ -377,7 +363,7 @@ function BoundIdentities() {
       <p className="text-xs font-semibold text-gray-600">登录方式</p>
       {error && <p className="text-xs text-red-600">{error}</p>}
       <ul className="space-y-1">
-        {(['google', 'github'] as const).map(provider => {
+        {(['google'] as const).map(provider => {
           const bound = linkedSet.has(provider);
           return (
             <li key={provider} className="flex items-center justify-between text-xs">

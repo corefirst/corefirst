@@ -7,7 +7,7 @@
 import { cloudJson, getCloudBaseUrl } from './client';
 import { getAccessToken } from './storage';
 
-export type IdentityProvider = 'google' | 'github' | 'stripe';
+export type IdentityProvider = 'google' | 'stripe';
 
 export interface BoundIdentity {
   provider: IdentityProvider;
@@ -55,7 +55,7 @@ function openOAuthUrl(url: string): void {
  * Begin OAuth LOGIN (or signup) flow — no prior session required.
  * Web: top-level redirect.  Electron: system browser + corefirst:// callback.
  */
-export function beginOAuthLogin(provider: 'google' | 'github', returnTo?: string): void {
+export function beginOAuthLogin(provider: 'google', returnTo?: string): void {
   const url = new URL(`${getCloudBaseUrl()}/v1/auth/oauth/${provider}/start`);
   url.searchParams.set('returnTo', returnTo ?? defaultReturnTo());
   openOAuthUrl(url.toString());
@@ -72,7 +72,7 @@ export function beginOAuthLogin(provider: 'google' | 'github', returnTo?: string
  *      which the server consumes and seeds the link cookies before bouncing
  *      to the provider.
  */
-export async function beginLinkExternalAccount(provider: 'google' | 'github', returnTo?: string): Promise<void> {
+export async function beginLinkExternalAccount(provider: 'google', returnTo?: string): Promise<void> {
   const token = getAccessToken();
   if (!token) throw new Error('Must be logged in to link an external account');
 
