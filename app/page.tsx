@@ -982,9 +982,9 @@ export default function Home() {
                                         standardL2={script.standard_l2}
                                         uiLang={uiLang}
                                         onContinue={() => markPuzzleComplete(puzzleId, i, j)}
-                                        onPlayAudio={() => script.audioUrl
-                                          ? playAudioFromUrl(script.audioUrl, `demo-${i}-${j}`)
-                                          : playAudio(script.standard_l2 || script.ssml, `demo-${i}-${j}`)}
+                                        onPlayAudio={() => script.cfltAudioUrl
+                                          ? playAudioFromUrl(script.cfltAudioUrl, `demo-${i}-${j}`)
+                                          : playAudio(script.cflt_l2, `demo-${i}-${j}`)}
                                         isAudioLoading={audioLoading === `demo-${i}-${j}`}
                                       />
                                     ) : (
@@ -1033,9 +1033,23 @@ export default function Home() {
                                         </div>
                                       </div>
                                       <div className="space-y-2">
-                                        <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                                          {tr(uiLang, 'targetMappingHeader')}
-                                        </p>
+                                        <div className="flex items-center justify-between">
+                                          <p className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+                                            {tr(uiLang, 'targetMappingHeader')}
+                                          </p>
+                                          <button
+                                            onClick={() => script.cfltAudioUrl
+                                              ? playAudioFromUrl(script.cfltAudioUrl, `crst-${i}-${j}`)
+                                              : playAudio(script.cflt_l2, `crst-${i}-${j}`)}
+                                            disabled={audioLoading === `crst-${i}-${j}`}
+                                            aria-label={tr(uiLang, 'ariaPlaySentence')}
+                                            className="text-slate-400 hover:text-blue-500 transition-colors disabled:text-slate-200"
+                                          >
+                                            {audioLoading === `crst-${i}-${j}`
+                                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                                              : <PlayCircle className="w-4 h-4" />}
+                                          </button>
+                                        </div>
                                         <div className="flex flex-wrap gap-2">
                                           {renderBlocks(script.cflt_l2)}
                                         </div>

@@ -18,8 +18,9 @@ export const PackageScriptSchema = z.object({
   // demo falls back to standardL2 when empty.
   standardL1: z.string().default(''),
   ssml: z.string(),
-  audioFile: z.string().optional(), // e.g. "abc.mp3"
-  videoFile: z.string().optional(), // e.g. "def.mp4" (future proofing)
+  audioFile: z.string().optional(),     // standard sentence TTS, e.g. "abc.mp3"
+  cfltAudioFile: z.string().optional(), // CRST L2 structure TTS, e.g. "def.mp3"
+  videoFile: z.string().optional(),     // e.g. "ghi.mp4" (future proofing)
 });
 
 export const PackageVocabularySchema = z.object({

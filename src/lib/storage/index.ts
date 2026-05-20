@@ -44,6 +44,7 @@ export {
   writePackage,
   readPackageManifest,
   readPackageAudio,
+  readPackageCfltAudio,
   readPackageImage,
   listPackages,
   resolveUniqueSlug,

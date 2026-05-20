@@ -87,53 +87,76 @@ export async function buildAndWritePackage(
         return;
       }
       emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'generating' });
-      const hash = contentHash(script.ssml);
-      const filename = `${hash}.mp3`;
-      const poolFile = sharedMediaPath(filename);
-      let audio: Uint8Array | null = null;
-      try {
-        audio = new Uint8Array(await fs.readFile(poolFile));
-      } catch {
+
+      const generateAndCache = async (text: string): Promise<{ filename: string; audio: Uint8Array } | null> => {
+        const hash = contentHash(text);
+        const filename = `${hash}.mp3`;
+        const poolFile = sharedMediaPath(filename);
         try {
-          audio = await tts.generateAudio(script.ssml);
+          const audio = new Uint8Array(await fs.readFile(poolFile));
+          return { filename, audio };
+        } catch { /* not cached */ }
+        try {
+          const audio = await tts.generateAudio(text);
           await fs.writeFile(poolFile, audio);
+          return { filename, audio };
         } catch (err) {
           if (classifyAIError(err) === 'INSUFFICIENT_CREDITS') {
             creditsExhausted = true;
-            emit({
-              type: 'lesson-audio',
-              lessonIndex: lessonIdx,
-              scriptIndex: scriptIdx,
-              status: 'failed',
-              code: 'INSUFFICIENT_CREDITS',
-            });
-            return;
           }
-          const msg = (err as Error).message;
-          const cause = (err as { cause?: unknown }).cause;
-          console.error(
-            `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
-            msg,
-            cause ? `| Cause: ${JSON.stringify(cause)}` : '',
-          );
-          emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'failed' });
-          return;
+          throw err;
         }
-      }
-      if (audio) {
-        audioMap.set(`media/${filename}`, audio);
-        script.audioFile = filename;
-        const audioUrl = `/api/media/${filename}`;
-        if (input.manifest.lessons[lessonIdx]?.cflt_scripts[scriptIdx]) {
-          input.manifest.lessons[lessonIdx].cflt_scripts[scriptIdx].audioUrl = audioUrl;
+      };
+
+      try {
+        // Standard sentence audio
+        const standard = await generateAndCache(script.ssml);
+        if (standard) {
+          audioMap.set(`media/${standard.filename}`, standard.audio);
+          script.audioFile = standard.filename;
+          const audioUrl = `/api/media/${standard.filename}`;
+          if (input.manifest.lessons[lessonIdx]?.cflt_scripts[scriptIdx]) {
+            input.manifest.lessons[lessonIdx].cflt_scripts[scriptIdx].audioUrl = audioUrl;
+          }
         }
+
+        // CRST L2 structure audio — separate hash so it's cached independently
+        const cflt = await generateAndCache(script.cfltL2);
+        if (cflt) {
+          audioMap.set(`media/${cflt.filename}`, cflt.audio);
+          script.cfltAudioFile = cflt.filename;
+          const cfltAudioUrl = `/api/media/${cflt.filename}`;
+          if (input.manifest.lessons[lessonIdx]?.cflt_scripts[scriptIdx]) {
+            input.manifest.lessons[lessonIdx].cflt_scripts[scriptIdx].cfltAudioUrl = cfltAudioUrl;
+          }
+        }
+
         emit({
           type: 'lesson-audio',
           lessonIndex: lessonIdx,
           scriptIndex: scriptIdx,
           status: 'done',
-          audioUrl,
+          audioUrl: script.audioFile ? `/api/media/${script.audioFile}` : undefined,
         });
+      } catch (err) {
+        if (creditsExhausted) {
+          emit({
+            type: 'lesson-audio',
+            lessonIndex: lessonIdx,
+            scriptIndex: scriptIdx,
+            status: 'failed',
+            code: 'INSUFFICIENT_CREDITS',
+          });
+          return;
+        }
+        const msg = (err as Error).message;
+        const cause = (err as { cause?: unknown }).cause;
+        console.error(
+          `[package-builder] Audio generation failed for script ${script.scriptIndex}:`,
+          msg,
+          cause ? `| Cause: ${JSON.stringify(cause)}` : '',
+        );
+        emit({ type: 'lesson-audio', lessonIndex: lessonIdx, scriptIndex: scriptIdx, status: 'failed' });
       }
     });
   };

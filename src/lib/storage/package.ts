@@ -182,6 +182,31 @@ export async function readPackageAudio(
   return data;
 }
 
+export async function readPackageCfltAudio(
+  userId: string,
+  slug: string,
+  lesson: number,
+  script: number,
+): Promise<Uint8Array> {
+  const manifest = await readPackageManifest(userId, slug);
+  const s = manifest.lessons[lesson]?.scripts[script];
+  if (!s?.cfltAudioFile) throw new PackageCorruptError(`cfltAudioFile missing for l${lesson}s${script} in ${slug}`);
+  const filename = s.cfltAudioFile;
+  try {
+    return new Uint8Array(await fs.readFile(sharedMediaPath(filename)));
+  } catch { /* not in shared pool */ }
+  try {
+    return new Uint8Array(await fs.readFile(mediaPath(userId, filename)));
+  } catch { /* not in per-user pool */ }
+  try {
+    const buf = await readFileOrThrow(packagePath(userId, slug), slug);
+    const entries = await unzipBuffer(buf);
+    const data = entries[`media/${filename}`];
+    if (data) return data;
+  } catch { /* ZIP doesn't exist */ }
+  throw new PackageCorruptError(`cfltAudio asset "${filename}" not found for ${slug}`);
+}
+
 export async function readPackageImage(
   userId: string,
   slug: string,
@@ -326,6 +351,7 @@ export async function pruneSharedOrphanMedia(): Promise<string[]> {
         if (lesson.videoFile) referenced.add(lesson.videoFile);
         for (const script of lesson.scripts) {
           if (script.audioFile) referenced.add(script.audioFile);
+          if (script.cfltAudioFile) referenced.add(script.cfltAudioFile);
           if (script.videoFile) referenced.add(script.videoFile);
         }
       }
@@ -474,6 +500,7 @@ async function collectReferencedMedia(userId: string): Promise<Set<string>> {
       if (lesson.videoFile) refs.add(lesson.videoFile);
       for (const script of lesson.scripts) {
         if (script.audioFile) refs.add(script.audioFile);
+        if (script.cfltAudioFile) refs.add(script.cfltAudioFile);
         if (script.videoFile) refs.add(script.videoFile);
       }
     }
@@ -505,6 +532,7 @@ export async function exportPackage(
     if (lesson.videoFile) mediaFiles.add(lesson.videoFile);
     for (const script of lesson.scripts) {
       if (script.audioFile) mediaFiles.add(script.audioFile);
+      if (script.cfltAudioFile) mediaFiles.add(script.cfltAudioFile);
       if (script.videoFile) mediaFiles.add(script.videoFile);
     }
   }

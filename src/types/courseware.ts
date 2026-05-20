@@ -8,6 +8,7 @@ export const LessonScriptSchema = z.object({
   standard_l1: z.string().default(''),
   ssml: z.string().default(''),
   audioUrl: z.string().optional(),
+  cfltAudioUrl: z.string().optional(),
 });
 
 /**

@@ -55,6 +55,7 @@ export async function GET(request: Request, ctx: { params: Promise<Params> }) {
           standard_l1: s.standardL1 ?? '',
           ssml: s.ssml,
           audioUrl: `/api/courses/${encodeURIComponent(slug)}/audio/${lesson.lessonIndex}/${s.scriptIndex}`,
+          ...(s.cfltAudioFile ? { cfltAudioUrl: `/api/courses/${encodeURIComponent(slug)}/crst-audio/${lesson.lessonIndex}/${s.scriptIndex}` } : {}),
         })),
       })),
       packageId: manifest.packageId,
