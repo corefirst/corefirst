@@ -165,7 +165,7 @@ type Resolver = (...args: any[]) => string;
 type Dict = Record<DictKey, string | Resolver>;
 
 const en: Dict = {
-  btnBuild: 'CRST',
+  btnBuild: 'CRST Structured',
   btnPlayCorrected: 'Play corrected pronunciation', btnRetranscribe: 'Retranscribe', btnRetranscribeHint: 'Retranscribe recorded audio',
 
   statusRecording: 'Recording...',
@@ -184,7 +184,7 @@ const en: Dict = {
   phReason: 'Why / the condition',
   phSpace: 'Where / the context',
   phTime: 'When',
-  btnFreeText: 'Free',
+  btnFreeText: 'Free Input',
   btnSend: 'Send',
 
   tagline: 'Core-First Language Method',
@@ -400,7 +400,7 @@ const en: Dict = {
 };
 
 const zh: Dict = {
-  btnBuild: 'CRST',
+  btnBuild: 'CRST 标准输入',
   btnPlayCorrected: '播放纠正发音', btnRetranscribe: '重新识别', btnRetranscribeHint: '重新识别录音文字',
 
   statusRecording: '正在录音...',
@@ -419,7 +419,7 @@ const zh: Dict = {
   phReason: '为什么 / 条件',
   phSpace: '在哪里 / 背景',
   phTime: '什么时候',
-  btnFreeText: 'Free',
+  btnFreeText: '自由输入',
   btnSend: '发送',
 
   tagline: '核心先行语言方法',
@@ -636,7 +636,7 @@ const zh: Dict = {
 
 
 const ja: Dict = {
-  btnBuild: 'CRST',
+  btnBuild: 'CRST 標準入力',
   btnPlayCorrected: '修正された発音を再生', btnRetranscribe: '再文字起こし', btnRetranscribeHint: '録音した音声を再文字起こし',
 
   statusRecording: '録音中...',
@@ -655,7 +655,7 @@ const ja: Dict = {
   phReason: 'なぜ / 条件',
   phSpace: 'どこで / コンテキスト',
   phTime: 'いつ',
-  btnFreeText: 'Free',
+  btnFreeText: '自由入力',
   btnSend: '送信',
 
   tagline: 'コアファースト言語学習法',
@@ -809,7 +809,7 @@ const ja: Dict = {
 };
 
 const ko: Dict = {
-  btnBuild: 'CRST',
+  btnBuild: 'CRST 표준 입력',
   btnPlayCorrected: '교정된 발음 재생', btnRetranscribe: '다시 전사', btnRetranscribeHint: '녹음된 오디오 다시 전사',
 
   statusRecording: '녹음 중...',
@@ -828,7 +828,7 @@ const ko: Dict = {
   phReason: '왜 / 조건',
   phSpace: '어디서 / 맥락',
   phTime: '언제',
-  btnFreeText: 'Free',
+  btnFreeText: '자유 입력',
   btnSend: '보내기',
 
   tagline: '코어 퍼스트 언어 학습법',
@@ -982,7 +982,7 @@ const ko: Dict = {
 };
 
 const vi: Dict = {
-  btnBuild: 'CRST',
+  btnBuild: 'CRST chuẩn',
   btnPlayCorrected: 'Phát âm thanh đã sửa', btnRetranscribe: 'Chuyển âm lại', btnRetranscribeHint: 'Chuyển âm lại đoạn ghi âm',
 
   statusRecording: 'Đang ghi âm...',
@@ -1001,7 +1001,7 @@ const vi: Dict = {
   phReason: 'Tại sao / điều kiện',
   phSpace: 'Ở đâu / ngữ cảnh',
   phTime: 'Khi nào',
-  btnFreeText: 'Free',
+  btnFreeText: 'Nhập tự do',
   btnSend: 'Gửi',
 
   tagline: 'Phương pháp học ngôn ngữ Core-First',
@@ -1154,7 +1154,7 @@ const vi: Dict = {
 };
 
 const es: Dict = {
-  btnBuild: 'CRST',
+  btnBuild: 'CRST estándar',
   btnPlayCorrected: 'Reproducir pronunciación corregida', btnRetranscribe: 'Volver a transcribir', btnRetranscribeHint: 'Volver a transcribir el audio grabado',
 
   statusRecording: 'Grabando...',
@@ -1173,7 +1173,7 @@ const es: Dict = {
   phReason: 'Por qué / la condición',
   phSpace: 'Dónde / el contexto',
   phTime: 'Cuándo',
-  btnFreeText: 'Free',
+  btnFreeText: 'Entrada libre',
   btnSend: 'Enviar',
 
   tagline: 'Método de idiomas Core-First',
@@ -1326,7 +1326,7 @@ const es: Dict = {
 };
 
 const fr: Dict = {
-  btnBuild: 'CRST',
+  btnBuild: 'CRST standard',
   btnPlayCorrected: 'Lire la prononciation corrigée', btnRetranscribe: 'Retranscrire', btnRetranscribeHint: "Retranscrire l'audio enregistré",
 
   statusRecording: 'Enregistrement...',
@@ -1345,7 +1345,7 @@ const fr: Dict = {
   phReason: 'Pourquoi / la condition',
   phSpace: 'Où / le contexte',
   phTime: 'Quand',
-  btnFreeText: 'Free',
+  btnFreeText: 'Saisie libre',
   btnSend: 'Envoyer',
 
   tagline: 'Méthode de langue Core-First',
@@ -1498,7 +1498,7 @@ const fr: Dict = {
 };
 
 const de: Dict = {
-  btnBuild: 'CRST',
+  btnBuild: 'CRST Standard',
   btnExport: 'Exportieren',
   builderHeader: 'Logikrätsel: Blöcke neu anordnen',
   builderVerify: 'Logik prüfen',
@@ -1530,7 +1530,7 @@ const de: Dict = {
   phReason: 'Warum / die Bedingung',
   phSpace: 'Wo / der Kontext',
   phTime: 'Wann',
-  btnFreeText: 'Free',
+  btnFreeText: 'Freie Eingabe',
   btnSend: 'Senden',
 
   tagline: 'Core-First Sprachmethode',

@@ -379,6 +379,9 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
 
       {/* Pack picker + scenario selector */}
       <div className="px-4 py-2 bg-slate-800 border-b border-slate-700 flex flex-wrap items-center gap-2">
+        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">
+          {tr(uiLang, 'targetLangLabel')}
+        </label>
         <select
           value={targetLang}
           onChange={(e) => onTargetLangChange?.(e.target.value as SupportedLang)}
@@ -390,26 +393,18 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
           ))}
         </select>
         <span className="text-slate-600 text-xs shrink-0">·</span>
-        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 shrink-0">Pack</label>
         <select
           value={selectedPackId}
           onChange={(e) => setSelectedPackId(e.target.value)}
-          className="text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          className="text-xs font-medium text-slate-100 bg-slate-700 border border-slate-600 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 flex-1 min-w-0"
         >
-          <option value="">No pack (free-text)</option>
+          <option value="">{tr(uiLang, 'roleplayModeCasual')}</option>
           {packs.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}{p.source === 'user' ? ' ★' : ''}
             </option>
           ))}
         </select>
-
-        {activePack && (
-          <span className="text-[10px] text-slate-400 truncate max-w-[200px]">{activePack.domain}</span>
-        )}
-        <span className={`ml-auto text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 ${selectedPackId ? 'bg-blue-500/20 text-blue-300' : 'bg-slate-600/40 text-slate-400'}`}>
-          {selectedPackId ? 'Pack' : 'Free'}
-        </span>
       </div>
 
       {historyNearLimit && (
