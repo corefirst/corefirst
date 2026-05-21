@@ -1,5 +1,5 @@
 /** @vitest-environment node */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { CFLTTransformer } from '@/src/core/transformer';
 import { TTSFactory } from '@/src/core/tts/factory';
 import { STTFactory } from '@/src/core/stt/factory';
@@ -8,6 +8,20 @@ import { STTFactory } from '@/src/core/stt/factory';
 // It skips automatically if the required API keys are not present in the environment.
 
 const hasKey = (key: string) => !!process.env[key];
+
+const TOUCHED = ['TRANSFORM_PROVIDER', 'TRANSFORM_MODEL'];
+let saved: Record<string, string | undefined>;
+
+beforeEach(() => {
+  saved = Object.fromEntries(TOUCHED.map(k => [k, process.env[k]]));
+});
+
+afterEach(() => {
+  for (const k of TOUCHED) {
+    if (saved[k] === undefined) delete process.env[k];
+    else process.env[k] = saved[k];
+  }
+});
 
 describe('AI Provider Connectivity Smoke Tests', () => {
   
@@ -116,9 +130,9 @@ describe('AI Provider Connectivity Smoke Tests', () => {
     });
 
     it.skipIf(skip)('can generate a short audio clip', async () => {
-      const provider = TTSFactory.getProvider({ 
-        provider: 'openrouter', 
-        model: 'openai/gpt-4o-mini-tts-2025-12-15' 
+      const provider = TTSFactory.getProvider({
+        provider: 'openrouter',
+        model: 'openai/tts-1'
       });
       const audio = await provider.generateAudio('Hello');
       expect(audio.byteLength).toBeGreaterThan(0);

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const audioFile = formData.get('audio');
     const targetLang = formData.get('language') as string | null;
 
-    if (!audioFile || typeof (audioFile as any).arrayBuffer !== 'function') {
+    if (!audioFile || typeof (audioFile as any).arrayBuffer !== 'function' || typeof (audioFile as any).size !== 'number') {
       return NextResponse.json({ error: 'Audio file is required' }, { status: 400 });
     }
     if (audioFile.size > MAX_AUDIO_BYTES) {

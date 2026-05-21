@@ -6,6 +6,9 @@ import * as cloudStorage from '@/src/lib/cloud/storage';
 
 vi.mock('@/src/lib/cloud/storage', () => ({
   getAccessToken: vi.fn(),
+}));
+
+vi.mock('@/src/lib/cloud/client', () => ({
   getCloudBaseUrl: vi.fn().mockReturnValue('https://api.corefirst.world'),
 }));
 
@@ -76,7 +79,7 @@ describe('useSettings', () => {
     
     const headers = result.current.getHeaders();
     expect(headers['x-cf-cloud-token']).toBe('fake-token');
-    expect(headers['x-cf-cloud-base-url']).toBe('http://localhost:4000');
+    expect(headers['x-cf-cloud-base-url']).toBe('https://api.corefirst.world');
   });
 
   it('responds to storage events for cross-tab sync', () => {
