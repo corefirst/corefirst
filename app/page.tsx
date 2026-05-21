@@ -13,7 +13,6 @@ import { RoleplayHistory } from '../components/RoleplayHistory';
 import { CourseShelf } from '../components/CourseShelf';
 import { ProfileSwitcher } from '../components/ProfileSwitcher';
 import { Settings } from '../components/Settings';
-import { MarketPanel } from '../components/MarketPanel';
 import { VocabReview } from '../components/VocabReview';
 import { PhoneticBridge } from '../components/PhoneticBridge';
 import { useSettings } from '../hooks/useSettings';
@@ -54,7 +53,7 @@ export default function Home() {
   const [recallAttempt, setRecallAttempt] = useState('');
   const [recallRevealed, setRecallRevealed] = useState(false);
 
-  const [mode, setMode] = useState<'transform' | 'course' | 'stats' | 'roleplay' | 'market'>('transform');
+  const [mode, setMode] = useState<'transform' | 'course' | 'stats' | 'roleplay'>('transform');
   // Per-mode inputs — transform takes a sentence, course takes a topic; sharing
   // a single state would carry sentence-shaped text into the topic field (or
   // vice versa) when the learner switches tabs. Each mode keeps its own draft.
@@ -585,12 +584,6 @@ export default function Home() {
               >
                 <BarChart3 className="w-3.5 h-3.5" /> {tr(uiLang, 'tabStats')}
               </button>
-              <button
-                onClick={() => setMode('market')}
-                className={`px-3.5 py-1.5 rounded-lg font-bold text-sm transition-all flex items-center gap-1.5 whitespace-nowrap ${mode === 'market' ? 'bg-slate-900 text-white shadow-sm' : 'text-slate-400 hover:text-slate-700 hover:bg-slate-100/80'}`}
-              >
-                <Library className="w-3.5 h-3.5" /> {tr(uiLang, 'tabMarket')}
-              </button>
             </div>
           </div>
         </div>
@@ -712,7 +705,6 @@ export default function Home() {
         {/* Results */}
         <div className="space-y-8">
           {mode === 'stats' && <ProgressDashboard uiLang={uiLang} onNavigate={(tab) => setMode(tab)} onReview={() => setShowVocabReview(true)} />}
-          {mode === 'market' && <MarketPanel />}
           {mode === 'roleplay' && (
             <>
               <CFLTChat

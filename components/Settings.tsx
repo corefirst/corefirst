@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   X, CheckCircle, AlertCircle, Loader2, ChevronDown, ChevronRight,
-  Settings as SettingsIcon, User, Cpu, Zap, Cloud, CloudOff,
+  Settings as SettingsIcon, User, Cpu, Zap, Cloud, CloudOff, Package, ExternalLink,
 } from 'lucide-react';
 import { SkillsContent } from '@/components/SkillsPanel';
 import { MembershipPanel } from '@/components/MembershipPanel';
@@ -14,7 +14,7 @@ import { t as tr, type SupportedLang } from '@/src/lib/ui-i18n';
 
 interface Props { onClose: () => void; uiLang: SupportedLang; }
 
-type Tab = 'providers' | 'skills' | 'profile';
+type Tab = 'providers' | 'skills' | 'profile' | 'market';
 type VerifyState = 'idle' | 'loading' | 'ok' | 'error';
 
 // === Provider definitions =================================================
@@ -254,7 +254,7 @@ export function Settings({ onClose, uiLang }: Props) {
         </div>
 
         <div role="tablist" className="flex border-b border-gray-100 px-6 shrink-0">
-          {([['providers', Cpu, tr(uiLang, 'providers')], ['skills', Zap, tr(uiLang, 'skills')], ['profile', User, tr(uiLang, 'profile')]] as const).map(([id, Icon, label]) => (
+          {([['providers', Cpu, tr(uiLang, 'providers')], ['skills', Zap, tr(uiLang, 'skills')], ['profile', User, tr(uiLang, 'profile')], ['market', Package, tr(uiLang, 'settingsTabMarket')]] as const).map(([id, Icon, label]) => (
             <button
               key={id}
               role="tab"
@@ -733,6 +733,21 @@ export function Settings({ onClose, uiLang }: Props) {
                 <p className="text-sm font-mono text-gray-400 bg-gray-50 rounded-xl px-3 py-2 break-all">{currentId || '—'}</p>
                 <p className="text-xs text-gray-400 mt-1">{tr(uiLang, 'settingsFuture')}</p>
               </div>
+            </div>
+          )}
+
+          {tab === 'market' && (
+            <div className="space-y-4">
+              <p className="text-xs text-gray-400">{tr(uiLang, 'settingsBrowseMarketDesc')}</p>
+              <a
+                href="https://corefirst.world/market"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-between w-full px-4 py-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-sm font-medium text-slate-700 transition-colors"
+              >
+                <span>{tr(uiLang, 'settingsBrowseMarket')}</span>
+                <ExternalLink size={14} className="text-slate-400" />
+              </a>
             </div>
           )}
         </div>

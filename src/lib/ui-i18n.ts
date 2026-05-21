@@ -35,7 +35,7 @@ export function localizeLang(langName: string, uiLang: SupportedLang): string {
 
 export type DictKey =
 // Header / tabs
-  | 'tagline' | 'tabTransform' | 'tabCourse' | 'tabRoleplay' | 'tabStats' | 'tabMarket'
+  | 'tagline' | 'tabTransform' | 'tabCourse' | 'tabRoleplay' | 'tabStats'
   | 'uiLangLabel'
   // History panel
   | 'library' | 'historyTransformsHeader' | 'historyRoleplayHeader' | 'historyCoursesHeader'
@@ -114,6 +114,7 @@ export type DictKey =
   | 'settingsUserId' | 'settingsProfileNameOptional'
   | 'yourAttempt' | 'audio' | 'images' | 'searchPhonetic' | 'vocabLoading'
   | 'settingsSelectProvider' | 'settingsInherit' | 'settingsFuture' | 'verifyOk'
+  | 'settingsTabMarket' | 'settingsBrowseMarket' | 'settingsBrowseMarketDesc'
   | 'cancel' | 'btnVerify' | 'btnTestConnection' | 'btnCheckCli'
   | 'courseGenWait' | 'errNoApiKey' | 'errApiKeyInvalid' | 'errInsufficientCredits' | 'updateInSettings'
   | 'btnTestYourself' | 'btnTestYourselfHint' | 'btnBuildCourse' | 'btnPracticeRoleplay' | 'ariaPlaySentence'
@@ -188,8 +189,7 @@ const en: Dict = {
   btnSend: 'Send',
 
   tagline: 'Core-First Language Method',
-  tabTransform: 'Transform', tabCourse: 'Course', tabRoleplay: 'Roleplay', tabStats: 'Stats', tabMarket: 'Market',
-  uiLangLabel: 'Interface',
+  tabTransform: 'Transform', tabCourse: 'Course', tabRoleplay: 'Roleplay', tabStats: 'Stats',  uiLangLabel: 'Interface',
   historyTransformsHeader: 'Transform History',
   historyRoleplayHeader: 'Roleplay Sessions',
   profiles: 'Profiles',
@@ -319,6 +319,7 @@ const en: Dict = {
   settingsUserId: 'User ID', settingsProfileNameOptional: 'Name (optional)',
   yourAttempt: 'Your attempt', audio: 'Audio', images: 'Images', searchPhonetic: 'Search pinyin, IPA, or English…', vocabLoading: 'Loading due vocabulary…',
   settingsSelectProvider: '— select a provider —', settingsInherit: 'inherit from server', settingsFuture: 'Future: link to hub.corefirst.world for sync and premium features.', verifyOk: 'Connected successfully',
+  settingsTabMarket: 'Packs', settingsBrowseMarket: 'Browse Market at corefirst.world →', settingsBrowseMarketDesc: 'Discover new roleplay packs and courses at corefirst.world.',
   btnVerify: 'Verify', btnTestConnection: 'Test Connection', btnCheckCli: 'Check CLI',
   courseGenWait: 'This usually takes 20–30 seconds.', errNoApiKey: 'No API key configured. Set up your own key to get started.', errApiKeyInvalid: 'API key invalid or expired. Please check your key and try again.', errInsufficientCredits: 'Credits exhausted. Top up your account or add your own API key in Settings.', updateInSettings: 'Update in Settings →',
   btnTestYourself: 'Test Yourself', btnTestYourselfHint: 'Hide the answer and test yourself', btnBuildCourse: 'Build a course on this →', btnPracticeRoleplay: 'Practice in Roleplay →', ariaPlaySentence: 'Play sentence',
@@ -423,8 +424,7 @@ const zh: Dict = {
   btnSend: '发送',
 
   tagline: '核心先行语言方法',
-  tabTransform: '转换', tabCourse: '课程', tabRoleplay: '角色扮演', tabStats: '统计', tabMarket: '市场',
-  uiLangLabel: '界面语言',
+  tabTransform: '转换', tabCourse: '课程', tabRoleplay: '角色扮演', tabStats: '统计',  uiLangLabel: '界面语言',
   historyTransformsHeader: '转换历史',
   historyRoleplayHeader: '角色扮演会话',
   profiles: '切换档案',
@@ -554,6 +554,7 @@ const zh: Dict = {
   settingsUserId: '用户 ID', settingsProfileNameOptional: '姓名（可选）',
   yourAttempt: '你的尝试', audio: '音频', images: '图片', searchPhonetic: '搜索拼音、IPA 或英语...', vocabLoading: '正在加载待复习词汇...',
   settingsSelectProvider: '— 选择提供者 —', settingsInherit: '继承服务器设置', settingsFuture: '未来功能：连接至 hub.corefirst.world 进行同步并开启高级功能。', verifyOk: '连接成功',
+  settingsTabMarket: 'Packs', settingsBrowseMarket: '在 corefirst.world 浏览市场 →', settingsBrowseMarketDesc: '在 corefirst.world 发现更多角色扮演包和课程。',
   btnVerify: '验证', btnTestConnection: '测试连接', btnCheckCli: '检查 CLI',
   courseGenWait: '这通常需要 20-30 秒。', errNoApiKey: '未配置 API 密钥。请设置你自己的密钥以开始使用。', errApiKeyInvalid: 'API 密钥无效或已过期。请检查你的密钥并重试。', errInsufficientCredits: '额度不足。请充值或在「设置」中填入自己的 API Key。', updateInSettings: '在设置中更新 →',
   btnTestYourself: '自测', btnTestYourselfHint: '隐藏答案并进行自测', btnBuildCourse: '以此为基础生成课程 →', btnPracticeRoleplay: '在角色扮演中练习 →', ariaPlaySentence: '播放句子',
@@ -659,8 +660,7 @@ const ja: Dict = {
   btnSend: '送信',
 
   tagline: 'コアファースト言語学習法',
-  tabTransform: '変換', tabCourse: 'コース', tabRoleplay: 'ロールプレイ', tabStats: '統計', tabMarket: 'マーケット',
-  uiLangLabel: '表示言語',
+  tabTransform: '変換', tabCourse: 'コース', tabRoleplay: 'ロールプレイ', tabStats: '統計',  uiLangLabel: '表示言語',
   historyTransformsHeader: '変換履歴',
   historyRoleplayHeader: 'ロールプレイのセッション',
   library: 'ライブラリ',
@@ -787,6 +787,7 @@ const ja: Dict = {
   settingsUserId: 'ユーザー ID', settingsProfileNameOptional: '名前（任意）',
   yourAttempt: 'あなたの試行', audio: '音声', images: '画像', searchPhonetic: 'ピンイン、IPA、または英語で検索...', vocabLoading: '復習が必要な語彙を読み込み中...',
   settingsSelectProvider: '— プロバイダーを選択 —', settingsInherit: 'サーバーから継承', settingsFuture: '将来：同期やプレミアム機能のために hub.corefirst.world にリンクします。', verifyOk: '接続に成功しました',
+  settingsTabMarket: 'Packs', settingsBrowseMarket: 'corefirst.world でマーケットを見る →', settingsBrowseMarketDesc: 'corefirst.world で新しいロールプレイパックやコースを見つけましょう。',
   btnVerify: '確認', btnTestConnection: '接続テスト', btnCheckCli: 'CLIを確認',
   courseGenWait: '通常、これには 20〜30 秒かかります。', errNoApiKey: 'API キーが設定されていません。開始するには独自のキーを設定してください。', errApiKeyInvalid: 'API キーが無効または期限切れです。キーを確認して再試行してください。', errInsufficientCredits: 'クレジットが不足しています。チャージするか、設定で独自の API キーを入力してください。', updateInSettings: '設定で更新 →',
   btnTestYourself: 'セルフテスト', btnTestYourselfHint: '答えを隠してセルフテストをする', btnBuildCourse: 'これでコースを作成 →', btnPracticeRoleplay: 'ロールプレイで練習 →', ariaPlaySentence: '文章を再生',
@@ -832,8 +833,7 @@ const ko: Dict = {
   btnSend: '보내기',
 
   tagline: '코어 퍼스트 언어 학습법',
-  tabTransform: '변환', tabCourse: '코스', tabRoleplay: '역할극', tabStats: '통계', tabMarket: '마켓',
-  uiLangLabel: '인터페이스',
+  tabTransform: '변환', tabCourse: '코스', tabRoleplay: '역할극', tabStats: '통계',  uiLangLabel: '인터페이스',
   historyTransformsHeader: '변환 기록',
   historyRoleplayHeader: '역할극 세션',
   library: '라이브러리',
@@ -960,6 +960,7 @@ const ko: Dict = {
   settingsUserId: '사용자 ID', settingsProfileNameOptional: '이름 (선택 사항)',
   yourAttempt: '당신의 시도', audio: '오디오', images: '이미지', searchPhonetic: '병음, IPA 또는 영어로 검색...', vocabLoading: '복습할 어휘를 불러오는 중...',
   settingsSelectProvider: '— 제공자 선택 —', settingsInherit: '서버에서 상속', settingsFuture: '향후 기능: 동기화 및 프리미엄 기능을 위해 hub.corefirst.world에 연결합니다.', verifyOk: '성공적으로 연결됨',
+  settingsTabMarket: 'Packs', settingsBrowseMarket: 'corefirst.world에서 마켓 탐색 →', settingsBrowseMarketDesc: 'corefirst.world에서 새로운 롤플레이 팩과 코스를 발견하세요.',
   btnVerify: '확인', btnTestConnection: '연결 테스트', btnCheckCli: 'CLI 확인',
   courseGenWait: '일반적으로 20~30초 정도 소요됩니다.', errNoApiKey: 'API 키가 구성되지 않았습니다. 시작하려면 자체 키를 설정하세요.', errApiKeyInvalid: 'API 키가 유효하지 않거나 만료되었습니다. 키를 확인하고 다시 시도하세요.', errInsufficientCredits: '크레딧이 부족합니다. 계정을 충전하거나 설정에서 자체 API 키를 입력하세요.', updateInSettings: '설정에서 업데이트 →',
   btnTestYourself: '자가 테스트', btnTestYourselfHint: '정답을 숨기고 자가 테스트하기', btnBuildCourse: '이걸로 코스 만들기 →', btnPracticeRoleplay: '역할극에서 연습하기 →', ariaPlaySentence: '문장 재생',
@@ -1005,8 +1006,7 @@ const vi: Dict = {
   btnSend: 'Gửi',
 
   tagline: 'Phương pháp học ngôn ngữ Core-First',
-  tabTransform: 'Chuyển đổi', tabCourse: 'Khóa học', tabRoleplay: 'Đóng vai', tabStats: 'Thống kê', tabMarket: 'Chợ',
-  uiLangLabel: 'Giao diện',
+  tabTransform: 'Chuyển đổi', tabCourse: 'Khóa học', tabRoleplay: 'Đóng vai', tabStats: 'Thống kê',  uiLangLabel: 'Giao diện',
   historyTransformsHeader: 'Lịch sử chuyển đổi',
   historyRoleplayHeader: 'Phiên đóng vai',
   library: 'Thư viện',
@@ -1133,6 +1133,7 @@ const vi: Dict = {
   settingsUserId: 'ID người dùng', settingsProfileNameOptional: 'Tên (tùy chọn)',
   yourAttempt: 'Lượt thử của bạn', audio: 'Âm thanh', images: 'Hình ảnh', searchPhonetic: 'Tìm kiếm bính âm, IPA hoặc tiếng Anh...', vocabLoading: 'Đang tải từ vựng cần ôn...',
   settingsSelectProvider: '— chọn nhà cung cấp —', settingsInherit: 'kế thừa từ máy chủ', settingsFuture: 'Tương lai: liên kết với hub.corefirst.world để đồng bộ và sử dụng tính năng cao cấp.', verifyOk: 'Kết nối thành công',
+  settingsTabMarket: 'Packs', settingsBrowseMarket: 'Khám phá Market tại corefirst.world →', settingsBrowseMarketDesc: 'Khám phá các gói nhập vai và khóa học mới tại corefirst.world.',
   cancel: 'Hủy', btnVerify: 'Xác minh', btnTestConnection: 'Kiểm tra kết nối', btnCheckCli: 'Kiểm tra CLI',
   courseGenWait: 'Quá trình này thường mất 20–30 giây.', errNoApiKey: 'Chưa cấu hình API key. Hãy thiết lập key của riêng bạn để bắt đầu.', errApiKeyInvalid: 'API key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại key và thử lại.', errInsufficientCredits: 'Đã hết hạn mức. Vui lòng nạp thêm hoặc nhập API key của bạn trong Cài đặt.', updateInSettings: 'Cập nhật trong Cài đặt →',
   btnTestYourself: 'Tự kiểm tra', btnTestYourselfHint: 'Ẩn câu trả lời và tự kiểm tra', btnBuildCourse: 'Tạo khóa học về chủ đề này →', btnPracticeRoleplay: 'Luyện tập trong Đóng vai →', ariaPlaySentence: 'Phát câu',
@@ -1177,8 +1178,7 @@ const es: Dict = {
   btnSend: 'Enviar',
 
   tagline: 'Método de idiomas Core-First',
-  tabTransform: 'Transformar', tabCourse: 'Curso', tabRoleplay: 'Juego de roles', tabStats: 'Estadísticas', tabMarket: 'Mercado',
-  uiLangLabel: 'Interfaz',
+  tabTransform: 'Transformar', tabCourse: 'Curso', tabRoleplay: 'Juego de roles', tabStats: 'Estadísticas',  uiLangLabel: 'Interfaz',
   historyTransformsHeader: 'Historial de transformaciones',
   historyRoleplayHeader: 'Sesiones de juego de roles',
   library: 'Biblioteca',
@@ -1305,6 +1305,7 @@ const es: Dict = {
   settingsUserId: 'ID de usuario', settingsProfileNameOptional: 'Nombre (opcional)',
   yourAttempt: 'Tu intento', audio: 'Audio', images: 'Imágenes', searchPhonetic: 'Buscar pinyin, IPA o inglés…', vocabLoading: 'Cargando vocabulario pendiente…',
   settingsSelectProvider: '— seleccionar un proveedor —', settingsInherit: 'heredar del servidor', settingsFuture: 'Futuro: enlace a hub.corefirst.world para sincronización y funciones premium.', verifyOk: 'Conectado con éxito',
+  settingsTabMarket: 'Packs', settingsBrowseMarket: 'Explorar Market en corefirst.world →', settingsBrowseMarketDesc: 'Descubre nuevos packs de juego de roles y cursos en corefirst.world.',
   cancel: 'Cancelar', btnVerify: 'Verificar', btnTestConnection: 'Probar conexión', btnCheckCli: 'Comprobar CLI',
   courseGenWait: 'Esto generalmente toma entre 20 y 30 segundos.', errNoApiKey: 'No hay ninguna clave API configurada. Configura tu propia clave para empezar.', errApiKeyInvalid: 'Clave API inválida o caducada. Por favor, comprueba tu clave e inténtalo de nuevo.', errInsufficientCredits: 'Créditos agotados. Recarga tu cuenta o añade tu propia clave API en Configuración.', updateInSettings: 'Actualizar en Configuración →',
   btnTestYourself: 'Ponte a prueba', btnTestYourselfHint: 'Oculta la respuesta y ponte a prueba', btnBuildCourse: 'Crear un curso sobre esto →', btnPracticeRoleplay: 'Practicar en Juego de roles →', ariaPlaySentence: 'Reproducir oración',
@@ -1349,8 +1350,7 @@ const fr: Dict = {
   btnSend: 'Envoyer',
 
   tagline: 'Méthode de langue Core-First',
-  tabTransform: 'Transformer', tabCourse: 'Cours', tabRoleplay: 'Jeu de rôle', tabStats: 'Statistiques', tabMarket: 'Marché',
-  uiLangLabel: 'Interface',
+  tabTransform: 'Transformer', tabCourse: 'Cours', tabRoleplay: 'Jeu de rôle', tabStats: 'Statistiques',  uiLangLabel: 'Interface',
   historyTransformsHeader: 'Historique des transformations',
   historyRoleplayHeader: 'Sessions de jeu de rôle',
   library: 'Bibliothèque',
@@ -1477,6 +1477,7 @@ const fr: Dict = {
   settingsUserId: 'ID utilisateur', settingsProfileNameOptional: 'Nom (facultatif)',
   yourAttempt: 'Votre tentative', audio: 'Audio', images: 'Images', searchPhonetic: 'Rechercher pinyin, IPA ou anglais…', vocabLoading: 'Chargement du vocabulaire à réviser…',
   settingsSelectProvider: '— sélectionner un fournisseur —', settingsInherit: 'hériter du serveur', settingsFuture: 'Futuro : lien vers hub.corefirst.world pour la synchronisation et les fonctionnalités premium.', verifyOk: 'Connecté avec succès',
+  settingsTabMarket: 'Packs', settingsBrowseMarket: 'Explorer le Market sur corefirst.world →', settingsBrowseMarketDesc: 'Découvrez de nouveaux packs de jeu de rôle et cours sur corefirst.world.',
   cancel: 'Annuler', btnVerify: 'Vérifier', btnTestConnection: 'Tester la connexion', btnCheckCli: 'Vérifier la CLI',
   courseGenWait: 'Cela prend généralement 20 à 30 secondes.', errNoApiKey: 'Aucune clé API configurée. Configurez votre propre clé pour commencer.', errApiKeyInvalid: 'Clé API non valide ou expirée. Veuillez vérifier votre clé et réessayer.', errInsufficientCredits: 'Crédits épuisés. Rechargez votre compte ou ajoutez votre propre clé API dans les paramètres.', updateInSettings: 'Mettre à jour dans les paramètres →',
   btnTestYourself: 'Testez-vous', btnTestYourselfHint: 'Cachez la réponse et testez-vous', btnBuildCourse: 'Créer un cours sur ce sujet →', btnPracticeRoleplay: 'S\'entraîner en Jeu de rôle →', ariaPlaySentence: 'Lire la phrase',
@@ -1534,8 +1535,7 @@ const de: Dict = {
   btnSend: 'Senden',
 
   tagline: 'Core-First Sprachmethode',
-  tabTransform: 'Transformieren', tabCourse: 'Kurs', tabRoleplay: 'Rollenspiel', tabStats: 'Statistiken', tabMarket: 'Markt',
-  uiLangLabel: 'Benutzeroberfläche',
+  tabTransform: 'Transformieren', tabCourse: 'Kurs', tabRoleplay: 'Rollenspiel', tabStats: 'Statistiken',  uiLangLabel: 'Benutzeroberfläche',
   historyTransformsHeader: 'Transformationsverlauf',
   historyRoleplayHeader: 'Rollenspiel-Sitzungen',
   library: 'Bibliothek',
@@ -1656,6 +1656,7 @@ const de: Dict = {
   textAi: 'Text-KI', textAiSubtitle: 'Transformieren · Rollenspiel · Kurs', fullStackSub: 'Ein Schlüssel für Text, Bild, Sprache und Transkription.', leaveBlank: 'leer lassen, um den globalen Schlüssel zu verwenden', cloud: 'Cloud', local: 'Lokal', apiKey: 'API-Key', baseUrl: 'Basis-URL', model: 'Modell', commandPath: 'Befehlspfad', provider: 'Anbieter', globalDefault: 'Globalen / Server-Standard verwenden', modelBlankDefault: 'leer = Anbieter-Standard',
   yourAttempt: 'Dein Versuch', audio: 'Audio', images: 'Bilder', searchPhonetic: 'Pinyin, IPA oder Englisch suchen…', vocabLoading: 'Vokabeln zur Wiederholung werden geladen…',
   settingsSelectProvider: '— Anbieter auswählen —', settingsInherit: 'vom Server erben', settingsFuture: 'Zukunft: Link zu hub.corefirst.world für Synchronisierung und Premium-Funktionen.', verifyOk: 'Erfolgreich verbunden',
+  settingsTabMarket: 'Packs', settingsBrowseMarket: 'Market auf corefirst.world erkunden →', settingsBrowseMarketDesc: 'Entdecken Sie neue Rollenspiel-Pakete und Kurse auf corefirst.world.',
   cancel: 'Abbrechen', btnVerify: 'Prüfen', btnTestConnection: 'Verbindung testen', btnCheckCli: 'CLI prüfen',
   courseGenWait: 'Dies dauert normalerweise 20–30 Sekunden.', errNoApiKey: 'Kein API-Key konfiguriert. Richten Sie Ihren eigenen Key ein, um zu beginnen.', errApiKeyInvalid: 'API-Key ungültig oder abgelaufen. Bitte überprüfen Sie Ihren Key und versuchen Sie es erneut.', errInsufficientCredits: 'Guthaben aufgebraucht. Laden Sie Ihr Konto auf oder fügen Sie Ihren eigenen API-Key in den Einstellungen hinzu.', updateInSettings: 'In den Einstellungen aktualisieren →',
   btnTestYourself: 'Selbsttest', btnTestYourselfHint: 'Antwort ausblenden und selbst testen', btnBuildCourse: 'Einen Kurs dazu erstellen →', btnPracticeRoleplay: 'Im Rollenspiel üben →', ariaPlaySentence: 'Satz abspielen',

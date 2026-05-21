@@ -24,7 +24,6 @@ export {
   type CloudUser,
 } from './storage';
 
-export * as Market from './market';
 export * as CommunitySkills from './community-skills';
 export * as Transactions from './transactions';
 export * as Credits from './credits';
