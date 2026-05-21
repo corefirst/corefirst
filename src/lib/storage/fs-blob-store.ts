@@ -14,11 +14,11 @@ export class FileSystemBlobStore implements BlobStore {
     const fullPath = path.join(this.baseDir, filename);
     await fs.mkdir(path.dirname(fullPath), { recursive: true });
 
-    if (data instanceof Blob) {
-      const arrayBuffer = await data.arrayBuffer();
+    if (data && typeof (data as any).arrayBuffer === 'function') {
+      const arrayBuffer = await (data as any).arrayBuffer();
       await fs.writeFile(fullPath, new Uint8Array(arrayBuffer));
     } else {
-      await fs.writeFile(fullPath, new Uint8Array(data));
+      await fs.writeFile(fullPath, new Uint8Array(data as Buffer));
     }
     return filename;
   }

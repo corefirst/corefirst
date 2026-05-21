@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // ── env save/restore ──────────────────────────────────────────────────────
-const TOUCHED = ['TTS_PROVIDER', 'TTS_MODEL', 'TTS_API_KEY', 'STT_PROVIDER', 'STT_MODEL', 'STT_API_KEY', 'GOOGLE_GENERATIVE_AI_API_KEY', 'GOOGLE_API_KEY', 'GLOBAL_API_KEY', 'GLOBAL_PROVIDER'];
+const TOUCHED = [
+  'TTS_PROVIDER', 'TTS_MODEL', 'TTS_API_KEY',
+  'STT_PROVIDER', 'STT_MODEL', 'STT_API_KEY',
+  'GOOGLE_GENERATIVE_AI_API_KEY', 'GOOGLE_API_KEY',
+  'OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GROQ_API_KEY', 'DEEPSEEK_API_KEY', 'DASHSCOPE_API_KEY',
+  'GLOBAL_API_KEY', 'GLOBAL_PROVIDER'
+];
 let saved: Record<string, string | undefined>;
 
 beforeEach(() => {
