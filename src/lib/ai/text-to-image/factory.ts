@@ -32,6 +32,10 @@ registerImageModelBuilder('ollama',     (r, _k) => {
 });
 registerImageModelBuilder('qwen',       (r, k) => openaiImageModel(r.model, getProviderBaseUrl('qwen'), k ?? r.apiKey));
 registerImageModelBuilder('openrouter', (r, k) => openaiImageModel(r.model, getProviderBaseUrl('openrouter'), k ?? r.apiKey));
+registerImageModelBuilder('comfyui',    (r, _k) =>
+  // ComfyUI with comfyui-openai-image-api plugin. No API key required.
+  // Default port 8188; override via IMAGE_GEN_BASE_URL if needed.
+  openaiImageModel(r.model, r.baseUrl ?? 'http://localhost:8188', undefined));
 registerImageModelBuilder('corefirst',  (r, k) => {
   // Cloud gateway is OpenAI-compatible at /v1/ai/images/generations. The "API key"
   // is the cloud access token; reuse the OpenAI image builder which sets Authorization.

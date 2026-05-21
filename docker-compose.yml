@@ -104,6 +104,25 @@ services:
     restart: unless-stopped
 
   # ---------------------------------------------------------------------------
+  # Image generation — intentionally NOT a service. Run ComfyUI natively.
+  #
+  # Docker Desktop's Linux VM cannot access Metal (macOS) or GPU (Windows), so
+  # containerized Stable Diffusion is CPU-only. On a 16 GB machine that means
+  # 5–10 min/image. The native app gets Metal/CUDA and drops to 10–30 sec.
+  #
+  # Install ComfyUI: https://github.com/comfyanonymous/ComfyUI
+  # Add OpenAI-compatible plugin: https://github.com/city96/ComfyUI-GGUF
+  #   (or any plugin that exposes POST /v1/images/generations on port 8188)
+  #
+  # Then configure .env:
+  #   IMAGE_GEN_PROVIDER=comfyui
+  #   IMAGE_GEN_MODEL=sd_xl_base_1.0.safetensors   # 16 GB machine
+  # # IMAGE_GEN_MODEL=v1-5-pruned-emaonly.safetensors  # 8 GB machine
+  # # IMAGE_GEN_MODEL=flux1-schnell-fp8.safetensors    # 16 GB, faster
+  # # IMAGE_GEN_BASE_URL=http://localhost:8188          # default, change if needed
+  # ---------------------------------------------------------------------------
+
+  # ---------------------------------------------------------------------------
   # Linux deploy only — uncomment to add Ollama as a containerized service.
   # macOS users: KEEP THIS COMMENTED. Docker Desktop's Linux VM cannot pass
   # through Apple Silicon's Metal GPU; containerized Ollama on Mac falls back

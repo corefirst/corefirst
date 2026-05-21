@@ -15,7 +15,7 @@ export const PROVIDERS_BY_CAPABILITY: Record<Capability, readonly string[]> = {
     'cli/gemini',
     'none',
   ],
-  'text-to-image': ['corefirst', 'google', 'openai', 'ollama', 'qwen', 'openrouter', 'none'],
+  'text-to-image': ['corefirst', 'google', 'openai', 'ollama', 'comfyui', 'qwen', 'openrouter', 'none'],
   'text-to-speech': ['corefirst', 'openai', 'google', 'ollama', 'qwen', 'openrouter', 'none'],
   'speech-to-text': ['corefirst', 'openai', 'google', 'ollama', 'qwen', 'openrouter', 'none'],
   'text-to-video': [],
@@ -56,6 +56,12 @@ export const PROVIDER_DEFAULTS: Record<string, Partial<Record<Capability, string
     'text-to-image': 'wanx-v1',
     'text-to-speech': 'qwen3-tts-flash',
     'speech-to-text': 'sensevoice-v1',
+  },
+  comfyui: {
+    // Checkpoint filename — user must have this model downloaded in ComfyUI's models/checkpoints/.
+    // 16 GB machine: sd_xl_base_1.0.safetensors (SDXL) or flux1-schnell-fp8.safetensors (Flux FP8)
+    // 8 GB machine:  v1-5-pruned-emaonly.safetensors (SD 1.5)
+    'text-to-image': 'sd_xl_base_1.0.safetensors',
   },
   openrouter: {
     text: 'google/gemini-2.5-flash',
