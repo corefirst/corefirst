@@ -4,7 +4,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Loader2, AlertCircle, Plus, BookOpen, Download, Trash2, Pencil,
   Check, X, ChevronDown, Languages, User, Globe, Info, ChevronUp,
+  CloudDownload, WifiOff,
 } from 'lucide-react';
+import {
+  downloadCourse, removeCourse, isDownloaded, getDownloadedSlugs, requestPersistentStorage,
+} from '../src/lib/offline-cache';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   t as tr, type SupportedLang, localizeLang, findCategoryKey,
@@ -109,6 +113,15 @@ export const CourseShelf = ({
   const [expanded, setExpanded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const [offlineSlugs, setOfflineSlugs] = useState<Set<string>>(new Set());
+  const [downloadingSlug, setDownloadingSlug] = useState<string | null>(null);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+
+  // Sync offline state from localStorage on mount.
+  useEffect(() => {
+    setOfflineSlugs(new Set(getDownloadedSlugs()));
+  }, []);
+
   useEffect(() => {
     if (expanded) {
       const timer = setTimeout(() => inputRef.current?.focus(), 120);
@@ -157,6 +170,8 @@ export const CourseShelf = ({
       const res = await fetch(`/api/courses/${encodeURIComponent(slug)}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('delete failed');
       setItems((prev) => (prev ?? []).filter((c) => c.slug !== slug));
+      // Clean up offline cache for this course if present.
+      if (isDownloaded(slug)) await handleOfflineRemove(slug);
     } catch (err) {
       console.error('[CourseShelf] delete error:', err);
     } finally {
@@ -217,6 +232,30 @@ export const CourseShelf = ({
       console.error('[CourseShelf] load error:', err);
     } finally {
       setLoadingSlug(null);
+    }
+  };
+
+  const handleOfflineDownload = async (slug: string) => {
+    setDownloadingSlug(slug);
+    setDownloadProgress(0);
+    try {
+      await requestPersistentStorage();
+      await downloadCourse(slug, (pct) => setDownloadProgress(pct));
+      setOfflineSlugs((prev) => new Set([...prev, slug]));
+    } catch (err) {
+      console.error('[CourseShelf] offline download error:', err);
+    } finally {
+      setDownloadingSlug(null);
+      setDownloadProgress(0);
+    }
+  };
+
+  const handleOfflineRemove = async (slug: string) => {
+    try {
+      await removeCourse(slug);
+      setOfflineSlugs((prev) => { const next = new Set(prev); next.delete(slug); return next; });
+    } catch (err) {
+      console.error('[CourseShelf] offline remove error:', err);
     }
   };
 
@@ -461,6 +500,8 @@ export const CourseShelf = ({
             const isLoading = loadingSlug === course.slug;
             const isDeleting = deletingSlug === course.slug;
             const isRenaming = renamingSlug === course.slug;
+            const isOffline = offlineSlugs.has(course.slug);
+            const isDownloadingThis = downloadingSlug === course.slug;
 
             return (
               <div
@@ -534,6 +575,11 @@ export const CourseShelf = ({
                             <p className="text-[9px] font-medium text-slate-400 uppercase tracking-wider text-center">
                               {tr(uiLang, 'historyLessonCount', String(course.lessonCount))}
                             </p>
+                            {isOffline && (
+                              <p className="flex items-center justify-center gap-0.5 text-[8px] font-bold text-emerald-600 uppercase tracking-wider">
+                                <WifiOff className="w-2.5 h-2.5" />{tr(uiLang, 'offlineAvailable')}
+                              </p>
+                            )}
                           </div>
                         </>
                       )}
@@ -568,6 +614,18 @@ export const CourseShelf = ({
                         {exportingSlug === course.slug
                           ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
                           : <Download className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        onClick={() => isOffline ? handleOfflineRemove(course.slug) : handleOfflineDownload(course.slug)}
+                        disabled={isDownloadingThis}
+                        title={isOffline ? tr(uiLang, 'btnOfflineRemove') : tr(uiLang, 'btnOfflineDownload')}
+                        className={`p-2 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-40 ${isOffline ? 'text-emerald-400 hover:text-emerald-300' : 'text-white/70 hover:text-white'}`}
+                      >
+                        {isDownloadingThis
+                          ? <span className="text-[9px] font-bold tabular-nums">{downloadProgress}%</span>
+                          : isOffline
+                            ? <WifiOff className="w-3.5 h-3.5" />
+                            : <CloudDownload className="w-3.5 h-3.5" />}
                       </button>
                       <button
                         onClick={() => handleDelete(course.slug)}
