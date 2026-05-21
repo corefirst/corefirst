@@ -2,6 +2,7 @@
  * Cloud auth flows — login, register, logout, fetch current user.
  */
 import { cloudJson, CloudError } from './client';
+import { sha256 } from './crypto';
 import {
   writeSession,
   clearSession,
@@ -14,7 +15,7 @@ import {
 export async function cloudLogin(email: string, password: string): Promise<CloudSession> {
   const data = await cloudJson<{ accessToken: string; refreshToken: string; user: CloudUser }>(
     '/v1/auth/login',
-    { method: 'POST', body: { email, password }, skipAuth: true },
+    { method: 'POST', body: { email, password: await sha256(password) }, skipAuth: true },
   );
   const session: CloudSession = data;
   writeSession(session);
@@ -28,7 +29,7 @@ export async function cloudRegister(
 ): Promise<CloudSession> {
   const data = await cloudJson<{ accessToken: string; refreshToken: string; user: CloudUser }>(
     '/v1/auth/register',
-    { method: 'POST', body: { email, password, name }, skipAuth: true },
+    { method: 'POST', body: { email, password: await sha256(password), name }, skipAuth: true },
   );
   const session: CloudSession = data;
   writeSession(session);
@@ -70,7 +71,7 @@ export async function cloudResetPassword(
   newPassword: string,
 ): Promise<void> {
   await cloudJson('/v1/auth/reset-password', {
-    method: 'POST', body: { email, token, newPassword }, skipAuth: true,
+    method: 'POST', body: { email, token, newPassword: await sha256(newPassword) }, skipAuth: true,
   });
 }
 

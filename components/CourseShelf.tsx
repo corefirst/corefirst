@@ -69,6 +69,8 @@ export interface CourseShelfProps {
   onCourseInputChange: (v: string) => void;
   generateAudio: boolean;
   generateImages: boolean;
+  audioAvailable?: boolean;
+  imageGenAvailable?: boolean;
   onGenerateAudioChange: (v: boolean) => void;
   onGenerateImagesChange: (v: boolean) => void;
   onSourceLangChange: (v: SupportedLang) => void;
@@ -91,7 +93,7 @@ export interface CourseShelfProps {
 export const CourseShelf = ({
   uiLang, refreshKey = 0, onLoad,
   sourceLang, targetLang, ageGroup, categoryText, courseInput, onCourseInputChange,
-  generateAudio, generateImages, onGenerateAudioChange, onGenerateImagesChange,
+  generateAudio, generateImages, audioAvailable = true, imageGenAvailable = true, onGenerateAudioChange, onGenerateImagesChange,
   onSourceLangChange, onTargetLangChange, onAgeChange, onCategoryChange, onCategoryTextChange,
   loading, courseGenStep, courseGenProgress, fetchError, keyError, onGenerate, onOpenSettings, onClearKeyError,
 }: CourseShelfProps) => {
@@ -361,12 +363,18 @@ export const CourseShelf = ({
 
               {/* Options */}
               <div className="flex items-center gap-5 -mt-1">
-                <label className="flex items-center gap-2 cursor-pointer select-none group">
-                  <input type="checkbox" checked={generateAudio} onChange={(e) => onGenerateAudioChange(e.target.checked)} className="w-4 h-4 rounded accent-amber-500" />
+                <label
+                  className={`flex items-center gap-2 select-none group ${audioAvailable ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'}`}
+                  title={audioAvailable ? undefined : 'Audio generation is disabled'}
+                >
+                  <input type="checkbox" checked={generateAudio} disabled={!audioAvailable} onChange={(e) => onGenerateAudioChange(e.target.checked)} className="w-4 h-4 rounded accent-amber-500 disabled:cursor-not-allowed" />
                   <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 uppercase tracking-wide">{tr(uiLang, 'audio')}</span>
                 </label>
-                <label className="flex items-center gap-2 cursor-pointer select-none group">
-                  <input type="checkbox" checked={generateImages} onChange={(e) => onGenerateImagesChange(e.target.checked)} className="w-4 h-4 rounded accent-amber-500" />
+                <label
+                  className={`flex items-center gap-2 select-none group ${imageGenAvailable ? 'cursor-pointer' : 'cursor-not-allowed opacity-40'}`}
+                  title={imageGenAvailable ? undefined : 'Image generation is disabled'}
+                >
+                  <input type="checkbox" checked={generateImages} disabled={!imageGenAvailable} onChange={(e) => onGenerateImagesChange(e.target.checked)} className="w-4 h-4 rounded accent-amber-500 disabled:cursor-not-allowed" />
                   <span className="text-xs font-bold text-slate-500 group-hover:text-slate-700 uppercase tracking-wide">{tr(uiLang, 'images')}</span>
                 </label>
               </div>

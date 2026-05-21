@@ -171,6 +171,8 @@ export default function Home() {
 
   const [generateAudio, setGenerateAudio] = useState(true);
   const [generateImages, setGenerateImages] = useState(true);
+  const [audioAvailable, setAudioAvailable] = useState(true);
+  const [imageGenAvailable, setImageGenAvailable] = useState(true);
   const [audioLoading, setAudioLoading] = useState<string | null>(null);
   const [courseGenStep, setCourseGenStep] = useState<string | null>(null); // progress hint during course generation
   const [courseGenProgress, setCourseGenProgress] = useState<CourseGenProgressState>(initialCourseGenProgress);
@@ -179,6 +181,18 @@ export default function Home() {
   // practice exercise. Keyed by lesson index so different lessons can be in
   // different modes independently.
   const [lessonMode, setLessonMode] = useState<Record<number, 'learn' | 'practice'>>({});
+
+  // Probe server-side capabilities once on mount so the UI defaults match
+  // what is actually configured (e.g. IMAGE_GEN_PROVIDER=none → uncheck Images).
+  useEffect(() => {
+    fetch('/api/capabilities')
+      .then(r => r.json())
+      .then((caps: Record<string, string>) => {
+        if (caps.tts === 'none')      { setAudioAvailable(false); setGenerateAudio(false); }
+        if (caps.imageGen === 'none') { setImageGenAvailable(false); setGenerateImages(false); }
+      })
+      .catch(() => {});
+  }, []);
 
   // Listen for AI billing errors broadcast from deep child components (chat,
   // voice-challenge, visual, history lists) so a single banner appears at the
@@ -1110,6 +1124,8 @@ export default function Home() {
                   onCourseInputChange={setCourseInput}
                   generateAudio={generateAudio}
                   generateImages={generateImages}
+                  audioAvailable={audioAvailable}
+                  imageGenAvailable={imageGenAvailable}
                   onGenerateAudioChange={setGenerateAudio}
                   onGenerateImagesChange={setGenerateImages}
                   onSourceLangChange={handleSourceLangChange}
