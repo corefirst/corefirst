@@ -11,8 +11,8 @@ The CFLT Courseware Generator is an AI-driven engine that creates structured edu
 
 **Included:**
 - **Scenario Synthesis:** Generating multi-turn dialogues or descriptive texts following the Core-First sequence.
-- **Persona Adaptation:** Adjusting vocabulary complexity and tone for specific age groups and professional contexts via the `age_group` and `domain_context` inputs.
-- **Domain Vocabulary Bias:** Steering the LLM toward domain-specific terminology via `domain_context` (e.g., IT English: *deploy, refactor, debug, latency, endpoint, scalability*). A structured JSON token-pack mechanism is not yet implemented.
+- **Persona Adaptation:** Adjusting vocabulary complexity and tone for specific age groups and professional contexts via the `age_group` and `category_context` inputs.
+- **Category Vocabulary Bias:** Steering the LLM toward category-specific terminology via `category_context` (e.g., IT English: *deploy, refactor, debug, latency, endpoint, scalability*). A structured JSON token-pack mechanism is not yet implemented.
 - **Audio-Visual Metadata:** Per-script `ssml` emphasizing Core blocks for TTS, plus `visual_generation_prompts` for image generation.
 - **Young Learner Safeguards:** Age-specific guidance injection and a permissive audit path for "Young Child (Under 12)" content.
 
@@ -30,11 +30,11 @@ The CFLT Courseware Generator is an AI-driven engine that creates structured edu
 
 ### Inputs
 `GenerationRequest` (see `src/generator/orchestrator.ts`):
-- `age_group`, `domain_context`, `topic`
+- `age_group`, `category_context`, `topic`
 - `sourceLang` (default `Chinese`), `targetLang` (default `English`)
 
 ### Outputs
-**Courseware Manifest** (JSON, validated by `CoursewareManifestSchema` in `src/types/courseware.ts`) — top-level fields `age_group`, `domain_context`, `topic`, plus `lessons[]`. Each lesson contains:
+**Courseware Manifest** (JSON, validated by `CoursewareManifestSchema` in `src/types/courseware.ts`) — top-level fields `age_group`, `category_context`, `topic`, plus `lessons[]`. Each lesson contains:
 - `title`
 - `scenario_description`
 - `cflt_scripts[]` — each script has `speaker`, `cflt_l1`, `cflt_l2`, `standard_l2`, and `ssml` (per-script SSML emphasizing Core blocks)
@@ -83,16 +83,16 @@ The generator provides SSML (Speech Synthesis Markup Language) metadata instruct
 
 `CoursewareOrchestrator` and `buildAndWritePackage` accept an optional `onProgress: ProgressEmitter` callback. Existing callers (CLI, tests) pass no callback and are unaffected.
 
-### Domain ComboBox
-The domain field in the UI is a `ComboBox` component (searchable, keyboard-navigable, ARIA-compliant) with 18 built-in presets:
+### Category ComboBox
+The category field in the UI is a `ComboBox` component (searchable, keyboard-navigable, ARIA-compliant) with 18 built-in presets:
 
 `General / Life` · `Stories / Fairy Tales` · `Animals / Nature` · `Arts & Crafts` · `Music / Songs` · `School / Academic` · `Hobbies / Interests` · `Sports / Recreation` · `Social / Daily Life` · `IT / Software Engineering` · `Medical / Healthcare` · `Business / Finance` · `Legal / Law` · `Education / Teaching` · `Design / Creative` · `Sales / Marketing` · `Travel / Hospitality` · `Logistics / Operations`
 
-Users may also type any custom domain value; presets are suggestions only.
+Users may also type any custom category value; presets are suggestions only.
 
 ### Young Learner Safeguards
 
-The orchestrator injects age-group and domain guidance into the courseware prompt via `loadSkill()`:
+The orchestrator injects age-group and category guidance into the courseware prompt via `loadSkill()`:
 
 | Age Group | Tone & Vocabulary |
 |-----------|-------------------|

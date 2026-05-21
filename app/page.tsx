@@ -23,7 +23,7 @@ import {
 import { motion } from 'framer-motion';
 import type { CFLTResponse, CfltSlot } from '../src/types/cflt';
 import type { CoursewareManifest, Lesson, LessonScript } from '../src/types/courseware';
-import { t as tr, SUPPORTED_LANGS, detectUiLang, defaultLangPair, type SupportedLang, AGE_KEYS, type AgeKey, findAgeKey, type DomainKey, findDomainKey, DOMAIN_KEYS, AGE_DOMAINS } from '../src/lib/ui-i18n';
+import { tr, SUPPORTED_LANGS, detectUiLang, defaultLangPair, type SupportedLang, AGE_KEYS, type AgeKey, findAgeKey, type CategoryKey, findCategoryKey, CATEGORY_KEYS, AGE_CATEGORIES } from '../src/lib/ui-i18n';
 import { buildPlayableCflt, type SlotFillMap } from '../src/lib/cflt-playback';
 import { consumeSSE } from '../src/lib/sse-reader';
 import {
@@ -94,9 +94,9 @@ export default function Home() {
   const [uiLang, setUiLang] = useState<SupportedLang>('English');
 
   const [ageGroup, setAgeGroup] = useState<AgeKey>('ageAdult');
-  const [domain, setDomain] = useState<DomainKey>('indGeneral');
-  // Free-text value sent to the API; kept in sync with domain key for predefined options.
-  const [domainText, setDomainText] = useState<string>(() => tr('English', 'indGeneral'));
+  const [category, setCategory] = useState<CategoryKey>('catGeneral');
+  // Free-text value sent to the API; kept in sync with category key for predefined options.
+  const [categoryText, setCategoryText] = useState<string>(() => tr('English', 'catGeneral'));
   const [sourceLang, setSourceLang] = useState<SupportedLang>('English');
   const [targetLang, setTargetLang] = useState<SupportedLang>('Chinese');
 
@@ -114,12 +114,12 @@ export default function Home() {
         if (key) handleAgeChange(key);
       }
 
-      const storedInd = window.localStorage.getItem('corefirst.domain');
-      if (storedInd) {
-        const domainKey = (DOMAIN_KEYS as readonly string[]).includes(storedInd)
-          ? (storedInd as DomainKey)
-          : findDomainKey(storedInd);
-        if (domainKey) handleDomainChange(domainKey);
+      const storedCat = window.localStorage.getItem('corefirst.category');
+      if (storedCat) {
+        const categoryKey = (CATEGORY_KEYS as readonly string[]).includes(storedCat)
+          ? (storedCat as CategoryKey)
+          : findCategoryKey(storedCat);
+        if (categoryKey) handleCategoryChange(categoryKey);
       }
 
       const storedSrc = window.localStorage.getItem('corefirst.sourceLang') as SupportedLang | null;
@@ -146,17 +146,17 @@ export default function Home() {
   const handleAgeChange = (next: AgeKey) => {
     setAgeGroup(next);
     try { window.localStorage.setItem('corefirst.ageGroup', next); } catch {}
-    if (!(AGE_DOMAINS[next] as readonly string[]).includes(domain)) {
-      handleDomainChange('indGeneral');
+    if (!(AGE_CATEGORIES[next] as readonly string[]).includes(category)) {
+      handleCategoryChange('catGeneral');
     }
   };
 
-  const handleDomainChange = (next: DomainKey) => {
-    setDomain(next);
-    // Only overwrite domainText when it currently holds a predefined value.
-    // Custom free-text input must survive implicit domain resets (e.g. age-group change).
-    setDomainText(prev => (findDomainKey(prev) !== undefined || prev === '' ? tr('English', next) : prev));
-    try { window.localStorage.setItem('corefirst.domain', next); } catch {}
+  const handleCategoryChange = (next: CategoryKey) => {
+    setCategory(next);
+    // Only overwrite categoryText when it currently holds a predefined value.
+    // Custom free-text input must survive implicit category resets (e.g. age-group change).
+    setCategoryText(prev => (findCategoryKey(prev) !== undefined || prev === '' ? tr(uiLang, next) : prev));
+    try { window.localStorage.setItem('corefirst.category', next); } catch {}
   };
 
   const handleSourceLangChange = (next: SupportedLang) => {
@@ -387,7 +387,7 @@ export default function Home() {
       const response = await fetch('/api/generate-course', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getHeaders() },
-        body: JSON.stringify({ topic: input, age_group: tr('English', ageGroup), domain_context: domainText || tr('English', domain), sourceLang, targetLang, generateAudio, generateImages }),
+        body: JSON.stringify({ topic: input, age_group: tr('English', ageGroup), category_context: categoryText || tr('English', category), sourceLang, targetLang, generateAudio, generateImages }),
       });
       if (response.status === 401) {
         const data = await response.json().catch(() => ({}));
@@ -1105,7 +1105,7 @@ export default function Home() {
                   sourceLang={sourceLang}
                   targetLang={targetLang}
                   ageGroup={ageGroup}
-                  domainText={domainText}
+                  categoryText={categoryText}
                   courseInput={courseInput}
                   onCourseInputChange={setCourseInput}
                   generateAudio={generateAudio}
@@ -1115,8 +1115,8 @@ export default function Home() {
                   onSourceLangChange={handleSourceLangChange}
                   onTargetLangChange={handleTargetLangChange}
                   onAgeChange={handleAgeChange}
-                  onDomainChange={handleDomainChange}
-                  onDomainTextChange={setDomainText}
+                  onCategoryChange={handleCategoryChange}
+                  onCategoryTextChange={setCategoryText}
                   loading={loading}
                   courseGenStep={courseGenStep}
                   courseGenProgress={courseGenProgress}
@@ -1127,11 +1127,11 @@ export default function Home() {
                   onClearKeyError={() => setKeyError(null)}
                   onLoad={(course) => {
                     setCourseResult(course as unknown as typeof courseResult);
-                    if (course.domain_context) {
-                      const domainKey = (DOMAIN_KEYS as readonly string[]).includes(course.domain_context)
-                        ? (course.domain_context as DomainKey)
-                        : findDomainKey(course.domain_context);
-                      if (domainKey) handleDomainChange(domainKey);
+                    if (course.category_context) {
+                      const categoryKey = (CATEGORY_KEYS as readonly string[]).includes(course.category_context)
+                        ? (course.category_context as CategoryKey)
+                        : findCategoryKey(course.category_context);
+                      if (categoryKey) handleCategoryChange(categoryKey);
                     }
                     if (course.age_group) {
                       const key = (AGE_KEYS as readonly string[]).includes(course.age_group)

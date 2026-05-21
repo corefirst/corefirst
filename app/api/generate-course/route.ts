@@ -8,13 +8,16 @@ import { classifyAIError } from '@/src/lib/ai/errors';
 
 const GenerateCourseRequestSchema = z.object({
   age_group: z.string().min(1),
-  domain_context: z.string().min(1),
+  category_context: z.string().min(1).optional(),
   topic: z.string().min(1).max(512),
   sourceLang: z.string().optional(),
   targetLang: z.string().optional(),
   generateAudio: z.boolean().optional(),
   generateImages: z.boolean().optional(),
-});
+}).transform((data) => ({
+  ...data,
+  category_context: data.category_context ?? 'General',
+}));
 
 // Returns an SSE stream so the client can show real-time progress.
 // Each line: `data: <json>\n\n`
@@ -63,7 +66,7 @@ export async function POST(request: Request) {
 
       const result = await orchestrator.generate({
         age_group: parsed.data.age_group,
-        domain_context: parsed.data.domain_context,
+        category_context: parsed.data.category_context,
         topic: parsed.data.topic,
         sourceLang,
         targetLang,

@@ -264,7 +264,7 @@ async function mapToPackageManifest(
 ): Promise<PackageManifest> {
   const { manifest } = input;
   const baseSlug = buildSlug(
-    manifest.domain_context,
+    manifest.category_context,
     input.targetLang,
     manifest.age_group,
     manifest.topic,
@@ -280,7 +280,7 @@ async function mapToPackageManifest(
     slug,
     topic: manifest.topic,
     ageGroup: manifest.age_group,
-    domain: manifest.domain_context,
+    category: manifest.category_context,
     sourceLang: input.sourceLang,
     targetLang: input.targetLang,
     createdAt: new Date().toISOString(),

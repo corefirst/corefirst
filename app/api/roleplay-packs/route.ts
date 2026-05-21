@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   const list = entries.map(({ pack, source }) => ({
     id: pack.id,
     name: pack.name,
-    domain: pack.domain,
+    category: pack.category,
     sourceLang: pack.sourceLang,
     defaultInputMode: pack.defaultInputMode,
     promptPreview: pack.prompt.slice(0, 80) + (pack.prompt.length > 80 ? '…' : ''),

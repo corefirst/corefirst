@@ -1,5 +1,5 @@
 /**
- * One-time migration: rename 'industry' → 'domain' in all on-disk package manifests.
+ * One-time migration: rename 'industry' or 'domain' → 'category' in all on-disk package manifests.
  *
  * Run with:
  *   npx tsx src/cli/migrate-package-fields.ts
@@ -31,15 +31,22 @@ let skipped = 0;
 
 for (const file of findPackageFiles(DATA_ROOT)) {
   const raw = JSON.parse(fs.readFileSync(file, 'utf8'));
-  if ('domain' in raw) {
+  if ('category' in raw) {
     skipped++;
     continue;
   }
-  if ('industry' in raw) {
-    const { industry, ...rest } = raw;
-    fs.writeFileSync(file, JSON.stringify({ ...rest, domain: industry }, null, 2));
-    console.log(`migrated: ${path.relative(process.cwd(), file)}`);
+  
+  const oldKey = 'domain' in raw ? 'domain' : 'industry' in raw ? 'industry' : null;
+  
+  if (oldKey) {
+    const value = raw[oldKey];
+    delete raw[oldKey];
+    raw.category = value;
+    fs.writeFileSync(file, JSON.stringify(raw, null, 2));
+    console.log(`migrated (${oldKey} -> category): ${path.relative(process.cwd(), file)}`);
     migrated++;
+  } else {
+    skipped++;
   }
 }
 

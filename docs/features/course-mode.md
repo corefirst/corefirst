@@ -141,9 +141,9 @@ Each `LessonScript` passes through a single gate (`completedPuzzles[puzzleId]`),
 
 ### Persona-Adaptive Content
 
-The `CoursewareOrchestrator` steers the LLM toward age- and domain-appropriate vocabulary:
+The `CoursewareOrchestrator` steers the LLM toward age- and category-appropriate vocabulary:
 - `"Child (Age 8)"` + `"Medical / Healthcare"`: simple tokens like "the doctor helps me," short sentences.
-- `"Adult / Professional"` + `"IT / Software Engineering"`: domain tokens like `deploy`, `endpoint`, `latency`; longer CFLT constructs.
+- `"Adult / Professional"` + `"IT / Software Engineering"`: category tokens like `deploy`, `endpoint`, `latency`; longer CFLT constructs.
 
 ### CFLT Enforcement at Generation
 

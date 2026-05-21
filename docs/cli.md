@@ -150,7 +150,7 @@ corefirst gen [options]
 | `--from <lang>` | `English` | Source / L1 language |
 | `--to <lang>` | `Chinese` | Target / L2 language |
 | `--age <group>` | `Young Learner (Age 12+)` | Age group |
-| `--domain <domain>` | `General / Life` | Domain context |
+| `--category <category>` | `General / Life` | Category context |
 | `--json` | — | Output raw JSON manifest |
 
 **Valid age groups:**
@@ -159,13 +159,13 @@ corefirst gen [options]
 - `Teenager`
 - `Adult / Professional`
 
-**Valid domains:** `General / Life`, `Stories / Fairy Tales`, `Animals / Nature`, `Arts & Crafts`, `Music / Songs`, `School / Academic`, `Hobbies / Interests`, `Sports / Recreation`, `Social / Daily Life`, `IT / Software Engineering`, `Medical / Healthcare`, `Business / Finance`, `Legal / Law`, `Education / Teaching`, `Design / Creative`, `Sales / Marketing`, `Travel / Hospitality`, `Logistics / Operations`
+**Valid categorys:** `General / Life`, `Stories / Fairy Tales`, `Animals / Nature`, `Arts & Crafts`, `Music / Songs`, `School / Academic`, `Hobbies / Interests`, `Sports / Recreation`, `Social / Daily Life`, `IT / Software Engineering`, `Medical / Healthcare`, `Business / Finance`, `Legal / Law`, `Education / Teaching`, `Design / Creative`, `Sales / Marketing`, `Travel / Hospitality`, `Logistics / Operations`
 
 **Examples:**
 
 ```bash
 corefirst gen --topic "Coffee Shop" --from English --to Spanish
-corefirst gen --topic "At the Hospital" --age "Adult / Professional" --domain "Medical / Healthcare"
+corefirst gen --topic "At the Hospital" --age "Adult / Professional" --category "Medical / Healthcare"
 corefirst gen --topic "Zoo Visit" --age "Young Child (Under 12)" --json > course.json
 ```
 

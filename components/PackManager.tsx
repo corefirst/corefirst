@@ -9,7 +9,7 @@ import type { SupportedLang } from '@/src/lib/ui-i18n';
 interface PackListItem {
   id: string;
   name: string;
-  domain: string;
+  category: string;
   sourceLang: string;
   defaultInputMode: 'free' | 'crst';
   promptPreview: string;
@@ -21,14 +21,14 @@ type EditorMode = 'list' | 'edit';
 interface FormState {
   id: string;
   name: string;
-  domain: string;
+  category: string;
   sourceLang: string;
   defaultInputMode: 'free' | 'crst';
   prompt: string;
 }
 
 function emptyForm(sourceLang: string): FormState {
-  return { id: '', name: '', domain: '', sourceLang, defaultInputMode: 'free', prompt: '' };
+  return { id: '', name: '', category: '', sourceLang, defaultInputMode: 'free', prompt: '' };
 }
 
 export function PackManager({ uiLang = 'English', sourceLang = 'Chinese' }: { uiLang?: SupportedLang; sourceLang?: string }) {
@@ -59,7 +59,7 @@ export function PackManager({ uiLang = 'English', sourceLang = 'Chinese' }: { ui
     if (!form.id.trim()) e.id = 'Required';
     else if (!/^[a-z0-9][a-z0-9-]*$/.test(form.id.trim())) e.id = 'Lowercase letters, numbers, hyphens only';
     if (!form.name.trim()) e.name = 'Required';
-    if (!form.domain.trim()) e.domain = 'Required';
+    if (!form.category.trim()) e.category = 'Required';
     if (!form.sourceLang.trim()) e.sourceLang = 'Required';
     if (!form.prompt.trim()) e.prompt = 'Required';
     setErrors(e);
@@ -85,7 +85,7 @@ export function PackManager({ uiLang = 'English', sourceLang = 'Chinese' }: { ui
       setForm({
         id: p.id,
         name: p.name,
-        domain: p.domain,
+        category: p.category,
         sourceLang: p.sourceLang,
         defaultInputMode: p.defaultInputMode ?? 'free',
         prompt: p.prompt,
@@ -111,7 +111,7 @@ export function PackManager({ uiLang = 'English', sourceLang = 'Chinese' }: { ui
       setForm({
         id: `${p.id}-copy`,
         name: `${p.name} (copy)`,
-        domain: p.domain,
+        category: p.category,
         sourceLang: p.sourceLang,
         defaultInputMode: p.defaultInputMode ?? 'free',
         prompt: p.prompt,
@@ -195,7 +195,7 @@ export function PackManager({ uiLang = 'English', sourceLang = 'Chinese' }: { ui
       const result = RoleplayPackSchema.safeParse(parsed);
       if (!result.success) throw new Error(result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; '));
       const p = result.data;
-      setForm({ id: p.id, name: p.name, domain: p.domain, sourceLang: p.sourceLang, defaultInputMode: p.defaultInputMode, prompt: p.prompt });
+      setForm({ id: p.id, name: p.name, category: p.category, sourceLang: p.sourceLang, defaultInputMode: p.defaultInputMode, prompt: p.prompt });
       setErrors({});
       setEditingId(null);
       setMode('edit');
@@ -248,7 +248,7 @@ export function PackManager({ uiLang = 'English', sourceLang = 'Chinese' }: { ui
                   <span className="text-[10px] text-gray-400">{p.defaultInputMode === 'crst' ? 'CRST' : 'Free'}</span>
                 </div>
                 <p className="text-xs text-gray-500 truncate">{p.promptPreview}</p>
-                <p className="text-[10px] text-gray-400 mt-1">{p.domain} · {p.sourceLang}</p>
+                <p className="text-[10px] text-gray-400 mt-1">{p.category} · {p.sourceLang}</p>
               </div>
               <div className="flex gap-1 shrink-0">
                 <button onClick={() => handleExport(p.id)} className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded" title="Export">
@@ -303,10 +303,10 @@ export function PackManager({ uiLang = 'English', sourceLang = 'Chinese' }: { ui
             {errors.name && <p className="text-[10px] text-red-600 mt-0.5">{errors.name}</p>}
           </div>
           <div>
-            <label className="block text-xs font-bold text-gray-600 mb-1">Domain</label>
-            <input {...field('domain')} placeholder="Career / Interview"
+            <label className="block text-xs font-bold text-gray-600 mb-1">Category</label>
+            <input {...field('category')} placeholder="Career / Interview"
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400" />
-            {errors.domain && <p className="text-[10px] text-red-600 mt-0.5">{errors.domain}</p>}
+            {errors.category && <p className="text-[10px] text-red-600 mt-0.5">{errors.category}</p>}
           </div>
           <div>
             <label className="block text-xs font-bold text-gray-600 mb-1">Source Language</label>

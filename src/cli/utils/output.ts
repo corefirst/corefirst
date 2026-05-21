@@ -59,7 +59,7 @@ export function printCourse(manifest: CoursewareManifest): void {
   console.log(pc.bold('─── Course Generated ─────────────────────'));
   console.log(pc.bold('Topic:      ') + manifest.topic);
   console.log(pc.bold('Age Group:  ') + manifest.age_group);
-  console.log(pc.bold('Domain:     ') + manifest.domain_context);
+  console.log(pc.bold('Category:   ') + manifest.category_context);
   console.log(pc.bold('Lessons:    ') + manifest.lessons.length);
   console.log();
 

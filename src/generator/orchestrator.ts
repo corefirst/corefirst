@@ -16,7 +16,7 @@ const AGE_GROUP_GUIDANCE: Record<string, string> = {
   'Adult / Professional':    'Full adult vocabulary; technical terms when appropriate. Tone: neutral to formal. Typical scenarios: workplace and industry-specific professional settings.',
 };
 
-const DOMAIN_GUIDANCE: Record<string, string> = {
+const CATEGORY_GUIDANCE: Record<string, string> = {
   'General / Life':           'Everyday situations: grocery shopping, transport, household tasks, small talk.',
   'Stories / Fairy Tales':    'Narrative characters (princess, dragon, wizard, knight); once-upon-a-time storytelling format; simple plot-driven sentences.',
   'Animals / Nature':         'Real animals and nature vocabulary (puppy, butterfly, river, forest); settings: zoo, park, farm, garden.',
@@ -40,8 +40,8 @@ const DOMAIN_GUIDANCE: Record<string, string> = {
 /** Valid age groups accepted by the course generator. Single source of truth for CLI + UI. */
 export const AGE_GROUPS = Object.keys(AGE_GROUP_GUIDANCE) as readonly string[];
 
-/** Valid domain contexts accepted by the course generator. Single source of truth for CLI + UI. */
-export const DOMAINS = Object.keys(DOMAIN_GUIDANCE) as readonly string[];
+/** Valid category contexts accepted by the course generator. Single source of truth for CLI + UI. */
+export const CATEGORIES = Object.keys(CATEGORY_GUIDANCE) as readonly string[];
 
 function resolveGuidance(map: Record<string, string>, key: string, fallback: string): string {
   return map[key] ?? `${fallback}: ${key}`;
@@ -49,7 +49,7 @@ function resolveGuidance(map: Record<string, string>, key: string, fallback: str
 
 export interface GenerationRequest {
   age_group: string;
-  domain_context: string;
+  category_context: string;
   topic: string;
   sourceLang?: string;
   targetLang?: string;
@@ -83,7 +83,7 @@ export class CoursewareOrchestrator {
       SOURCE_LANG: sourceLang,
       TARGET_LANG: targetLang,
       AGE_GROUP_GUIDANCE: resolveGuidance(AGE_GROUP_GUIDANCE, request.age_group, 'Age group'),
-      DOMAIN_GUIDANCE:     resolveGuidance(DOMAIN_GUIDANCE, request.domain_context, 'Domain'),
+      CATEGORY_GUIDANCE:   resolveGuidance(CATEGORY_GUIDANCE, request.category_context, 'Category'),
     }, userId);
     const userPrompt = JSON.stringify(request);
 

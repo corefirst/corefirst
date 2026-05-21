@@ -12,7 +12,7 @@ export const RoleplayPackSchema = z.object({
   schemaVersion: z.literal('2.0'),
   id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/),
   name: z.string().min(1),
-  domain: z.string().min(1),
+  category: z.string().min(1),
   sourceLang: z.string().min(1),
   prompt: z.string().min(1),
   defaultInputMode: z.enum(['free', 'crst']).default('free'),

@@ -8,6 +8,6 @@ export interface InjectionResult {
 export function renderForRoleplay(pack: RoleplayPack): InjectionResult {
   return {
     packSection: pack.prompt,
-    derivedContext: `${pack.name} — ${pack.domain}`,
+    derivedContext: `${pack.name} — ${pack.category}`,
   };
 }

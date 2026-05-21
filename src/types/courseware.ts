@@ -49,14 +49,14 @@ export const LessonGenerationSchema = z.object({
 
 export const CoursewareManifestSchema = z.object({
   age_group: z.string(),
-  domain_context: z.string(),
+  category_context: z.string(),
   topic: z.string(),
   lessons: z.array(LessonSchema),
 });
 
 export const CoursewareGenerationSchema = z.object({
   age_group: z.string(),
-  domain_context: z.string(),
+  category_context: z.string(),
   topic: z.string(),
   lessons: z.array(LessonGenerationSchema),
 });

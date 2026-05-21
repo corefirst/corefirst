@@ -19,13 +19,13 @@ To ensure the audio is engaging and pedagogically effective:
 - Example: `<prosody pitch="+15%">I didn't go out</prosody> <break time="400ms"/> because it rained <break time="400ms"/> yesterday.`
 
 ## Output Format
-Output a SINGLE JSON object — no prose before or after, no markdown code fences, no commentary. The top-level object MUST have exactly these keys: `age_group`, `domain_context`, `topic`, `lessons`. Do NOT use `manifestVersion`, `title`, `description`, `entries`, or wrap the object inside another `CoursewareManifest` key. The dialogue scripts live under `lessons[i].cflt_scripts`, NOT at the top level.
+Output a SINGLE JSON object — no prose before or after, no markdown code fences, no commentary. The top-level object MUST have exactly these keys: `age_group`, `category_context`, `topic`, `lessons`. Do NOT use `manifestVersion`, `title`, `description`, `entries`, or wrap the object inside another `CoursewareManifest` key. The dialogue scripts live under `lessons[i].cflt_scripts`, NOT at the top level.
 
 ### Required JSON skeleton (follow this shape EXACTLY)
 ```json
 {
   "age_group": "...",
-  "domain_context": "...",
+  "category_context": "...",
   "topic": "...",
   "lessons": [
     {
@@ -66,11 +66,11 @@ Output a SINGLE JSON object — no prose before or after, no markdown code fence
 - Do NOT wrap output in markdown code fences (no triple backticks).
 - Do NOT add fields outside the skeleton above.
 
-## Persona & Domain Adaptation
+## Persona & Category Adaptation
 
 **Age group:** {{AGE_GROUP_GUIDANCE}}
 
-**Domain:** {{DOMAIN_GUIDANCE}}
+**Category:** {{CATEGORY_GUIDANCE}}
 
 ## Constraints
 - **NO NESTED CLAUSES**.

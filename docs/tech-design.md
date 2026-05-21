@@ -27,11 +27,11 @@
 | **Qwen provider suite** | Qwen TTS (`src/core/tts/qwen-provider.ts`, model `qwen3-tts-flash`, voice `Cherry`); Qwen STT (`src/core/stt/qwen-provider.ts`, Paraformer/SenseVoice, async-poll architecture); Qwen Wanx image (`src/core/visuals/qwen-provider.ts`, `wanx-v1`, async job polling). All use `DASHSCOPE_API_KEY`. |
 | **Google Gemini TTS voices** | Multi-voice support added to the Google Gemini TTS provider. |
 | **Model selection UI + disk persistence** | Settings panel gains per-provider model presets and a free-text model override. Config is persisted to `~/.corefirst/config.json` via the CLI config store and reloaded at next start. |
-| **ComboBox component** | `components/ComboBox.tsx` — searchable, keyboard-navigable dropdown replacing `<datalist>` for domain and scenario inputs. Supports custom free-text values; ARIA-compliant. |
+| **ComboBox component** | `components/ComboBox.tsx` — searchable, keyboard-navigable dropdown replacing `<datalist>` for category and scenario inputs. Supports custom free-text values; ARIA-compliant. |
 | **History pagination** | Load-more pagination for Transform, Roleplay, and Course history lists. |
-| **Domain rename** | `industry` / `industry_context` renamed to `domain` / `domain_context` everywhere. One-time migration utility converts existing learner records. |
+| **Category rename** | `industry` / `industry_context` renamed to `category` / `category_context` everywhere. One-time migration utility converts existing learner records. |
 | **AI config externalization** | Provider configuration moved to hot-reloadable dynamic modules; `/api/config/refresh` endpoint forces reload without restart. |
-| **Young learner safeguards** | `AGE_GROUP_GUIDANCE` + `DOMAIN_GUIDANCE` injected into courseware prompts; `auditScript` (permissive) used instead of strict CFLT correction for "Young Child" age group. |
+| **Young learner safeguards** | `AGE_GROUP_GUIDANCE` + `CATEGORY_GUIDANCE` injected into courseware prompts; `auditScript` (permissive) used instead of strict CFLT correction for "Young Child" age group. |
 | **Language code mapping** | Speech evaluator maps UI language names to BCP-47 locale codes so transcription targets the correct locale. |
 | **Roleplay robustness** | Strict slot-level Zod validation + flexible multi-format slot parsing + JSON salvage path for malformed model responses. |
 | **Standardized AI factories** | All AI service factories share a unified request-context pattern; `getHeaders` included in effect dependency arrays for audio playback and transcription. |
@@ -212,7 +212,7 @@ Every route that consumes a `[slug]` URL param validates it against `/^[a-z0-9-]
 | `TransformHistory.tsx` | Transform event list + per-entry delete |
 | `RoleplayHistory.tsx` | Roleplay session list + session rename/delete + per-message delete |
 | `CourseHistory.tsx` | Course list + per-row open/rename/delete |
-| `ComboBox.tsx` | Searchable, keyboard-navigable dropdown (ARIA combobox) for domain and scenario inputs; supports free-text custom values |
+| `ComboBox.tsx` | Searchable, keyboard-navigable dropdown (ARIA combobox) for category and scenario inputs; supports free-text custom values |
 | `Settings.tsx` | Two-tab settings modal: AI provider/key/model config + profile management; settings persisted to `~/.corefirst/config.json` |
 
 UI strings are externalized via `src/lib/ui-i18n.ts` (`tr(uiLang, key)` calls). Components receive `uiLang: SupportedLang` as a prop; the dictionary covers 8 languages (English, Chinese, Japanese, Korean, Vietnamese, Spanish, French, German).

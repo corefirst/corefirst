@@ -54,7 +54,7 @@ If a learner can habitually structure *any* thought — in any language — as `
 
 - **Who:** Software developers, language educators, ed-tech builders who want to extend or embed CoreFirst
 - **Goal:** Deploy CoreFirst as infrastructure for their own learning product or research
-- **Behavior:** Forks the repo, customizes prompts, adds language pairs or domain modules
+- **Behavior:** Forks the repo, customizes prompts, adds language pairs or category modules
 - **Value prop:** Clean TypeScript codebase, modular API routes, PouchDB-backed file storage, LLM-agnostic architecture with UI-configurable providers
 
 ### 3.3 Out-of-Scope Users (v1)

@@ -124,7 +124,7 @@ graph TD
 When a Transform result is returned, the system scans the `cflt_l2` tokens against the vocabulary mastery section of the learner's `.cfrecord` file and annotates each recognized token with its current mastery level. A mastery indicator is shown inline with the CFLT block display. The transform history entry in `.cfrecord` stores the original input, the CFLT output, and the detected vocabulary snapshot.
 
 ### Transform → Course (Phase 3)
-After a successful transformation, the UI checks whether the topic maps to a known course-worthy domain. If so, a "Generate a Course on this topic" prompt is surfaced below the result, pre-filling the Course Mode input field with the transformed topic.
+After a successful transformation, the UI checks whether the topic maps to a known course-worthy category. If so, a "Generate a Course on this topic" prompt is surfaced below the result, pre-filling the Course Mode input field with the transformed topic.
 
 ### Course → Vocabulary (Phase 3)
 On lesson unlock (puzzle success), the lesson's `vocabulary_focus[]` tokens are upserted into the vocabulary mastery section of the learner's `.cfrecord` file. If a token already exists, its `mastery` value is incremented according to the Phase 3 scoring formula. This ensures that vocabulary encountered in structured lessons accumulates toward the shared mastery record.

@@ -44,7 +44,7 @@ export const PackageManifestSchema = z.object({
   slug: z.string(),
   topic: z.string(),
   ageGroup: z.string(),
-  domain: z.string(),
+  category: z.string(),
   sourceLang: z.string(),
   targetLang: z.string(),
   createdAt: z.string(),

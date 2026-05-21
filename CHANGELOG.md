@@ -5,16 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.7.0] - 2026-05-20
+## [0.7.0] - 2026-05-21
 
 ### Added
-- **Roleplay Pack (v1):** New community-shareable JSON asset that injects domain vocabulary, scenarios, and personas into the Roleplay coach. Scoped to Roleplay only (Course generation untouched). Includes Zod schema (`src/types/roleplay-pack.ts`), per-user + shared storage loader (`src/lib/roleplay-pack/`), prompt injector with persona styling and avoidTerms guidance, bundled `it-software-en` starter pack, full CRUD API (`/api/roleplay-packs`), in-app pack authoring UI (`PackManager`) with JSON editor and live Zod validation, cascading pack → scenario → persona picker in `CFLTChat`, and an `authorLang` field that surfaces a UI-language mismatch warning when a pack's narrative text is in a language the viewer doesn't read. Cloud distribution (download/upload/share) is reserved for v2.
+- **Universal terminology alignment:** Renamed "domain" to "category" across the entire ecosystem (client + platform).
+- **Backward Compatibility:** Added fallback logic for legacy `.corefirst` packages and local storage state using `domain`.
+- **Roleplay Pack (v1):** New community-shareable JSON asset that injects category vocabulary, scenarios, and personas into the Roleplay coach. Scoped to Roleplay only (Course generation untouched). Includes Zod schema (`src/types/roleplay-pack.ts`), per-user + shared storage loader (`src/lib/roleplay-pack/`), prompt injector with persona styling and avoidTerms guidance, bundled `it-software-en` starter pack, full CRUD API (`/api/roleplay-packs`), in-app pack authoring UI (`PackManager`) with JSON editor and live Zod validation, cascading pack → scenario → persona picker in `CFLTChat`, and an `authorLang` field that surfaces a UI-language mismatch warning when a pack's narrative text is in a language the viewer doesn't read. Cloud distribution (download/upload/share) is reserved for v2.
 - **Cloud Platform Integration:** Identity management, OAuth callback flow, `MembershipPanel`, `CommunitySkillsPanel`, and `MarketPanel` components for cloud subscription and community skill discovery. Added OpenRouter STT provider.
 - **CFLT Audio API:** New `/api/courses/[slug]/crst-audio/[lesson]/[script]` endpoint for retrieving per-script audio files directly from `.corefirst` packages, enabling in-app script playback.
 - **AI Error Handling & Task Queueing:** `src/lib/ai/client-error.ts` for structured client-side AI error parsing; `src/lib/ai/billing-broadcast.ts` for billing event broadcasting to the UI; concurrent task queueing in the courseware package builder to prevent race conditions.
 - **Localization Extended:** Added i18n coverage to speech evaluation prompts and the Settings component.
 
 ### Changed
+- **UI:** Updated all 8 languages to use "Category / 分类 / カテゴリ" instead of "Domain".
+- **API:** `/api/generate-course` now accepts `category_context` (while remaining compatible with `domain_context`).
+- **Schema:** Updated `RoleplayPack` and `PackageManifest` to use `category`.
 - Removed GitHub from identity providers and OAuth auth flow; Google OAuth is now the sole social login path.
 - Renamed all "SaaS" references to "cloud" across the entire codebase and documentation for consistent terminology.
 - Migrated Electron build pipeline from webpack to esbuild for faster compilation; moved electron-builder configuration to the external `electron-builder.yml` file.
@@ -44,12 +49,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Qwen Provider Suite:** Qwen TTS, Qwen native STT, and Qwen Wanx image generation (with async polling and fallback API key resolution).
 - **Google Gemini TTS Voices:** Added multi-voice support to the Google Gemini TTS provider.
 - **Model Selection UI:** Persistent AI configuration with per-provider model presets; settings are saved to local disk and reloaded on restart.
-- **ComboBox Component:** Replaced native `<datalist>` elements with a searchable ComboBox for domain and scenario selection.
+- **ComboBox Component:** Replaced native `<datalist>` elements with a searchable ComboBox for category and scenario selection.
 - **History Pagination:** Load-more pagination for Transform, Roleplay, and Course history lists.
-- **Young Learner Safeguards:** Age and domain-specific guidance injected into courseware generation; lightweight script audit flags content unsuitable for young learners.
+- **Young Learner Safeguards:** Age and category-specific guidance injected into courseware generation; lightweight script audit flags content unsuitable for young learners.
 
 ### Changed
-- Renamed "industry" to "domain" across the entire codebase; added a one-time migration utility for existing learner records.
+- Renamed "industry" to "domain" (later "category") across the entire codebase; added a one-time migration utility for existing learner records.
 - Externalized AI provider configuration into hot-reloadable dynamic modules with a `/api/config/refresh` endpoint.
 - Standardized all AI service factories under a unified request-context pattern; improved header propagation for TTS, STT, and transcription services.
 - Implemented language-code mapping in the speech evaluator so transcription requests target the correct locale.

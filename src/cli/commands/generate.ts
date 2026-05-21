@@ -3,7 +3,7 @@ import ora from 'ora';
 import pc from 'picocolors';
 import { applyToEnv, hasProvider } from '../utils/config-store';
 import { printCourse, printError, printInfo } from '../utils/output';
-import { AGE_GROUPS, DOMAINS } from '../../generator/orchestrator';
+import { AGE_GROUPS, CATEGORIES } from '../../generator/orchestrator';
 
 export function makeGenerateCommand(): Command {
   return new Command('generate-course')
@@ -13,26 +13,26 @@ export function makeGenerateCommand(): Command {
     .option('--from <lang>', 'Source / L1 language', 'English')
     .option('--to <lang>', 'Target / L2 language', 'Chinese')
     .option(`--age <group>`, `Age group (${AGE_GROUPS.join(' | ')})`, 'Young Learner (Age 12+)')
-    .option(`--domain <domain>`, `Domain context (${DOMAINS.slice(0, 3).join(' | ')} …)`, 'General / Life')
+    .option(`--category <category>`, `Category context (${CATEGORIES.slice(0, 3).join(' | ')} …)`, 'General / Life')
     .option('--json', 'Output raw JSON instead of formatted summary')
     .option('--list-ages', 'Print valid age groups and exit')
-    .option('--list-domains', 'Print valid domains and exit')
+    .option('--list-categories', 'Print valid categories and exit')
     .action(async (opts: {
       topic: string;
       from: string;
       to: string;
       age: string;
-      domain: string;
+      category: string;
       json?: boolean;
       listAges?: boolean;
-      listDomains?: boolean;
+      listCategories?: boolean;
     }) => {
       if (opts.listAges) {
         AGE_GROUPS.forEach((g) => console.log(g));
         return;
       }
-      if (opts.listDomains) {
-        DOMAINS.forEach((d) => console.log(d));
+      if (opts.listCategories) {
+        CATEGORIES.forEach((c) => console.log(c));
         return;
       }
 
@@ -40,8 +40,8 @@ export function makeGenerateCommand(): Command {
         printError(`Invalid --age "${opts.age}"\nValid values:\n${AGE_GROUPS.map((g) => `  ${g}`).join('\n')}`);
         process.exit(1);
       }
-      if (!DOMAINS.includes(opts.domain)) {
-        printError(`Invalid --domain "${opts.domain}"\nValid values:\n${DOMAINS.map((d) => `  ${d}`).join('\n')}`);
+      if (!CATEGORIES.includes(opts.category)) {
+        printError(`Invalid --category "${opts.category}"\nValid values:\n${CATEGORIES.map((c) => `  ${c}`).join('\n')}`);
         process.exit(1);
       }
 
@@ -66,7 +66,7 @@ export function makeGenerateCommand(): Command {
 
         const result = await orchestrator.generate({
           age_group: opts.age,
-          domain_context: opts.domain,
+          category_context: opts.category,
           topic: opts.topic,
           sourceLang: opts.from,
           targetLang: opts.to,

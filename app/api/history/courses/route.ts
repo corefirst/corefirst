@@ -12,7 +12,7 @@ export async function GET(request: Request) {
         packageId: manifest.packageId,
         topic: manifest.topic,
         ageGroup: manifest.ageGroup,
-        domain: manifest.domain,
+        category: manifest.category,
         sourceLang: manifest.sourceLang,
         targetLang: manifest.targetLang,
         createdAt: manifest.createdAt,

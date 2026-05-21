@@ -7,26 +7,26 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  t as tr, type SupportedLang, localizeLang, findDomainKey,
-  type AgeKey, type DomainKey, AGE_DOMAINS, SUPPORTED_LANGS,
-} from '../src/lib/ui-i18n';
-import type { CoursewareManifest } from '../src/types/courseware';
-import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
-import { ComboBox } from './ComboBox';
-import { CourseGenProgress, type CourseGenProgressState } from './CourseGenProgress';
+  t as tr, type SupportedLang, localizeLang, findCategoryKey,
+  type AgeKey, type CategoryKey, AGE_CATEGORIES, SUPPORTED_LANGS,
+  } from '../src/lib/ui-i18n';
+  import type { CoursewareManifest } from '../src/types/courseware';
+  import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
+  import { ComboBox } from './ComboBox';
+  import { CourseGenProgress, type CourseGenProgressState } from './CourseGenProgress';
 
-interface CourseSummary {
+  interface CourseSummary {
   slug: string;
   packageId: string;
   topic: string;
   ageGroup: string;
-  domain: string;
+  category: string;
   sourceLang: string;
   targetLang: string;
   createdAt: string;
   lessonCount: number;
   scriptCount: number;
-}
+  }
 
 const LANG_KEY: Record<SupportedLang, 'langEnglish' | 'langChinese' | 'langJapanese' | 'langKorean' | 'langVietnamese' | 'langSpanish' | 'langFrench' | 'langGerman'> = {
   English: 'langEnglish', Chinese: 'langChinese', Japanese: 'langJapanese',
@@ -64,7 +64,7 @@ export interface CourseShelfProps {
   sourceLang: SupportedLang;
   targetLang: SupportedLang;
   ageGroup: AgeKey;
-  domainText: string;
+  categoryText: string;
   courseInput: string;
   onCourseInputChange: (v: string) => void;
   generateAudio: boolean;
@@ -74,8 +74,8 @@ export interface CourseShelfProps {
   onSourceLangChange: (v: SupportedLang) => void;
   onTargetLangChange: (v: SupportedLang) => void;
   onAgeChange: (v: AgeKey) => void;
-  onDomainChange: (v: DomainKey) => void;
-  onDomainTextChange: (v: string) => void;
+  onCategoryChange: (v: CategoryKey) => void;
+  onCategoryTextChange: (v: string) => void;
   loading: boolean;
   courseGenStep: string | null;
   /** Structured per-chapter progress driven by SSE events from
@@ -90,9 +90,9 @@ export interface CourseShelfProps {
 
 export const CourseShelf = ({
   uiLang, refreshKey = 0, onLoad,
-  sourceLang, targetLang, ageGroup, domainText, courseInput, onCourseInputChange,
+  sourceLang, targetLang, ageGroup, categoryText, courseInput, onCourseInputChange,
   generateAudio, generateImages, onGenerateAudioChange, onGenerateImagesChange,
-  onSourceLangChange, onTargetLangChange, onAgeChange, onDomainChange, onDomainTextChange,
+  onSourceLangChange, onTargetLangChange, onAgeChange, onCategoryChange, onCategoryTextChange,
   loading, courseGenStep, courseGenProgress, fetchError, keyError, onGenerate, onOpenSettings, onClearKeyError,
 }: CourseShelfProps) => {
   const [items, setItems] = useState<CourseSummary[] | null>(null);
@@ -287,7 +287,7 @@ export const CourseShelf = ({
                 </div>
               </div>
 
-              {/* Age + Domain */}
+              {/* Age + Category */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b border-slate-100">
                 <div className="space-y-2">
                   <label htmlFor="shelf-ageGroup" className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
@@ -306,23 +306,23 @@ export const CourseShelf = ({
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label htmlFor="shelf-domain" className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
-                    <Globe className="w-3 h-3" /> {tr(uiLang, 'domainLabel')}
+                  <label htmlFor="shelf-category" className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
+                    <Globe className="w-3 h-3" /> {tr(uiLang, 'categoryLabel')}
                   </label>
                   <ComboBox
                     uiLang={uiLang}
-                    id="shelf-domain"
-                    options={AGE_DOMAINS[ageGroup].map(key => ({
+                    id="shelf-category"
+                    options={AGE_CATEGORIES[ageGroup].map(key => ({
                       value: tr('English', key),
                       label: tr(uiLang, key),
                     }))}
-                    value={findDomainKey(domainText) ? tr(uiLang, findDomainKey(domainText)!) : domainText}
+                    value={findCategoryKey(categoryText) ? tr(uiLang, findCategoryKey(categoryText)!) : categoryText}
                     onChange={(val) => {
-                      const matchedKey = findDomainKey(val);
+                      const matchedKey = findCategoryKey(val);
                       if (matchedKey) {
-                        onDomainChange(matchedKey);
+                        onCategoryChange(matchedKey);
                       } else {
-                        onDomainTextChange(val);
+                        onCategoryTextChange(val);
                       }
                     }}
                     placeholder={tr(uiLang, 'comboSearchPlaceholder')}

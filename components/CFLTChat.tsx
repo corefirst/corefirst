@@ -81,7 +81,7 @@ const DEFAULT_SCENARIO = '';
 interface PackListItem {
   id: string;
   name: string;
-  domain: string;
+  category: string;
   sourceLang: string;
   defaultInputMode: 'free' | 'crst';
   promptPreview: string;
@@ -189,15 +189,15 @@ export const CFLTChat = ({ sourceLang, targetLang, uiLang: uiLangProp, packageSl
     setPromptSaving(true);
     try {
       if (selectedPackId && activePack) {
-        const updated = { schemaVersion: '2.0' as const, id: activePack.id, name: activePack.name, domain: activePack.domain, sourceLang: activePack.sourceLang, defaultInputMode: activePack.defaultInputMode, prompt: draft };
+        const updated = { schemaVersion: '2.0' as const, id: activePack.id, name: activePack.name, category: activePack.category, sourceLang: activePack.sourceLang, defaultInputMode: activePack.defaultInputMode, prompt: draft };
         await fetch(`/api/roleplay-packs/${encodeURIComponent(selectedPackId)}`, { method: 'PUT', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify(updated) });
         const r = await fetch('/api/roleplay-packs', { headers: getHeaders() });
         if (r.ok) { const d = await r.json(); if (Array.isArray(d.packs)) setPacks(d.packs); }
       } else {
         const ar = await fetch('/api/roleplay-packs/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify({ prompt: draft }) });
-        const { name, domain } = ar.ok ? await ar.json() : { name: 'My Pack', domain: 'General / Life' };
+        const { name, category } = ar.ok ? await ar.json() : { name: 'My Pack', category: 'General / Life' };
         const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + Date.now().toString(36);
-        const newPack = { schemaVersion: '2.0' as const, id, name, domain, sourceLang, prompt: draft, defaultInputMode: 'free' as const };
+        const newPack = { schemaVersion: '2.0' as const, id, name, category, sourceLang, prompt: draft, defaultInputMode: 'free' as const };
         await fetch('/api/roleplay-packs', { method: 'POST', headers: { 'Content-Type': 'application/json', ...getHeaders() }, body: JSON.stringify(newPack) });
         const r = await fetch('/api/roleplay-packs', { headers: getHeaders() });
         if (r.ok) { const d = await r.json(); if (Array.isArray(d.packs)) setPacks(d.packs); }

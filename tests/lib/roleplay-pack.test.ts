@@ -10,7 +10,7 @@ const makeMinimalPack = (id: string): RoleplayPack => ({
   schemaVersion: '2.0',
   id,
   name: `Test Pack ${id}`,
-  domain: 'Testing',
+  category: 'Testing',
   sourceLang: 'Chinese',
   prompt: 'You are a test coach. Keep it simple.',
   defaultInputMode: 'free',
@@ -120,10 +120,10 @@ describe('renderForRoleplay injector', () => {
     expect(result.packSection).toBe(pack.prompt);
   });
 
-  it('derives context from pack name and domain', () => {
+  it('derives context from pack name and category', () => {
     const pack = makeMinimalPack('ctx-test');
     const result = renderForRoleplay(pack);
     expect(result.derivedContext).toContain(pack.name);
-    expect(result.derivedContext).toContain(pack.domain);
+    expect(result.derivedContext).toContain(pack.category);
   });
 });

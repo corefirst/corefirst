@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Loader2, AlertCircle, BookOpen, Clock, FolderOpen, Trash2, Pencil, Check, X, Download, ChevronDown } from 'lucide-react';
-import { t as tr, type SupportedLang, localizeLang, findAgeKey, findDomainKey } from '../src/lib/ui-i18n';
+import { t as tr, type SupportedLang, localizeLang, findAgeKey, findCategoryKey } from '../src/lib/ui-i18n';
 import type { CoursewareManifest } from '../src/types/courseware';
 import { HISTORY_PAGE_SIZE } from '../src/lib/constants';
 
@@ -11,7 +11,7 @@ interface CourseSummary {
   packageId: string;
   topic: string;
   ageGroup: string;
-  domain: string;
+  category: string;
   sourceLang: string;
   targetLang: string;
   createdAt: string;
@@ -228,9 +228,9 @@ export const CourseHistory = ({ uiLang, refreshKey = 0, onLoad }: Props) => {
                   )}
                   <p className="text-xs text-slate-500 mt-1 truncate">
                     {(() => {
-                      const dKey = findDomainKey(course.domain);
+                      const dKey = findCategoryKey(course.category);
                       const aKey = findAgeKey(course.ageGroup);
-                      const dLabel = dKey ? tr(uiLang, dKey) : course.domain;
+                      const dLabel = dKey ? tr(uiLang, dKey) : course.category;
                       const aLabel = aKey ? tr(uiLang, aKey) : course.ageGroup;
                       return `${dLabel} · ${aLabel}`;
                     })()}

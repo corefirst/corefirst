@@ -44,7 +44,7 @@ export type DictKey =
   | 'historyContextLabel' | 'historyExpand' | 'historyCollapse'
   | 'historyTopicLabel' | 'historyLoadCourse' | 'historyLessonCount'
   // Form
-  | 'sourceLangLabel' | 'targetLangLabel' | 'ageGroupLabel' | 'domainLabel'
+  | 'sourceLangLabel' | 'targetLangLabel' | 'ageGroupLabel' | 'categoryLabel'
   | 'transformPlaceholder' | 'coursePlaceholder'
   | 'btnTransform' | 'btnGenerateCourse'
   | 'submitHint'
@@ -91,10 +91,10 @@ export type DictKey =
   | 'langEnglish' | 'langChinese' | 'langJapanese' | 'langKorean' | 'langVietnamese' | 'langSpanish' | 'langFrench' | 'langGerman'
   // Age groups
   | 'ageChild' | 'ageYoung' | 'ageTeen' | 'ageAdult'
-  // Industries
-  | 'indGeneral' | 'indIT' | 'indMedical' | 'indBusiness' | 'indLegal' | 'indEducation' | 'indDesign' | 'indSales' | 'indTravel' | 'indLogistics' | 'indWorkplace'
-  | 'indSchool' | 'indHobby' | 'indSports' | 'indSocial'
-  | 'indStories' | 'indAnimals' | 'indArts' | 'indMusic'
+  // Categories
+  | 'catGeneral' | 'catIT' | 'catMedical' | 'catBusiness' | 'catLegal' | 'catEducation' | 'catDesign' | 'catSales' | 'catTravel' | 'catLogistics' | 'catWorkplace'
+  | 'catSchool' | 'catHobby' | 'catSports' | 'catSocial'
+  | 'catStories' | 'catAnimals' | 'catArts' | 'catMusic'
   // Profiles / Settings / Misc
   | 'profiles'
   | 'profile'
@@ -210,7 +210,7 @@ const en: Dict = {
   historyLoadCourse: 'Open',
   historyLessonCount: (n) => `${n} lesson${Number(n) === 1 ? '' : 's'}`,
   sourceLangLabel: 'Native Language', targetLangLabel: 'Target Language',
-  ageGroupLabel: 'Target Age Group', domainLabel: 'Domain',
+  ageGroupLabel: 'Target Age Group', categoryLabel: 'Category',
   transformPlaceholder: 'Enter a sentence...',
   coursePlaceholder: 'Enter a topic (e.g., At the Zoo, Business Meeting)',
   btnTransform: 'Transform', btnGenerateCourse: 'Generate Course',
@@ -294,9 +294,9 @@ const en: Dict = {
   langKorean: 'Korean', langVietnamese: 'Vietnamese',
   langSpanish: 'Spanish', langFrench: 'French', langGerman: 'German',
   ageChild: 'Young Child (Under 12)', ageYoung: 'Young Learner (Age 12+)', ageTeen: 'Teenager', ageAdult: 'Adult / Professional',
-  indGeneral: 'General / Life', indIT: 'IT / Software Engineering', indMedical: 'Medical / Healthcare', indBusiness: 'Business / Finance', indLegal: 'Legal / Law', indEducation: 'Education / Teaching', indDesign: 'Design & Creative', indSales: 'Sales & Marketing', indTravel: 'Travel & Hospitality', indLogistics: 'Logistics & Operations', indWorkplace: 'Workplace Communication',
-  indSchool: 'School & Campus', indHobby: 'Hobbies & Leisure', indSports: 'Sports & Fitness', indSocial: 'Social & Daily Chat',
-  indStories: 'Stories / Fairy Tales', indAnimals: 'Animals / Nature', indArts: 'Arts & Crafts', indMusic: 'Music / Songs',
+  catGeneral: 'General / Life', catIT: 'IT / Software Engineering', catMedical: 'Medical / Healthcare', catBusiness: 'Business / Finance', catLegal: 'Legal / Law', catEducation: 'Education / Teaching', catDesign: 'Design & Creative', catSales: 'Sales & Marketing', catTravel: 'Travel & Hospitality', catLogistics: 'Logistics & Operations', catWorkplace: 'Workplace Communication',
+  catSchool: 'School & Campus', catHobby: 'Hobbies & Leisure', catSports: 'Sports & Fitness', catSocial: 'Social & Daily Chat',
+  catStories: 'Stories / Fairy Tales', catAnimals: 'Animals / Nature', catArts: 'Arts & Crafts', catMusic: 'Music / Songs',
   unused: 'unused', vocabUsed: 'Used in conversation', vocabTryUsing: 'Try using these', vocabAllCaughtUp: 'All caught up!', vocabNoDue: 'No vocabulary due for review right now.', vocabMeaning: 'Meaning', vocabDidYouKnow: 'Did you know it?', vocabKnew: 'Knew', vocabMissed: 'Missed',
   vocabTapToReveal: (lang) => 'Tap to reveal the ' + lang + ' word', vocabFlipToReveal: 'Flip to reveal',
   skillName: 'Skill name', template: 'Template', valid: 'Valid', syntaxError: 'Syntax error', skills: 'Skills', skillsSubtitle: 'Customize AI prompts per feature', skillSystemDefault: 'System default',
@@ -445,7 +445,7 @@ const zh: Dict = {
   historyLoadCourse: '打开',
   historyLessonCount: (n) => `${n} 节课`,
   sourceLangLabel: '母语', targetLangLabel: '目标语',
-  ageGroupLabel: '目标年龄段', domainLabel: '领域',
+  ageGroupLabel: '目标年龄段', categoryLabel: '分类',
   transformPlaceholder: '输入一句话...',
   coursePlaceholder: '输入主题（例如：动物园、商务会议）',
   btnTransform: '转换', btnGenerateCourse: '生成课程',
@@ -529,9 +529,9 @@ const zh: Dict = {
   langKorean: '韩语', langVietnamese: '越南语',
   langSpanish: '西班牙语', langFrench: '法语', langGerman: '德语',
   ageChild: '儿童 (12岁以下)', ageYoung: '青少年 (12岁+)', ageTeen: '青年', ageAdult: '成人 / 职场',
-  indGeneral: '通用 / 生活', indIT: 'IT / 软件工程', indMedical: '医疗 / 健康', indBusiness: '商务 / 金融', indLegal: '法律 / 法务', indEducation: '教育 / 教学', indDesign: '设计 / 创意', indSales: '销售 / 营销', indTravel: '旅游 / 酒店', indLogistics: '物流 / 运营', indWorkplace: '职场沟通',
-  indSchool: '学校 / 学业', indHobby: '爱好 / 兴趣', indSports: '体育 / 运动', indSocial: '社交 / 日常生活',
-  indStories: '故事 / 童话', indAnimals: '动物 / 自然', indArts: '艺术 / 手工', indMusic: '音乐 / 歌曲',
+  catGeneral: '通用 / 生活', catIT: 'IT / 软件工程', catMedical: '医疗 / 健康', catBusiness: '商务 / 金融', catLegal: '法律 / 法务', catEducation: '教育 / 教学', catDesign: '设计 / 创意', catSales: '销售 / 营销', catTravel: '旅游 / 酒店', catLogistics: '物流 / 运营', catWorkplace: '职场沟通',
+  catSchool: '学校 / 学业', catHobby: '爱好 / 兴趣', catSports: '体育 / 运动', catSocial: '社交 / 日常生活',
+  catStories: '故事 / 童话', catAnimals: '动物 / 自然', catArts: '艺术 / 手工', catMusic: '音乐 / 歌曲',
   unused: '未使用', vocabUsed: '对话中已使用', vocabTryUsing: '尝试使用这些', vocabAllCaughtUp: '全搞定了！', vocabNoDue: '现在没有待复习的词汇。', vocabMeaning: '含义', vocabDidYouKnow: '你刚才想到了吗？', vocabKnew: '记得', vocabMissed: '不记得',
   vocabTapToReveal: (lang) => '点击查看' + lang + '词汇', vocabFlipToReveal: '翻转查看',
   skillName: '技能名称', template: '模板', valid: '有效', syntaxError: '语法错误', skills: '技能', skillsSubtitle: '为每个功能自定义 AI 提示词', skillSystemDefault: '系统默认',
@@ -678,7 +678,7 @@ const ja: Dict = {
   historyLoadCourse: '開く',
   historyLessonCount: (n) => `${n}レッスン`,
   sourceLangLabel: '母語', targetLangLabel: '学習言語',
-  ageGroupLabel: '対象年齢層', domainLabel: '分野',
+  ageGroupLabel: '対象年齢層', categoryLabel: '分野',
   transformPlaceholder: '文を入力してください...',
   coursePlaceholder: 'トピックを入力（例：動物園、ビジネス会議）',
   btnTransform: '変換', btnGenerateCourse: 'コースを生成',
@@ -762,9 +762,9 @@ const ja: Dict = {
   langKorean: '韓国語', langVietnamese: 'ベトナム語',
   langSpanish: 'スペイン語', langFrench: 'フランス語', langGerman: 'ドイツ語',
   ageChild: '幼児（12歳未満）', ageYoung: '若い学習者（12歳以上）', ageTeen: 'ティーンエイジャー', ageAdult: '成人 / 社会人',
-  indGeneral: '日常 / 生活', indIT: 'IT / ソフトウェアエンジニアリング', indMedical: '医療 / ヘルスケア', indBusiness: 'ビジネス / 金融', indLegal: '法律 / リーガル', indEducation: '教育 / 指導', indDesign: 'デザイン / クリエイティブ', indSales: '営業 / マーケティング', indTravel: '旅行 / ホスピタリティ', indLogistics: '物流 / オペレーション', indWorkplace: '職場コミュニケーション',
-  indSchool: '学校 / 学業', indHobby: '趣味 / 関心', indSports: 'スポーツ / レクリエーション', indSocial: '社交 / 日常生活',
-  indStories: '物語 / おとぎ話', indAnimals: '動物 / 自然', indArts: 'アート / 工作', indMusic: '音楽 / 歌',
+  catGeneral: '日常 / 生活', catIT: 'IT / ソフトウェアエンジニアリング', catMedical: '医療 / ヘルスケア', catBusiness: 'ビジネス / 金融', catLegal: '法律 / リーガル', catEducation: '教育 / 指導', catDesign: 'デザイン / クリエイティブ', catSales: '営業 / マーケティング', catTravel: '旅行 / ホスピタリティ', catLogistics: '物流 / オペレーション', catWorkplace: '職場コミュニケーション',
+  catSchool: '学校 / 学業', catHobby: '趣味 / 関心', catSports: 'スポーツ / レクリエーション', catSocial: '社交 / 日常生活',
+  catStories: '物語 / おとぎ話', catAnimals: '動物 / 自然', catArts: 'アート / 工作', catMusic: '音楽 / 歌',
   profiles: 'プロファイル', profile: 'プロフィール', providers: 'AI 設定', unused: '未使用', vocabUsed: '会話で使用済み', vocabTryUsing: 'これらを使ってみましょう', vocabAllCaughtUp: 'すべて完了！', vocabNoDue: '現在復習が必要な語彙はありません。', vocabMeaning: '意味', vocabDidYouKnow: '今の単語、わかりましたか？', vocabKnew: 'わかった', vocabMissed: 'わからなかった',
   vocabTapToReveal: (lang) => 'タップして' + lang + 'の単語を表示', vocabFlipToReveal: 'タップして表示',
   skillName: 'スキル名', template: 'テンプレート', valid: '有効', syntaxError: '構文エラー', skills: 'スキル', skillsSubtitle: '機能ごとに AI プロンプトをカスタマイズ', skillSystemDefault: 'システムデフォルト',
@@ -851,7 +851,7 @@ const ko: Dict = {
   historyLoadCourse: '열기',
   historyLessonCount: (n) => `${n}개 레슨`,
   sourceLangLabel: '모국어', targetLangLabel: '학습 언어',
-  ageGroupLabel: '대상 연령대', domainLabel: '분야',
+  ageGroupLabel: '대상 연령대', categoryLabel: '분야',
   transformPlaceholder: '문장을 입력하세요...',
   coursePlaceholder: '주제를 입력하세요 (예: 동물원, 비즈니스 회의)',
   btnTransform: '변환', btnGenerateCourse: '코스 생성',
@@ -935,9 +935,9 @@ const ko: Dict = {
   langKorean: '한국어', langVietnamese: '베트남어',
   langSpanish: '스페인어', langFrench: '프랑스어', langGerman: '독일어',
   ageChild: '유아 (12세 미만)', ageYoung: '어린 학습자 (12세 이상)', ageTeen: '청소년', ageAdult: '성인 / 직장인',
-  indGeneral: '일반 / 생활', indIT: 'IT / 소프트웨어 엔지니어링', indMedical: '의료 / 헬스케어', indBusiness: '비즈니스 / 금융', indLegal: '법률 / 법무', indEducation: '교육 / 강의', indDesign: '디자인 / 크리에이티브', indSales: '영업 / 마케팅', indTravel: '여행 / 호스피탈리티', indLogistics: '물류 / 운영', indWorkplace: '직장 커뮤니케이션',
-  indSchool: '학교 / 학업', indHobby: '취미 / 관심사', indSports: '스포츠 / 레크리에이션', indSocial: '사교 / 일상생활',
-  indStories: '이야기 / 동화', indAnimals: '동물 / 자연', indArts: '미술 / 공예', indMusic: '음악 / 노래',
+  catGeneral: '일반 / 생활', catIT: 'IT / 소프트웨어 엔지니어링', catMedical: '의료 / 헬스케어', catBusiness: '비즈니스 / 금융', catLegal: '법률 / 법무', catEducation: '교육 / 강의', catDesign: '디자인 / 크리에이티브', catSales: '영업 / 마케팅', catTravel: '여행 / 호스피탈리티', catLogistics: '물류 / 운영', catWorkplace: '직장 커뮤니케이션',
+  catSchool: '학교 / 학업', catHobby: '취미 / 관심사', catSports: '스포츠 / 레크리에이션', catSocial: '사교 / 일상생활',
+  catStories: '이야기 / 동화', catAnimals: '동물 / 자연', catArts: '미술 / 공예', catMusic: '음악 / 노래',
   profiles: '프로필', profile: '프로필', providers: 'AI 설정', unused: '미사용', vocabUsed: '대화에서 사용됨', vocabTryUsing: '이 단어들을 사용해 보세요', vocabAllCaughtUp: '모두 완료했습니다!', vocabNoDue: '지금은 복습할 어휘가 없습니다.', vocabMeaning: '의미', vocabDidYouKnow: '이 단어를 알고 있었나요?', vocabKnew: '알고 있음', vocabMissed: '모름',
   vocabTapToReveal: (lang) => '탭하여 ' + lang + ' 단어 보기', vocabFlipToReveal: '탭하여 보기',
   skillName: '스킬 이름', template: '템플릿', valid: '유효', syntaxError: '구문 오류', skills: '스킬', skillsSubtitle: '기능별 AI 프롬프트 사용자 정의', skillSystemDefault: '시스템 기본값',
@@ -1024,7 +1024,7 @@ const vi: Dict = {
   historyLoadCourse: 'Mở',
   historyLessonCount: (n) => `${n} bài học`,
   sourceLangLabel: 'Tiếng mẹ đẻ', targetLangLabel: 'Ngôn ngữ học',
-  ageGroupLabel: 'Độ tuổi mục tiêu', domainLabel: 'Lĩnh vực',
+  ageGroupLabel: 'Độ tuổi mục tiêu', categoryLabel: 'Lĩnh vực',
   transformPlaceholder: 'Nhập một câu...',
   coursePlaceholder: 'Nhập chủ đề (ví dụ: Sở thú, Họp công việc)',
   btnTransform: 'Chuyển đổi', btnGenerateCourse: 'Tạo khóa học',
@@ -1108,9 +1108,9 @@ const vi: Dict = {
   langKorean: 'tiếng Hàn', langVietnamese: 'tiếng Việt',
   langSpanish: 'tiếng Tây Ban Nha', langFrench: 'tiếng Pháp', langGerman: 'tiếng Đức',
   ageChild: 'Trẻ nhỏ (Dưới 12 tuổi)', ageYoung: 'Học viên trẻ (12 tuổi trở lên)', ageTeen: 'Thanh thiếu niên', ageAdult: 'Người lớn / Người đi làm',
-  indGeneral: 'Tổng quát / Cuộc sống', indIT: 'CNTT / Kỹ thuật phần mềm', indMedical: 'Y tế / Chăm sóc sức khỏe', indBusiness: 'Kinh doanh / Tài chính', indLegal: 'Pháp lý / Luật', indEducation: 'Giáo dục / Giảng dạy', indDesign: 'Thiết kế / Sáng tạo', indSales: 'Bán hàng / Marketing', indTravel: 'Du lịch / Khách sạn', indLogistics: 'Logistics / Vận hành', indWorkplace: 'Giao tiếp công sở',
-  indSchool: 'Trường học / Học thuật', indHobby: 'Sở thích / Đam mê', indSports: 'Thể thao / Giải trí', indSocial: 'Xã hội / Đời sống',
-  indStories: 'Truyện / Cổ tích', indAnimals: 'Động vật / Thiên nhiên', indArts: 'Nghệ thuật / Thủ công', indMusic: 'Âm nhạc / Bài hát',
+  catGeneral: 'Tổng quát / Cuộc sống', catIT: 'CNTT / Kỹ thuật phần mềm', catMedical: 'Y tế / Chăm sóc sức khỏe', catBusiness: 'Kinh doanh / Tài chính', catLegal: 'Pháp lý / Luật', catEducation: 'Giáo dục / Giảng dạy', catDesign: 'Thiết kế / Sáng tạo', catSales: 'Bán hàng / Marketing', catTravel: 'Du lịch / Khách sạn', catLogistics: 'Logistics / Vận hành', catWorkplace: 'Giao tiếp công sở',
+  catSchool: 'Trường học / Học thuật', catHobby: 'Sở thích / Đam mê', catSports: 'Thể thao / Giải trí', catSocial: 'Xã hội / Đời sống',
+  catStories: 'Truyện / Cổ tích', catAnimals: 'Động vật / Thiên nhiên', catArts: 'Nghệ thuật / Thủ công', catMusic: 'Âm nhạc / Bài hát',
   profiles: 'Hồ sơ', profile: 'Hồ sơ', providers: 'Cài đặt AI', unused: 'chưa dùng', vocabUsed: 'Đã dùng trong hội thoại', vocabTryUsing: 'Hãy thử dùng những từ này', vocabAllCaughtUp: 'Đã hoàn thành tất cả!', vocabNoDue: 'Hiện tại không có từ vựng nào cần ôn tập.', vocabMeaning: 'Ý nghĩa', vocabDidYouKnow: 'Bạn có biết từ này không?', vocabKnew: 'Đã biết', vocabMissed: 'Chưa biết',
   vocabTapToReveal: (lang) => 'Nhấn để xem từ ' + lang, vocabFlipToReveal: 'Nhấn để xem',
   skillName: 'Tên kỹ năng', template: 'Mẫu', valid: 'Hợp lệ', syntaxError: 'Lỗi cú pháp', skills: 'Kỹ năng', skillsSubtitle: 'Tùy chỉnh gợi ý AI cho từng tính năng', skillSystemDefault: 'Mặc định hệ thống',
@@ -1196,7 +1196,7 @@ const es: Dict = {
   historyLoadCourse: 'Abrir',
   historyLessonCount: (n) => `${n} lecci${Number(n) === 1 ? 'ón' : 'ones'}`,
   sourceLangLabel: 'Idioma nativo', targetLangLabel: 'Idioma de destino',
-  ageGroupLabel: 'Grupo de edad objetivo', domainLabel: 'Dominio',
+  ageGroupLabel: 'Grupo de edad objetivo', categoryLabel: 'Categoría',
   transformPlaceholder: 'Ingresa una oración...',
   coursePlaceholder: 'Ingresa un tema (ej., En el zoológico, Reunión de negocios)',
   btnTransform: 'Transformar', btnGenerateCourse: 'Generar curso',
@@ -1280,9 +1280,9 @@ const es: Dict = {
   langKorean: 'Coreano', langVietnamese: 'Vietnamita',
   langSpanish: 'Español', langFrench: 'Francés', langGerman: 'Alemán',
   ageChild: 'Niño pequeño (Menos de 12)', ageYoung: 'Joven (12+)', ageTeen: 'Adolescente', ageAdult: 'Adulto / Profesional',
-  indGeneral: 'General / Vida', indIT: 'TI / Ingeniería de software', indMedical: 'Médico / Salud', indBusiness: 'Negocios / Finanzas', indLegal: 'Legal / Derecho', indEducation: 'Educación / Enseñanza', indDesign: 'Diseño y Creatividad', indSales: 'Ventas y Marketing', indTravel: 'Viajes y Hospitalidad', indLogistics: 'Logística y Operaciones', indWorkplace: 'Comunicación en el trabajo',
-  indSchool: 'Escuela y Campus', indHobby: 'Pasatiempos y Ocio', indSports: 'Deportes y Fitness', indSocial: 'Social y Charla diaria',
-  indStories: 'Historias / Cuentos de hadas', indAnimals: 'Animales / Naturaleza', indArts: 'Artes y Manualidades', indMusic: 'Música / Canciones',
+  catGeneral: 'General / Vida', catIT: 'TI / Ingeniería de software', catMedical: 'Médico / Salud', catBusiness: 'Negocios / Finanzas', catLegal: 'Legal / Derecho', catEducation: 'Educación / Enseñanza', catDesign: 'Diseño y Creatividad', catSales: 'Ventas y Marketing', catTravel: 'Viajes y Hospitalidad', catLogistics: 'Logística y Operaciones', catWorkplace: 'Comunicación en el trabajo',
+  catSchool: 'Escuela y Campus', catHobby: 'Pasatiempos y Ocio', catSports: 'Deportes y Fitness', catSocial: 'Social y Charla diaria',
+  catStories: 'Historias / Cuentos de hadas', catAnimals: 'Animales / Naturaleza', catArts: 'Artes y Manualidades', catMusic: 'Música / Canciones',
   profiles: 'Perfiles', profile: 'Perfil', providers: 'Proveedores de AI', unused: 'sin usar', vocabUsed: 'Usado en conversación', vocabTryUsing: 'Intenta usar estos', vocabAllCaughtUp: '¡Todo al día!', vocabNoDue: 'No hay vocabulario pendiente de revisión en este momento.', vocabMeaning: 'Significado', vocabDidYouKnow: '¿Lo sabías?', vocabKnew: 'Lo sabía', vocabMissed: 'No lo sabía',
   vocabTapToReveal: (lang) => 'Toca para ver la palabra en ' + lang, vocabFlipToReveal: 'Girar para ver',
   skillName: 'Nombre de la habilidad', template: 'Plantilla', valid: 'Válido', syntaxError: 'Error de sintaxis', skills: 'Habilidades', skillsSubtitle: 'Personalizar instrucciones de IA por función', skillSystemDefault: 'Predeterminado del sistema',
@@ -1368,7 +1368,7 @@ const fr: Dict = {
   historyLoadCourse: 'Ouvrir',
   historyLessonCount: (n) => `${n} leçon${Number(n) === 1 ? '' : 's'}`,
   sourceLangLabel: 'Langue maternelle', targetLangLabel: 'Langue cible',
-  ageGroupLabel: 'Groupe d\'âge cible', domainLabel: 'Domaine',
+  ageGroupLabel: 'Groupe d\'âge cible', categoryLabel: 'Catégorie',
   transformPlaceholder: 'Entrez une phrase...',
   coursePlaceholder: 'Entrez un sujet (ex., Au zoo, Réunion d\'affaires)',
   btnTransform: 'Transformer', btnGenerateCourse: 'Générer un cours',
@@ -1452,9 +1452,9 @@ const fr: Dict = {
   langKorean: 'Coréen', langVietnamese: 'Vietnamien',
   langSpanish: 'Espagnol', langFrench: 'Français', langGerman: 'Allemand',
   ageChild: 'Jeune enfant (Moins de 12 ans)', ageYoung: 'Jeune (12+)', ageTeen: 'Adolescent', ageAdult: 'Adulte / Professionnel',
-  indGeneral: 'Général / Vie', indIT: 'Informatique / Ingénierie', indMedical: 'Médical / Santé', indBusiness: 'Affaires / Finance', indLegal: 'Légal / Droit', indEducation: 'Éducation / Enseignement', indDesign: 'Design & Créatif', indSales: 'Ventes & Marketing', indTravel: 'Voyage & Hôtellerie', indLogistics: 'Logistique & Opérations', indWorkplace: 'Communication au travail',
-  indSchool: 'École & Campus', indHobby: 'Loisirs & Passions', indSports: 'Sports & Fitness', indSocial: 'Social & Quotidien',
-  indStories: 'Histoires / Contes', indAnimals: 'Animaux / Nature', indArts: 'Arts & Artisanat', indMusic: 'Musique / Chansons',
+  catGeneral: 'Général / Vie', catIT: 'Informatique / Ingénierie', catMedical: 'Médical / Santé', catBusiness: 'Affaires / Finance', catLegal: 'Légal / Droit', catEducation: 'Éducation / Enseignement', catDesign: 'Design & Créatif', catSales: 'Ventes & Marketing', catTravel: 'Voyage & Hôtellerie', catLogistics: 'Logistique & Opérations', catWorkplace: 'Communication au travail',
+  catSchool: 'École & Campus', catHobby: 'Loisirs & Passions', catSports: 'Sports & Fitness', catSocial: 'Social & Quotidien',
+  catStories: 'Histoires / Contes', catAnimals: 'Animaux / Nature', catArts: 'Arts & Artisanat', catMusic: 'Musique / Chansons',
   profiles: 'Profils', profile: 'Profil', providers: "Fournisseurs d'IA", unused: 'inutilisé', vocabUsed: 'Utilisé en conversation', vocabTryUsing: 'Essayez d\'utiliser ceux-ci', vocabAllCaughtUp: 'Tout est à jour !', vocabNoDue: 'Pas de vocabulaire à réviser pour le moment.', vocabMeaning: 'Signification', vocabDidYouKnow: 'Le saviez-vous ?', vocabKnew: 'Connu', vocabMissed: 'Manqué',
   vocabTapToReveal: (lang) => 'Appuyez pour voir le mot en ' + lang, vocabFlipToReveal: 'Retourner pour voir',
   skillName: 'Nom de la compétence', template: 'Modèle', valid: 'Valide', syntaxError: 'Erreur de syntaxe', skills: 'Compétences', skillsSubtitle: 'Personnaliser les instructions IA par fonctionnalité', skillSystemDefault: 'Défaut système',
@@ -1553,7 +1553,7 @@ const de: Dict = {
   historyLoadCourse: 'Öffnen',
   historyLessonCount: (n) => `${n} Lektion${Number(n) === 1 ? '' : 'en'}`,
   sourceLangLabel: 'Muttersprache', targetLangLabel: 'Zielsprache',
-  ageGroupLabel: 'Zielaltersgruppe', domainLabel: 'Bereich',
+  ageGroupLabel: 'Zielaltersgruppe', categoryLabel: 'Kategorie',
   transformPlaceholder: 'Gib einen Satz ein...',
   coursePlaceholder: 'Gib ein Thema ein (z. B. Im Zoo, Geschäftstreffen)',
   btnTransform: 'Transformieren', btnGenerateCourse: 'Kurs erstellen',
@@ -1637,9 +1637,9 @@ const de: Dict = {
   langKorean: 'Koreanisch', langVietnamese: 'Vietnamesisch',
   langSpanish: 'Spanisch', langFrench: 'Französisch', langGerman: 'Deutsch',
   ageChild: 'Kleinkind (Unter 12)', ageYoung: 'Junger Lernender (12+)', ageTeen: 'Teenager', ageAdult: 'Erwachsener / Berufstätig',
-  indGeneral: 'Allgemein / Leben', indIT: 'IT / Softwareentwicklung', indMedical: 'Medizin / Gesundheitswesen', indBusiness: 'Wirtschaft / Finanzen', indLegal: 'Recht / Jura', indEducation: 'Bildung / Lehre', indDesign: 'Design & Kreativität', indSales: 'Vertrieb & Marketing', indTravel: 'Reisen & Gastgewerbe', indLogistics: 'Logistik & Betrieb', indWorkplace: 'Kommunikation am Arbeitsplatz',
-  indSchool: 'Schule & Campus', indHobby: 'Hobbys & Freizeit', indSports: 'Sport & Fitness', indSocial: 'Soziales & Alltag',
-  indStories: 'Geschichten / Märchen', indAnimals: 'Tiere / Natur', indArts: 'Kunst & Handwerk', indMusic: 'Musik / Lieder',
+  catGeneral: 'Allgemein / Leben', catIT: 'IT / Softwareentwicklung', catMedical: 'Medizin / Gesundheitswesen', catBusiness: 'Wirtschaft / Finanzen', catLegal: 'Recht / Jura', catEducation: 'Bildung / Lehre', catDesign: 'Design & Kreativität', catSales: 'Vertrieb & Marketing', catTravel: 'Reisen & Gastgewerbe', catLogistics: 'Logistik & Betrieb', catWorkplace: 'Kommunikation am Arbeitsplatz',
+  catSchool: 'Schule & Campus', catHobby: 'Hobbys & Freizeit', catSports: 'Sport & Fitness', catSocial: 'Soziales & Alltag',
+  catStories: 'Geschichten / Märchen', catAnimals: 'Tiere / Natur', catArts: 'Kunst & Handwerk', catMusic: 'Musik / Lieder',
   profiles: 'Profile', profile: 'Profil', providers: 'KI-Anbieter', unused: 'unbenutzt', vocabUsed: 'In Konversation verwendet', vocabTryUsing: 'Versuchen Sie diese zu verwenden', vocabAllCaughtUp: 'Alles erledigt!', vocabNoDue: 'Zurzeit stehen keine Vokabeln zur Wiederholung an.', vocabMeaning: 'Bedeutung', vocabDidYouKnow: 'Wusstest du es?', vocabKnew: 'Gewusst', vocabMissed: 'Nicht gewusst',
   vocabTapToReveal: (lang) => 'Tippen, um das ' + lang + '-Wort anzuzeigen', vocabFlipToReveal: 'Umdrehen zum Anzeigen',
   skillName: 'Skill-Name', template: 'Vorlage', valid: 'Gültig', syntaxError: 'Syntaxfehler', skills: 'Skills', skillsSubtitle: 'KI-Prompts pro Funktion anpassen', skillSystemDefault: 'Systemstandard',
@@ -1713,14 +1713,14 @@ export function defaultLangPair(uiLang: SupportedLang): { source: SupportedLang;
 export const AGE_KEYS = ['ageChild', 'ageYoung', 'ageTeen', 'ageAdult'] as const;
 export type AgeKey = typeof AGE_KEYS[number];
 
-export const DOMAIN_KEYS = ['indGeneral', 'indIT', 'indMedical', 'indBusiness', 'indLegal', 'indEducation', 'indDesign', 'indSales', 'indTravel', 'indLogistics', 'indWorkplace', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indStories', 'indAnimals', 'indArts', 'indMusic'] as const;
-export type DomainKey = typeof DOMAIN_KEYS[number];
+export const CATEGORY_KEYS = ['catGeneral', 'catIT', 'catMedical', 'catBusiness', 'catLegal', 'catEducation', 'catDesign', 'catSales', 'catTravel', 'catLogistics', 'catWorkplace', 'catSchool', 'catHobby', 'catSports', 'catSocial', 'catStories', 'catAnimals', 'catArts', 'catMusic'] as const;
+export type CategoryKey = typeof CATEGORY_KEYS[number];
 
-export const AGE_DOMAINS: Record<AgeKey, readonly DomainKey[]> = {
-  ageChild: ['indGeneral', 'indStories', 'indAnimals', 'indArts', 'indMusic', 'indSports', 'indSchool'],
-  ageYoung: ['indGeneral', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indTravel'],
-  ageTeen:  ['indGeneral', 'indSchool', 'indHobby', 'indSports', 'indSocial', 'indIT', 'indDesign', 'indTravel', 'indWorkplace'],
-  ageAdult: ['indGeneral', 'indWorkplace', 'indIT', 'indMedical', 'indBusiness', 'indLegal', 'indEducation', 'indDesign', 'indSales', 'indTravel', 'indLogistics'],
+export const AGE_CATEGORIES: Record<AgeKey, readonly CategoryKey[]> = {
+  ageChild: ['catGeneral', 'catStories', 'catAnimals', 'catArts', 'catMusic', 'catSports', 'catSchool'],
+  ageYoung: ['catGeneral', 'catSchool', 'catHobby', 'catSports', 'catSocial', 'catTravel'],
+  ageTeen:  ['catGeneral', 'catSchool', 'catHobby', 'catSports', 'catSocial', 'catIT', 'catDesign', 'catTravel', 'catWorkplace'],
+  ageAdult: ['catGeneral', 'catWorkplace', 'catIT', 'catMedical', 'catBusiness', 'catLegal', 'catEducation', 'catDesign', 'catSales', 'catTravel', 'catLogistics'],
 };
 
 /** Maps any localized age display string back to its canonical key. */
@@ -1733,10 +1733,10 @@ export function findAgeKey(value: string): AgeKey | undefined {
   return undefined;
 }
 
-/** Maps any localized domain display string back to its canonical key (undefined for custom values). */
-export function findDomainKey(value: string): DomainKey | undefined {
+/** Maps any localized category display string back to its canonical key (undefined for custom values). */
+export function findCategoryKey(value: string): CategoryKey | undefined {
   for (const lang of SUPPORTED_LANGS) {
-    for (const key of DOMAIN_KEYS) {
+    for (const key of CATEGORY_KEYS) {
       if (t(lang, key) === value) return key;
     }
   }
